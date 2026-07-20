@@ -3,100 +3,74 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Absensi Multi Mapel SMK</title>
-  <link rel="manifest" href="manifest.json">
+  <title>Aplikasi Absensi Siswa</title>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
   <link rel="stylesheet" href="style.css">
-  <meta name="theme-color" content="#2563eb">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <!-- Supress favicon 404 error -->
+  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
 </head>
-<body>
+<body class="bg-gray-100 min-h-screen font-sans">
 
-  <header class="app-header">
-    <div class="header-content">
-      <h1>Absensi Multi Mapel</h1>
-      <div class="header-right">
-        <span id="status-mode" class="badge badge-info">Silakan Login</span>
-        <button id="btn-logout" class="btn-logout hidden">Keluar</button>
+  <!-- ================= HALAMAN LOGIN ================= -->
+  <div id="halaman-login" class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-md mt-20 transition-all duration-300">
+    <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Login Guru</h2>
+    
+    <!-- Box Notifikasi Alert -->
+    <div id="alert-login" class="hidden p-3 rounded-lg text-sm mb-4"></div>
+    
+    <form id="form-login" class="space-y-4">
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Username</label>
+        <input type="text" id="input-username" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900">
       </div>
-    </div>
-  </header>
-
-  <main class="app-container">
-    <!-- Halaman Login Guru (Muncul Pertama Kali) -->
-    <section id="login-section" class="card">
-      <div class="section-title">
-        <h2>Login Guru Pengajar</h2>
+      
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Password</label>
+        <input type="password" id="input-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900">
       </div>
-      <form id="form-login">
-        <div class="form-group">
-          <label for="input-username">Username</label>
-          <input type="text" id="input-username" required placeholder="Masukkan username">
-        </div>
-        <div class="form-group">
-          <label for="input-password">Password</label>
-          <input type="password" id="input-password" required placeholder="••••••••">
-        </div>
-        <button type="submit" id="btn-login-submit" class="btn-submit">
-          <span id="text-login-btn">Masuk Aplikasi</span>
-          <div id="spinner-login" class="spinner-btn hidden"></div>
-        </button>
-      </form>
-    </section>
+      
+      <button type="submit" id="btn-login-submit" class="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
+        <!-- Spinner Loading (Hidden by default) -->
+        <svg id="spinner-login" class="hidden animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <span id="text-login-btn">Masuk Aplikasi</span>
+      </button>
+    </form>
+  </div>
 
-    <!-- Halaman Utama Aplikasi (Terbuka setelah Login Sukses) -->
-    <div id="main-app" class="hidden">
-      <!-- Section Filter Hak Akses & Parameter -->
-      <section class="card filter-section">
-        <div class="form-group">
-          <label for="display-guru">Nama Guru</label>
-          <input type="text" id="display-guru" disabled style="background:#f1f5f9;">
-        </div>
-        
-        <div class="form-group">
-          <label for="select-mapel">Mata Pelajaran</label>
-          <select id="select-mapel" disabled>
-            <option value="">-- Pilih Mapel --</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="select-kelas">Pilih Kelas</label>
-          <select id="select-kelas" disabled>
-            <option value="">-- Pilih Kelas --</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label for="input-tanggal">Tanggal Pertemuan</label>
-          <input type="date" id="input-tanggal">
-        </div>
-      </section>
-
-      <!-- Area Notifikasi & Indikator Loading Data Siswa -->
-      <div id="loader" class="loader hidden"></div>
-      <div id="alert-msg" class="alert hidden"></div>
-
-      <!-- Section Lembar Formulir Absensi Siswa -->
-      <section id="absensi-section" class="hidden">
-        <div class="section-title">
-          <h2>Daftar Siswa</h2>
-          <span id="total-siswa" class="badge-count">0 Siswa</span>
-        </div>
-        
-        <form id="form-absensi">
-          <!-- Item kartu per siswa akan di-render dinamis oleh JavaScript -->
-          <div id="container-siswa" class="list-siswa"></div>
-          
-          <button type="submit" id="btn-simpan" class="btn-submit">
-            <span>Simpan Absensi</span>
-          </button>
-        </form>
-      </section>
+  <!-- ================= HALAMAN UTAMA (DASHBOARD) ================= -->
+  <div id="halaman-utama" class="hidden max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-md mt-10 transition-all duration-300">
+    <div class="flex justify-between items-center border-b pb-4 mb-6">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800">Dashboard Absensi</h1>
+        <p class="text-sm text-gray-500">Selamat datang, <span id="nama-guru-display" class="font-semibold text-indigo-600">Guru</span></p>
+      </div>
+      <button id="btn-logout" class="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md border border-red-200 transition-colors">Keluar</button>
     </div>
-  </main>
 
+    <!-- Form Isi Absensi Kerja Guru -->
+    <form id="form-absensi" class="space-y-4">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Pilih Mata Pelajaran</label>
+          <select id="select-mapel" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"></select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700">Pilih Kelas</label>
+          <select id="select-kelas" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"></select>
+        </div>
+      </div>
+      
+      <div class="pt-4">
+        <p class="text-sm text-gray-500 italic">*Menu pengisian daftar nama siswa akan memfilter otomatis setelah backend dihubungkan lebih lanjut.</p>
+      </div>
+    </form>
+  </div>
+
+  <!-- Script Logika Aplikasi -->
   <script src="script.js"></script>
 </body>
 </html>
