@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aplikasi Absensi Sekolah</title>
     <style>
-        :root {
-            --primary: #4F46E5; --bg: #F3F4F6; --text: #1F2937;
-        }
+        :root { --primary: #4F46E5; --bg: #F3F4F6; --text: #1F2937; }
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; }
         
@@ -17,9 +15,10 @@
         /* Form Styling */
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-        .form-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
         button { width: 100%; padding: 10px; background-color: var(--primary); color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.3s; }
         button:hover { background-color: #4338CA; }
+        button:disabled { background-color: #9CA3AF; cursor: not-allowed; }
         
         /* Table Styling */
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
@@ -31,7 +30,7 @@
         .radio-group label { cursor: pointer; }
 
         .hidden { display: none; }
-        .header-info { background: #E0E7FF; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .header-info { background: #E0E7FF; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
         #loading { text-align: center; font-weight: bold; margin-top: 15px; color: var(--primary); }
     </style>
 </head>
@@ -58,16 +57,29 @@
 
     <!-- HALAMAN DASHBOARD -->
     <div id="dashboardSection" class="hidden">
+        <button onclick="logout()" style="background-color: #EF4444; margin-bottom: 20px; width: auto; float: right;">Logout</button>
+        <div style="clear: both;"></div>
+
         <div class="header-info">
-            <h3 id="greeting">Selamat Datang!</h3>
-            <p><strong>Mata Pelajaran:</strong> <span id="infoMapel"></span> | <strong>Kelas:</strong> <span id="infoKelas"></span></p>
+            <h3 id="greeting" style="margin-top: 0;">Selamat Datang!</h3>
+            
+            <div class="form-group">
+                <label>Pilih Mata Pelajaran:</label>
+                <select id="selectMapel" required></select>
+            </div>
+            
+            <div class="form-group">
+                <label>Pilih Kelas:</label>
+                <select id="selectKelas" required>
+                    <option value="" disabled selected>-- Pilih Kelas --</option>
+                </select>
+            </div>
+
             <div class="form-group">
                 <label>Tanggal Pertemuan:</label>
                 <input type="date" id="tanggalAbsen" required>
             </div>
         </div>
-
-        <button onclick="logout()" style="background-color: #EF4444; margin-bottom: 20px;">Logout</button>
 
         <h3>Daftar Siswa</h3>
         <div id="loading" class="hidden">Mengambil data dari server...</div>
@@ -82,10 +94,10 @@
                     </tr>
                 </thead>
                 <tbody id="studentsBody">
-                    <!-- Data siswa dimuat ke sini -->
+                    <tr><td colspan="3" style="text-align: center;">Silakan pilih kelas terlebih dahulu.</td></tr>
                 </tbody>
             </table>
-            <button type="submit" id="btnSubmit" style="margin-top: 20px;">Simpan Absensi</button>
+            <button type="submit" id="btnSubmit" style="margin-top: 20px; display: none;">Simpan Absensi</button>
         </form>
     </div>
 
@@ -101,7 +113,6 @@
     const dashboardSection = document.getElementById('dashboardSection');
     let sessionData = JSON.parse(sessionStorage.getItem('guruSession'));
 
-    // Inisialisasi Tampilan
     if (sessionData) {
         showDashboard();
     }
@@ -120,7 +131,6 @@
         try {
             const response = await fetch(GAS_URL, {
                 method: 'POST',
-                // Ingat: Kirim sebagai text/plain agar tidak kena block CORS
                 body: JSON.stringify({ action: 'login', username: user, password: pass })
             });
             const resData = await response.json();
@@ -138,25 +148,44 @@
         btn.innerText = 'Login';
     });
 
-    // --- TAMPILKAN DASHBOARD & AMBIL DATA SISWA ---
-    async function showDashboard() {
+    // --- TAMPILKAN DASHBOARD & PARSING DATA GURU ---
+    function showDashboard() {
         loginSection.classList.add('hidden');
         dashboardSection.classList.remove('hidden');
         
-        document.getElementById('greeting').innerText = `Selamat Datang, ${sessionData.nama}`;
-        document.getElementById('infoMapel').innerText = sessionData.mapel;
-        document.getElementById('infoKelas').innerText = sessionData.kelas;
-        
-        // Set tanggal hari ini default
+        document.getElementById('greeting').innerText = `Selamat Mengajar, ${sessionData.nama}`;
         document.getElementById('tanggalAbsen').valueAsDate = new Date();
 
-        fetchStudents(sessionData.kelas);
+        // Pecah string Mapel dan masukkan ke dropdown
+        const mapelArr = sessionData.mapel.split(',').map(s => s.trim());
+        const selectMapel = document.getElementById('selectMapel');
+        selectMapel.innerHTML = '';
+        mapelArr.forEach(m => {
+            selectMapel.innerHTML += `<option value="${m}">${m}</option>`;
+        });
+
+        // Pecah string Kelas dan masukkan ke dropdown
+        const kelasArr = sessionData.kelas.split(',').map(s => s.trim());
+        const selectKelas = document.getElementById('selectKelas');
+        selectKelas.innerHTML = '<option value="" disabled selected>-- Pilih Kelas --</option>';
+        kelasArr.forEach(k => {
+            selectKelas.innerHTML += `<option value="${k}">${k}</option>`;
+        });
+
+        // Event listener saat kelas diubah -> Load daftar siswa
+        selectKelas.addEventListener('change', (e) => {
+            fetchStudents(e.target.value);
+        });
     }
 
+    // --- FETCH DATA SISWA BERDASARKAN KELAS ---
     async function fetchStudents(kelas) {
         const tbody = document.getElementById('studentsBody');
         const loading = document.getElementById('loading');
+        const btnSubmit = document.getElementById('btnSubmit');
+        
         tbody.innerHTML = '';
+        btnSubmit.style.display = 'none';
         loading.classList.remove('hidden');
 
         try {
@@ -165,11 +194,11 @@
 
             loading.classList.add('hidden');
 
-            if (resData.success) {
+            if (resData.success && resData.data.length > 0) {
                 resData.data.forEach((siswa, index) => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td>${siswa.nis}</td>
+                        <td>${siswa.nis || '-'}</td>
                         <td class="nama-siswa">${siswa.nama}</td>
                         <td>
                             <div class="radio-group">
@@ -182,8 +211,9 @@
                     `;
                     tbody.appendChild(tr);
                 });
+                btnSubmit.style.display = 'block'; // Tampilkan tombol submit jika data ada
             } else {
-                tbody.innerHTML = `<tr><td colspan="3">${resData.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="3">${resData.message || 'Tidak ada data siswa.'}</td></tr>`;
             }
         } catch (error) {
             loading.classList.add('hidden');
@@ -206,8 +236,8 @@
 
         const payload = {
             guru: sessionData.nama,
-            mapel: sessionData.mapel,
-            kelas: sessionData.kelas,
+            mapel: document.getElementById('selectMapel').value, // Ambil Mapel yg dipilih
+            kelas: document.getElementById('selectKelas').value, // Ambil Kelas yg dipilih
             tanggal: document.getElementById('tanggalAbsen').value,
             attendance: attendanceData
         };
@@ -224,6 +254,7 @@
 
             if (resData.success) {
                 alert("Absensi Berhasil Disimpan!");
+                // Opsional: Reset form atau biarkan saja
             } else {
                 alert("Gagal: " + resData.message);
             }
