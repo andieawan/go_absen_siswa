@@ -2,6 +2,7 @@
 // 1. KONFIGURASI & PASANG URL BACKEND
 // ==========================================
 const API_URL = "https://script.google.com/macros/s/AKfycbyMGAl2rTMzOEVkosA-QKNrVvo69x3WZPrYgRBRcVF9JL-K1guOv-zJAWnisfCZ1t8n/exec";
+
 // ==========================================
 // 2. DEFINISI ELEMEN DOM
 // ==========================================
@@ -58,6 +59,8 @@ formLogin.addEventListener("submit", async (e) => {
   btnLoginSubmit.disabled = true;
   textLoginBtn.textContent = "Memverifikasi...";
   spinnerLogin.classList.remove("hidden");
+  
+  // Reset/Sembunyikan alert lama sebelum mencoba login kembali
   tampilkanAlert("", "clear");
   
   const payload = {
@@ -96,7 +99,7 @@ formLogin.addEventListener("submit", async (e) => {
       statusModeBadge.textContent = "Berhasil Masuk";
       statusModeBadge.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
     } else {
-      // Menampilkan alert jika username/password salah dari server
+      // Menampilkan alert jika username atau password salah dari server
       tampilkanAlert(json.message || "Username atau Password salah!", "error");
     }
   } catch (err) {
@@ -138,10 +141,10 @@ async function muatDaftarSiswa() {
       // Evaluasi apakah riwayat tanggal & mapel ini sudah terisi di server
       if (Object.keys(riwayat).length > 0) {
         statusModeBadge.textContent = "Mode Edit (Menimpa)";
-        statusModeBadge.style.backgroundColor = "#eab308"; // Kuning/Amber hangat
+        statusModeBadge.style.backgroundColor = "#eab308";
       } else {
         statusModeBadge.textContent = "Mode Input Baru";
-        statusModeBadge.style.backgroundColor = "#22c55e"; // Hijau sukses
+        statusModeBadge.style.backgroundColor = "#22c55e";
       }
       
       // Buat form radio button siswa secara dinamis
@@ -194,7 +197,6 @@ formAbsensi.addEventListener("submit", async (e) => {
   };
   
   try {
-    // Menggunakan no-cors untuk bypass 302 Redirect pada Google Apps Script
     await fetch(API_URL, { 
       method: "POST", 
       mode: "no-cors", 
@@ -202,7 +204,6 @@ formAbsensi.addEventListener("submit", async (e) => {
     });
     
     tampilkanAlert(`Absensi ${selectMapel.value} berhasil disimpan!`, "success");
-    // Refresh otomatis data guna memicu perpindahan status ke "Mode Edit"
     setTimeout(muatDaftarSiswa, 1500);
   } catch (err) { 
     tampilkanAlert("Koneksi gagal saat menyimpan data.", "error"); 
@@ -216,24 +217,18 @@ formAbsensi.addEventListener("submit", async (e) => {
 // 7. LOGIKA AUTHENTICATION: LOGOUT GURU
 // ==========================================
 btnLogout.addEventListener("click", () => {
-  // Hapus kredensial sesi lokal
   sessionGuru = null;
-  
-  // Bersihkan form input login
   formLogin.reset();
   
-  // Sembunyikan Workspace utama & Tampilkan panel login kembali
   mainApp.classList.add("hidden");
   absensiSection.classList.add("hidden");
   loginSection.classList.remove("hidden");
   tampilkanAlert("", "clear");
   
-  // Sembunyikan tombol logout & kembalikan badge status awal
   btnLogout.classList.add("hidden");
   statusModeBadge.textContent = "Silakan Login";
   statusModeBadge.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
   
-  // Sterilisasi data dropdown agar tidak bocor ke user berikutnya
   selectMapel.innerHTML = '<option value="">-- Pilih Mapel --</option>';
   selectKelas.innerHTML = '<option value="">-- Pilih Kelas --</option>';
   selectMapel.disabled = true;
@@ -252,12 +247,12 @@ function tampilkanLoading(isLoading) {
 }
 
 function tampilkanAlert(msg, type) {
-  alertMsg.className = "alert";
   if (type === "clear") { 
-    alertMsg.classList.add("hidden"); 
+    alertMsg.textContent = "";
+    alertMsg.className = "alert hidden"; 
     return; 
   }
   alertMsg.textContent = msg;
-  alertMsg.classList.remove("hidden");
+  alertMsg.className = "alert";
   alertMsg.classList.add(type === "success" ? "alert-success" : "alert-error");
 }
