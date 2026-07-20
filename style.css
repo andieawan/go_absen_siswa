@@ -62,3 +62,20 @@ input[value="Alfa"]:checked + .radio-label { background: var(--alfa); color: whi
 .btn-logout:hover {
   background: #dc2626;
 }
+/* Spinner internal untuk tombol */
+.btn-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  position: relative;
+}
+
+.spinner-btn {
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top: 3px solid #ffffff;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 0.8s linear infinite;
+}
