@@ -339,3 +339,17 @@ input[type="radio"]:checked + .radio-label.status-alfa {
     width: 280px;
   }
 }
+/* Custom utility transitions */
+#halaman-login, #halaman-utama {
+  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* Memastikan fokus border terlihat jelas */
+input:focus, select:focus {
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2) !important;
+}
