@@ -29,20 +29,22 @@ const textLoginBtn = document.getElementById("text-login-btn");
 const spinnerLogin = document.getElementById("spinner-login");
 
 // ==========================================
-// 3. STATE APLIKASI GLOBAL
+// 3. STATE APLIKASI GLOBAL & KONFIGURASI PWA
 // ==========================================
 let sessionGuru = null;
 
 // Set default tanggal hari ini (Format: YYYY-MM-DD)
 inputTanggal.value = new Date().toISOString().split('T')[0];
 
-// Inisialisasi PWA saat DOM selesai dimuat
+// KODE PWA DINONAKTIFKAN SEMENTARA UNTUK MEMUDAHKAN PENGUJIAN
+/*
 document.addEventListener("DOMContentLoaded", () => {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js')
       .catch(err => console.error("Gagal mendaftarkan Service Worker PWA:", err));
   }
 });
+*/
 
 // Pemicu Auto-Detect ketika parameter absensi diubah
 [selectKelas, selectMapel, inputTanggal].forEach(elem => {
@@ -99,7 +101,7 @@ formLogin.addEventListener("submit", async (e) => {
       statusModeBadge.textContent = "Berhasil Masuk";
       statusModeBadge.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
     } else {
-      // MENAMPILKAN ALERT JIKA USERNAME ATAU PASSWORD SALAH DARI BACKEND
+      // Menampilkan alert jika username atau password salah berdasarkan respon backend
       tampilkanAlert(json.message || "Username atau Password salah!", "error");
     }
   } catch (err) {
