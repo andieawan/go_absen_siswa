@@ -12,6 +12,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+
   <header class="app-header">
     <div class="header-content">
       <h1>Absensi Multi Mapel</h1>
@@ -23,9 +24,11 @@
   </header>
 
   <main class="app-container">
-    <!-- Halaman Login -->
+    <!-- Halaman Login Guru (Muncul Pertama Kali) -->
     <section id="login-section" class="card">
-      <div class="section-title"><h2>Login Guru Pengajar</h2></div>
+      <div class="section-title">
+        <h2>Login Guru Pengajar</h2>
+      </div>
       <form id="form-login">
         <div class="form-group">
           <label for="input-username">Username</label>
@@ -35,55 +38,65 @@
           <label for="input-password">Password</label>
           <input type="password" id="input-password" required placeholder="••••••••">
         </div>
-        
-        <!-- Ganti tombol submit lama di form-login dengan ini -->
-<button type="submit" id="btn-login-submit" class="btn-submit">
-  <span id="text-login-btn">Masuk Aplikasi</span>
-  <div id="spinner-login" class="spinner-btn hidden"></div>
-</button>
+        <button type="submit" id="btn-login-submit" class="btn-submit">
+          <span id="text-login-btn">Masuk Aplikasi</span>
+          <div id="spinner-login" class="spinner-btn hidden"></div>
+        </button>
       </form>
     </section>
 
-    <!-- Halaman Utama Aplikasi (Hidden sebelum login) -->
+    <!-- Halaman Utama Aplikasi (Terbuka setelah Login Sukses) -->
     <div id="main-app" class="hidden">
+      <!-- Section Filter Hak Akses & Parameter -->
       <section class="card filter-section">
         <div class="form-group">
-          <label>Nama Guru</label>
+          <label for="display-guru">Nama Guru</label>
           <input type="text" id="display-guru" disabled style="background:#f1f5f9;">
         </div>
+        
         <div class="form-group">
           <label for="select-mapel">Mata Pelajaran</label>
           <select id="select-mapel" disabled>
             <option value="">-- Pilih Mapel --</option>
           </select>
         </div>
+
         <div class="form-group">
           <label for="select-kelas">Pilih Kelas</label>
           <select id="select-kelas" disabled>
             <option value="">-- Pilih Kelas --</option>
           </select>
         </div>
+
         <div class="form-group">
           <label for="input-tanggal">Tanggal Pertemuan</label>
           <input type="date" id="input-tanggal">
         </div>
       </section>
 
+      <!-- Area Notifikasi & Indikator Loading Data Siswa -->
       <div id="loader" class="loader hidden"></div>
       <div id="alert-msg" class="alert hidden"></div>
 
+      <!-- Section Lembar Formulir Absensi Siswa -->
       <section id="absensi-section" class="hidden">
         <div class="section-title">
           <h2>Daftar Siswa</h2>
           <span id="total-siswa" class="badge-count">0 Siswa</span>
         </div>
+        
         <form id="form-absensi">
+          <!-- Item kartu per siswa akan di-render dinamis oleh JavaScript -->
           <div id="container-siswa" class="list-siswa"></div>
-          <button type="submit" id="btn-simpan" class="btn-submit"><span>Simpan Absensi</span></button>
+          
+          <button type="submit" id="btn-simpan" class="btn-submit">
+            <span>Simpan Absensi</span>
+          </button>
         </form>
       </section>
     </div>
   </main>
+
   <script src="script.js"></script>
 </body>
 </html>
