@@ -96,10 +96,11 @@ formLogin.addEventListener("submit", async (e) => {
       statusModeBadge.textContent = "Berhasil Masuk";
       statusModeBadge.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
     } else {
-      tampilkanAlert(json.message, "error");
+      // Menampilkan alert jika username/password salah dari server
+      tampilkanAlert(json.message || "Username atau Password salah!", "error");
     }
   } catch (err) {
-    tampilkanAlert("Gagal memproses verifikasi login.", "error");
+    tampilkanAlert("Gagal memproses verifikasi login. Periksa koneksi internet Anda.", "error");
   } finally { 
     // Kembalikan status tombol ke normal jika proses login selesai/gagal
     btnLoginSubmit.disabled = false;
@@ -137,10 +138,10 @@ async function muatDaftarSiswa() {
       // Evaluasi apakah riwayat tanggal & mapel ini sudah terisi di server
       if (Object.keys(riwayat).length > 0) {
         statusModeBadge.textContent = "Mode Edit (Menimpa)";
-        statusModeBadge.style.backgroundColor = "var(--sakit)";
+        statusModeBadge.style.backgroundColor = "#eab308"; // Kuning/Amber hangat
       } else {
         statusModeBadge.textContent = "Mode Input Baru";
-        statusModeBadge.style.backgroundColor = "var(--hadir)";
+        statusModeBadge.style.backgroundColor = "#22c55e"; // Hijau sukses
       }
       
       // Buat form radio button siswa secara dinamis
@@ -151,10 +152,10 @@ async function muatDaftarSiswa() {
         card.innerHTML = `
           <div class="siswa-nama">${nama}</div>
           <div class="radio-group">
-            <label><input type="radio" name="absen_${index}" value="Hadir" data-nama="${nama}" ${statusLama === 'Hadir' ? 'checked' : ''} required><div class="radio-label">Hadir</div></label>
-            <label><input type="radio" name="absen_${index}" value="Sakit" data-nama="${nama}" ${statusLama === 'Sakit' ? 'checked' : ''}><div class="radio-label">Sakit</div></label>
-            <label><input type="radio" name="absen_${index}" value="Izin" data-nama="${nama}" ${statusLama === 'Izin' ? 'checked' : ''}><div class="radio-label">Izin</div></label>
-            <label><input type="radio" name="absen_${index}" value="Alfa" data-nama="${nama}" ${statusLama === 'Alfa' ? 'checked' : ''}><div class="radio-label">Alfa</div></label>
+            <label><input type="radio" name="absen_${index}" value="Hadir" data-nama="${nama}" ${statusLama === 'Hadir' ? 'checked' : ''} required><div class="radio-label status-hadir">Hadir</div></label>
+            <label><input type="radio" name="absen_${index}" value="Sakit" data-nama="${nama}" ${statusLama === 'Sakit' ? 'checked' : ''}><div class="radio-label status-sakit">Sakit</div></label>
+            <label><input type="radio" name="absen_${index}" value="Izin" data-nama="${nama}" ${statusLama === 'Izin' ? 'checked' : ''}><div class="radio-label status-izin">Izin</div></label>
+            <label><input type="radio" name="absen_${index}" value="Alfa" data-nama="${nama}" ${statusLama === 'Alfa' ? 'checked' : ''}><div class="radio-label status-alfa">Alfa</div></label>
           </div>`;
         containerSiswa.appendChild(card);
       });
@@ -225,6 +226,7 @@ btnLogout.addEventListener("click", () => {
   mainApp.classList.add("hidden");
   absensiSection.classList.add("hidden");
   loginSection.classList.remove("hidden");
+  tampilkanAlert("", "clear");
   
   // Sembunyikan tombol logout & kembalikan badge status awal
   btnLogout.classList.add("hidden");
@@ -242,7 +244,11 @@ btnLogout.addEventListener("click", () => {
 // 8. HELPERS MANAJEMEN UI STATE
 // ==========================================
 function tampilkanLoading(isLoading) { 
-  loader.className = isLoading ? "loader" : "loader hidden"; 
+  if (isLoading) {
+    loader.classList.remove("hidden");
+  } else {
+    loader.classList.add("hidden");
+  }
 }
 
 function tampilkanAlert(msg, type) {
