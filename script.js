@@ -2,7 +2,6 @@
 // 1. KONFIGURASI & PASANG URL BACKEND
 // ==========================================
 const API_URL = "https://script.google.com/macros/s/AKfycbyMGAl2rTMzOEVkosA-QKNrVvo69x3WZPrYgRBRcVF9JL-K1guOv-zJAWnisfCZ1t8n/exec";
-
 // ==========================================
 // 2. DEFINISI ELEMEN DOM
 // ==========================================
@@ -22,6 +21,11 @@ const loader = document.getElementById("loader");
 const alertMsg = document.getElementById("alert-msg");
 const btnSimpan = document.getElementById("btn-simpan");
 const btnLogout = document.getElementById("btn-logout");
+
+// Elemen Loading pada Tombol Login
+const btnLoginSubmit = document.getElementById("btn-login-submit");
+const textLoginBtn = document.getElementById("text-login-btn");
+const spinnerLogin = document.getElementById("spinner-login");
 
 // ==========================================
 // 3. STATE APLIKASI GLOBAL
@@ -49,7 +53,11 @@ document.addEventListener("DOMContentLoaded", () => {
 // ==========================================
 formLogin.addEventListener("submit", async (e) => {
   e.preventDefault();
-  tampilkanLoading(true);
+  
+  // Ubah status tombol menjadi Loading
+  btnLoginSubmit.disabled = true;
+  textLoginBtn.textContent = "Memverifikasi...";
+  spinnerLogin.classList.remove("hidden");
   tampilkanAlert("", "clear");
   
   const payload = {
@@ -68,7 +76,7 @@ formLogin.addEventListener("submit", async (e) => {
     if (json.success) {
       sessionGuru = json.user;
       
-      // Manajemen UI: Buka kunci halaman utama
+      // Keamanan & Manajemen UI: Buka kunci halaman utama
       loginSection.classList.add("hidden");
       mainApp.classList.remove("hidden");
       btnLogout.classList.remove("hidden");
@@ -76,7 +84,7 @@ formLogin.addEventListener("submit", async (e) => {
       // Tampilkan identitas pengajar
       displayGuru.value = sessionGuru.nama;
       
-      // Inject pilihan Mapel dan Kelas sesuai hak akses akun
+      // Inject pilihan Mapel dan Kelas sesuai hak akses akun guru
       selectMapel.innerHTML = '<option value="">-- Pilih Mapel --</option>';
       sessionGuru.mapel.forEach(m => selectMapel.appendChild(new Option(m, m)));
       
@@ -93,7 +101,10 @@ formLogin.addEventListener("submit", async (e) => {
   } catch (err) {
     tampilkanAlert("Gagal memproses verifikasi login.", "error");
   } finally { 
-    tampilkanLoading(false); 
+    // Kembalikan status tombol ke normal jika proses login selesai/gagal
+    btnLoginSubmit.disabled = false;
+    textLoginBtn.textContent = "Masuk Aplikasi";
+    spinnerLogin.classList.add("hidden");
   }
 });
 
@@ -215,7 +226,7 @@ btnLogout.addEventListener("click", () => {
   absensiSection.classList.add("hidden");
   loginSection.classList.remove("hidden");
   
-  // Sembunyikan tombol logout & kembalikan badge status
+  // Sembunyikan tombol logout & kembalikan badge status awal
   btnLogout.classList.add("hidden");
   statusModeBadge.textContent = "Silakan Login";
   statusModeBadge.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
