@@ -6,7 +6,343 @@
   --text-main: #0f172a;
   --text-muted: #64748b;
   --border: #e2e8f0;
-  --hadir: #10b981;
+  --hadir: #10b981;/* ==========================================================================
+   RESET & VARIABEL GLOBAL
+   ========================================================================== */
+:root {
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --bg-app: #f8fafc;
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --border-color: #e2e8f0;
+  
+  /* Status Colors */
+  --hadir: #22c55e;
+  --sakit: #3b82f6;
+  --izin: #eab308;
+  --alfa: #ef4444;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: var(--bg-app);
+  color: var(--text-main);
+  line-height: 1.6;
+  padding-bottom: 40px;
+}
+
+/* ==========================================================================
+   KOMPONEN LAYOUT & HEADER
+   ========================================================================== */
+.app-header {
+  background-color: var(--primary);
+  color: #ffffff;
+  padding: 16px 20px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+  max-width: 600px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-content h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-container {
+  max-width: 600px;
+  margin: 20px auto;
+  padding: 0 16px;
+}
+
+/* ==========================================================================
+   KOMPONEN CARD & FORM
+   ========================================================================== */
+.card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 12px rgba(0,0,0,0.03);
+  margin-bottom: 20px;
+  border: 1px solid var(--border-color);
+}
+
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.section-title h2 {
+  font-size: 1.1rem;
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="date"],
+select {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: var(--text-main);
+  background-color: #ffffff;
+  transition: all 0.2s;
+}
+
+input:focus, select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* ==========================================================================
+   TOMBOL (BUTTONS) & LOADING SPINNER
+   ========================================================================== */
+.btn-submit {
+  width: 100%;
+  background-color: var(--primary);
+  color: #ffffff;
+  border: none;
+  padding: 14px;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  transition: background-color 0.2s;
+}
+
+.btn-submit:hover {
+  background-color: var(--primary-hover);
+}
+
+.btn-submit:disabled {
+  background-color: #93c5fd;
+  cursor: not-allowed;
+}
+
+.btn-logout {
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid rgba(255,255,255,0.4);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-logout:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Spinner untuk tombol login */
+.spinner-btn {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Spinner besar tengah layar */
+.loader {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--border-color);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  margin: 20px auto;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ==========================================================================
+   BADGES & ALERTS (NOTIFIKASI)
+   ========================================================================== */
+.badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge-count {
+  background-color: #f1f5f9;
+  color: var(--text-muted);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.alert {
+  padding: 12px 16px;
+  border-radius: 10px;
+  margin: 16px 0;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.alert-error {
+  background-color: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+.alert-success {
+  background-color: #f0fdf4;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+
+/* ==========================================================================
+   LIST SISWA & CUSTOM RADIO BUTTONS
+   ========================================================================== */
+.list-siswa {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.siswa-card {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.siswa-nama {
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.radio-group {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.radio-group label {
+  cursor: pointer;
+}
+
+.radio-group input[type="radio"] {
+  display: none; /* Sembunyikan radio bawaan browser */
+}
+
+.radio-label {
+  text-align: center;
+  padding: 8px 0;
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  transition: all 0.2s;
+}
+
+/* Warna interaktif saat status di-check */
+input[type="radio"]:checked + .radio-label.status-hadir {
+  background-color: var(--hadir);
+  border-color: var(--hadir);
+  color: #ffffff;
+}
+
+input[type="radio"]:checked + .radio-label.status-sakit {
+  background-color: var(--sakit);
+  border-color: var(--sakit);
+  color: #ffffff;
+}
+
+input[type="radio"]:checked + .radio-label.status-izin {
+  background-color: var(--izin);
+  border-color: var(--izin);
+  color: #ffffff;
+}
+
+input[type="radio"]:checked + .radio-label.status-alfa {
+  background-color: var(--alfa);
+  border-color: var(--alfa);
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   UTILITIES
+   ========================================================================== */
+.hidden {
+  display: none !important;
+}
+
+/* Optimalisasi Tampilan Layar Tablet/Desktop */
+@media (min-width: 480px) {
+  .siswa-card {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .siswa-nama {
+    flex: 1;
+    margin-bottom: 0;
+  }
+  
+  .radio-group {
+    width: 280px;
+  }
+}
   --sakit: #f59e0b;
   --izin: #3b82f6;
   --alfa: #ef4444;
