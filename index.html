@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Absensi Siswa PWA</title>
+  <title>Absensi Multi Mapel SMK</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="style.css">
   <meta name="theme-color" content="#2563eb">
@@ -12,53 +12,70 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-
   <header class="app-header">
     <div class="header-content">
-      <h1>Absensi Siswa</h1>
-      <span id="status-mode" class="badge badge-info">Memuat...</span>
+      <h1>Absensi Multi Mapel</h1>
+      <span id="status-mode" class="badge badge-info">Silakan Login</span>
     </div>
   </header>
 
   <main class="app-container">
-    <!-- Form Filter/Parameter -->
-    <section class="card filter-section">
-      <div class="form-group">
-        <label for="select-kelas">Pilih Kelas</label>
-        <select id="select-kelas" disabled>
-          <option value="">-- Pilih Kelas --</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label for="input-tanggal">Tanggal Pertemuan</label>
-        <input type="date" id="input-tanggal">
-      </div>
-    </section>
-
-    <!-- Area Loading & Pesan -->
-    <div id="loader" class="loader hidden"></div>
-    <div id="alert-msg" class="alert hidden"></div>
-
-    <!-- Daftar Siswa -->
-    <section id="absensi-section" class="hidden">
-      <div class="section-title">
-        <h2>Daftar Siswa</h2>
-        <span id="total-siswa" class="badge-count">0 Siswa</span>
-      </div>
-
-      <form id="form-absensi">
-        <div id="container-siswa" class="list-siswa">
-          <!-- Item siswa akan di-render via JavaScript -->
+    <!-- Halaman Login -->
+    <section id="login-section" class="card">
+      <div class="section-title"><h2>Login Guru Pengajar</h2></div>
+      <form id="form-login">
+        <div class="form-group">
+          <label for="input-username">Username</label>
+          <input type="text" id="input-username" required placeholder="Masukkan username">
         </div>
-
-        <button type="submit" id="btn-simpan" class="btn-submit">
-          <span>Simpan Absensi</span>
-        </button>
+        <div class="form-group">
+          <label for="input-password">Password</label>
+          <input type="password" id="input-password" required placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn-submit">Masuk Aplikasi</button>
       </form>
     </section>
-  </main>
 
+    <!-- Halaman Utama Aplikasi (Hidden sebelum login) -->
+    <div id="main-app" class="hidden">
+      <section class="card filter-section">
+        <div class="form-group">
+          <label>Nama Guru</label>
+          <input type="text" id="display-guru" disabled style="background:#f1f5f9;">
+        </div>
+        <div class="form-group">
+          <label for="select-mapel">Mata Pelajaran</label>
+          <select id="select-mapel" disabled>
+            <option value="">-- Pilih Mapel --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="select-kelas">Pilih Kelas</label>
+          <select id="select-kelas" disabled>
+            <option value="">-- Pilih Kelas --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="input-tanggal">Tanggal Pertemuan</label>
+          <input type="date" id="input-tanggal">
+        </div>
+      </section>
+
+      <div id="loader" class="loader hidden"></div>
+      <div id="alert-msg" class="alert hidden"></div>
+
+      <section id="absensi-section" class="hidden">
+        <div class="section-title">
+          <h2>Daftar Siswa</h2>
+          <span id="total-siswa" class="badge-count">0 Siswa</span>
+        </div>
+        <form id="form-absensi">
+          <div id="container-siswa" class="list-siswa"></div>
+          <button type="submit" id="btn-simpan" class="btn-submit"><span>Simpan Absensi</span></button>
+        </form>
+      </section>
+    </div>
+  </main>
   <script src="script.js"></script>
 </body>
 </html>
