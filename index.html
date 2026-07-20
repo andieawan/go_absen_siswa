@@ -1,76 +1,245 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aplikasi Absensi Siswa</title>
-  <!-- Tailwind CSS via CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-  <link rel="stylesheet" href="style.css">
-  <!-- Supress favicon 404 error -->
-  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Absensi Sekolah</title>
+    <style>
+        :root {
+            --primary: #4F46E5; --bg: #F3F4F6; --text: #1F2937;
+        }
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2 { text-align: center; margin-bottom: 20px; }
+        
+        /* Form Styling */
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
+        button { width: 100%; padding: 10px; background-color: var(--primary); color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background-color: #4338CA; }
+        
+        /* Table Styling */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #E5E7EB; padding: 12px; text-align: left; }
+        th { background-color: #F9FAFB; }
+        
+        /* Radio Buttons */
+        .radio-group { display: flex; gap: 15px; }
+        .radio-group label { cursor: pointer; }
+
+        .hidden { display: none; }
+        .header-info { background: #E0E7FF; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        #loading { text-align: center; font-weight: bold; margin-top: 15px; color: var(--primary); }
+    </style>
 </head>
-<body class="bg-gray-100 min-h-screen font-sans">
+<body>
 
-  <!-- ================= HALAMAN LOGIN ================= -->
-  <div id="halaman-login" class="max-w-md mx-auto bg-white p-8 rounded-xl shadow-md mt-20 transition-all duration-300">
-    <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Login Guru</h2>
+<div class="container">
     
-    <!-- Box Notifikasi Alert -->
-    <div id="alert-login" class="hidden p-3 rounded-lg text-sm mb-4"></div>
-    
-    <form id="form-login" class="space-y-4">
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Username</label>
-        <input type="text" id="input-username" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900">
-      </div>
-      
-      <div>
-        <label class="block text-sm font-medium text-gray-700">Password</label>
-        <input type="password" id="input-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900">
-      </div>
-      
-      <button type="submit" id="btn-login-submit" class="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
-        <!-- Spinner Loading (Hidden by default) -->
-        <svg id="spinner-login" class="hidden animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-        <span id="text-login-btn">Masuk Aplikasi</span>
-      </button>
-    </form>
-  </div>
-
-  <!-- ================= HALAMAN UTAMA (DASHBOARD) ================= -->
-  <div id="halaman-utama" class="hidden max-w-4xl mx-auto bg-white p-6 rounded-xl shadow-md mt-10 transition-all duration-300">
-    <div class="flex justify-between items-center border-b pb-4 mb-6">
-      <div>
-        <h1 class="text-2xl font-bold text-gray-800">Dashboard Absensi</h1>
-        <p class="text-sm text-gray-500">Selamat datang, <span id="nama-guru-display" class="font-semibold text-indigo-600">Guru</span></p>
-      </div>
-      <button id="btn-logout" class="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md border border-red-200 transition-colors">Keluar</button>
+    <!-- HALAMAN LOGIN -->
+    <div id="loginSection">
+        <h2>Login Guru</h2>
+        <form id="loginForm">
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="username" required>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password" required>
+            </div>
+            <button type="submit">Login</button>
+            <div id="loginMsg" style="color: red; text-align: center; margin-top: 10px;"></div>
+        </form>
     </div>
 
-    <!-- Form Isi Absensi Kerja Guru -->
-    <form id="form-absensi" class="space-y-4">
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700">Pilih Mata Pelajaran</label>
-          <select id="select-mapel" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"></select>
+    <!-- HALAMAN DASHBOARD -->
+    <div id="dashboardSection" class="hidden">
+        <div class="header-info">
+            <h3 id="greeting">Selamat Datang!</h3>
+            <p><strong>Mata Pelajaran:</strong> <span id="infoMapel"></span> | <strong>Kelas:</strong> <span id="infoKelas"></span></p>
+            <div class="form-group">
+                <label>Tanggal Pertemuan:</label>
+                <input type="date" id="tanggalAbsen" required>
+            </div>
         </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700">Pilih Kelas</label>
-          <select id="select-kelas" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"></select>
-        </div>
-      </div>
-      
-      <div class="pt-4">
-        <p class="text-sm text-gray-500 italic">*Menu pengisian daftar nama siswa akan memfilter otomatis setelah backend dihubungkan lebih lanjut.</p>
-      </div>
-    </form>
-  </div>
 
-  <!-- Script Logika Aplikasi -->
-  <script src="script.js"></script>
+        <button onclick="logout()" style="background-color: #EF4444; margin-bottom: 20px;">Logout</button>
+
+        <h3>Daftar Siswa</h3>
+        <div id="loading" class="hidden">Mengambil data dari server...</div>
+        
+        <form id="absenForm">
+            <table id="studentsTable">
+                <thead>
+                    <tr>
+                        <th>NIS</th>
+                        <th>Nama Siswa</th>
+                        <th>Kehadiran</th>
+                    </tr>
+                </thead>
+                <tbody id="studentsBody">
+                    <!-- Data siswa dimuat ke sini -->
+                </tbody>
+            </table>
+            <button type="submit" id="btnSubmit" style="margin-top: 20px;">Simpan Absensi</button>
+        </form>
+    </div>
+
+</div>
+
+<script>
+    // ==========================================
+    // PASTE WEB APP URL DARI GOOGLE APPS SCRIPT DI SINI
+    const GAS_URL = 'GANTI_DENGAN_WEB_APP_URL_ANDA';
+    // ==========================================
+
+    const loginSection = document.getElementById('loginSection');
+    const dashboardSection = document.getElementById('dashboardSection');
+    let sessionData = JSON.parse(sessionStorage.getItem('guruSession'));
+
+    // Inisialisasi Tampilan
+    if (sessionData) {
+        showDashboard();
+    }
+
+    // --- HANDLE LOGIN ---
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const user = document.getElementById('username').value;
+        const pass = document.getElementById('password').value;
+        const btn = e.target.querySelector('button');
+        const msg = document.getElementById('loginMsg');
+        
+        btn.innerText = 'Mengecek...';
+        msg.innerText = '';
+
+        try {
+            const response = await fetch(GAS_URL, {
+                method: 'POST',
+                // Ingat: Kirim sebagai text/plain agar tidak kena block CORS
+                body: JSON.stringify({ action: 'login', username: user, password: pass })
+            });
+            const resData = await response.json();
+
+            if (resData.success) {
+                sessionStorage.setItem('guruSession', JSON.stringify(resData.data));
+                sessionData = resData.data;
+                showDashboard();
+            } else {
+                msg.innerText = resData.message;
+            }
+        } catch (error) {
+            msg.innerText = "Gagal terhubung ke server.";
+        }
+        btn.innerText = 'Login';
+    });
+
+    // --- TAMPILKAN DASHBOARD & AMBIL DATA SISWA ---
+    async function showDashboard() {
+        loginSection.classList.add('hidden');
+        dashboardSection.classList.remove('hidden');
+        
+        document.getElementById('greeting').innerText = `Selamat Datang, ${sessionData.nama}`;
+        document.getElementById('infoMapel').innerText = sessionData.mapel;
+        document.getElementById('infoKelas').innerText = sessionData.kelas;
+        
+        // Set tanggal hari ini default
+        document.getElementById('tanggalAbsen').valueAsDate = new Date();
+
+        fetchStudents(sessionData.kelas);
+    }
+
+    async function fetchStudents(kelas) {
+        const tbody = document.getElementById('studentsBody');
+        const loading = document.getElementById('loading');
+        tbody.innerHTML = '';
+        loading.classList.remove('hidden');
+
+        try {
+            const response = await fetch(`${GAS_URL}?action=getStudents&kelas=${kelas}`);
+            const resData = await response.json();
+
+            loading.classList.add('hidden');
+
+            if (resData.success) {
+                resData.data.forEach((siswa, index) => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${siswa.nis}</td>
+                        <td class="nama-siswa">${siswa.nama}</td>
+                        <td>
+                            <div class="radio-group">
+                                <label><input type="radio" name="status_${index}" value="H" required> H</label>
+                                <label><input type="radio" name="status_${index}" value="I"> I</label>
+                                <label><input type="radio" name="status_${index}" value="S"> S</label>
+                                <label><input type="radio" name="status_${index}" value="A"> A</label>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } else {
+                tbody.innerHTML = `<tr><td colspan="3">${resData.message}</td></tr>`;
+            }
+        } catch (error) {
+            loading.classList.add('hidden');
+            tbody.innerHTML = `<tr><td colspan="3">Gagal mengambil data siswa.</td></tr>`;
+        }
+    }
+
+    // --- SUBMIT ABSENSI ---
+    document.getElementById('absenForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('btnSubmit');
+        const rows = document.querySelectorAll('#studentsBody tr');
+        let attendanceData = [];
+
+        rows.forEach((row, index) => {
+            const nama = row.querySelector('.nama-siswa').innerText;
+            const status = document.querySelector(`input[name="status_${index}"]:checked`).value;
+            attendanceData.push({ nama, status });
+        });
+
+        const payload = {
+            guru: sessionData.nama,
+            mapel: sessionData.mapel,
+            kelas: sessionData.kelas,
+            tanggal: document.getElementById('tanggalAbsen').value,
+            attendance: attendanceData
+        };
+
+        btn.innerText = "Menyimpan...";
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(GAS_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'submit', payload: payload })
+            });
+            const resData = await response.json();
+
+            if (resData.success) {
+                alert("Absensi Berhasil Disimpan!");
+            } else {
+                alert("Gagal: " + resData.message);
+            }
+        } catch (error) {
+            alert("Terjadi kesalahan jaringan.");
+        }
+
+        btn.innerText = "Simpan Absensi";
+        btn.disabled = false;
+    });
+
+    // --- LOGOUT ---
+    function logout() {
+        sessionStorage.removeItem('guruSession');
+        window.location.reload();
+    }
+</script>
 </body>
 </html>
