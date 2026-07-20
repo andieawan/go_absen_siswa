@@ -1,5 +1,11 @@
+// ==========================================
+// 1. KONFIGURASI & PASANG URL BACKEND
+// ==========================================
 const API_URL = "https://script.google.com/macros/s/AKfycbyMGAl2rTMzOEVkosA-QKNrVvo69x3WZPrYgRBRcVF9JL-K1guOv-zJAWnisfCZ1t8n/exec";
 
+// ==========================================
+// 2. DEFINISI ELEMEN DOM
+// ==========================================
 const loginSection = document.getElementById("login-section");
 const mainApp = document.getElementById("main-app");
 const formLogin = document.getElementById("form-login");
@@ -15,11 +21,32 @@ const formAbsensi = document.getElementById("form-absensi");
 const loader = document.getElementById("loader");
 const alertMsg = document.getElementById("alert-msg");
 const btnSimpan = document.getElementById("btn-simpan");
+const btnLogout = document.getElementById("btn-logout");
 
+// ==========================================
+// 3. STATE APLIKASI GLOBAL
+// ==========================================
 let sessionGuru = null;
+
+// Set default tanggal hari ini (Format: YYYY-MM-DD)
 inputTanggal.value = new Date().toISOString().split('T')[0];
 
-// 1. EVENT HANDLER LOGIN GURU
+// Inisialisasi PWA saat DOM selesai dimuat
+document.addEventListener("DOMContentLoaded", () => {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+      .catch(err => console.error("Gagal mendaftarkan Service Worker PWA:", err));
+  }
+});
+
+// Pemicu Auto-Detect ketika parameter absensi diubah
+[selectKelas, selectMapel, inputTanggal].forEach(elem => {
+  elem.addEventListener("change", muatDaftarSiswa);
+});
+
+// ==========================================
+// 4. LOGIKA AUTHENTICATION: LOGIN GURU
+// ==========================================
 formLogin.addEventListener("submit", async (e) => {
   e.preventDefault();
   tampilkanLoading(true);
@@ -32,41 +59,57 @@ formLogin.addEventListener("submit", async (e) => {
   };
   
   try {
-    const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+    const res = await fetch(API_URL, { 
+      method: "POST", 
+      body: JSON.stringify(payload) 
+    });
     const json = await res.json();
     
     if (json.success) {
       sessionGuru = json.user;
+      
+      // Manajemen UI: Buka kunci halaman utama
       loginSection.classList.add("hidden");
       mainApp.classList.remove("hidden");
+      btnLogout.classList.remove("hidden");
       
+      // Tampilkan identitas pengajar
       displayGuru.value = sessionGuru.nama;
+      
+      // Inject pilihan Mapel dan Kelas sesuai hak akses akun
       selectMapel.innerHTML = '<option value="">-- Pilih Mapel --</option>';
       sessionGuru.mapel.forEach(m => selectMapel.appendChild(new Option(m, m)));
+      
       selectKelas.innerHTML = '<option value="">-- Pilih Kelas --</option>';
       sessionGuru.kelas.forEach(k => selectKelas.appendChild(new Option(k, k)));
       
       selectMapel.disabled = false;
       selectKelas.disabled = false;
       statusModeBadge.textContent = "Berhasil Masuk";
+      statusModeBadge.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
     } else {
       tampilkanAlert(json.message, "error");
     }
   } catch (err) {
     tampilkanAlert("Gagal memproses verifikasi login.", "error");
-  } finally { tampilkanLoading(false); }
+  } finally { 
+    tampilkanLoading(false); 
+  }
 });
 
-// 2. DETEKSI OTOMATIS LOAD SISWA & DATA LAMA
-[selectKelas, selectMapel, inputTanggal].forEach(elem => {
-  elem.addEventListener("change", muatDaftarSiswa);
-});
-
+// ==========================================
+// 5. DETEKSI OTOMATIS DATA LAMA / EDIT MODE
+// ==========================================
 async function muatDaftarSiswa() {
   const kelas = selectKelas.value;
   const tanggal = inputTanggal.value;
   const mapel = selectMapel.value;
-  if (!kelas || !tanggal || !mapel) { absensiSection.classList.add("hidden"); return; }
+  
+  // Wajib memilih semua parameter filter sebelum merender siswa
+  if (!kelas || !tanggal || !mapel) { 
+    absensiSection.classList.add("hidden"); 
+    return; 
+  }
   
   tampilkanLoading(true);
   tampilkanAlert("", "clear");
@@ -80,6 +123,7 @@ async function muatDaftarSiswa() {
       const { siswa, riwayat } = json.data;
       totalSiswaBadge.textContent = `${siswa.length} Siswa`;
       
+      // Evaluasi apakah riwayat tanggal & mapel ini sudah terisi di server
       if (Object.keys(riwayat).length > 0) {
         statusModeBadge.textContent = "Mode Edit (Menimpa)";
         statusModeBadge.style.backgroundColor = "var(--sakit)";
@@ -88,6 +132,7 @@ async function muatDaftarSiswa() {
         statusModeBadge.style.backgroundColor = "var(--hadir)";
       }
       
+      // Buat form radio button siswa secara dinamis
       siswa.forEach((nama, index) => {
         const statusLama = riwayat[nama] || "";
         const card = document.createElement("div");
@@ -104,11 +149,16 @@ async function muatDaftarSiswa() {
       });
       absensiSection.classList.remove("hidden");
     }
-  } catch (err) { tampilkanAlert("Gagal memuat list siswa.", "error"); }
-  finally { tampilkanLoading(false); }
+  } catch (err) { 
+    tampilkanAlert("Gagal memuat list siswa dari database.", "error"); 
+  } finally { 
+    tampilkanLoading(false); 
+  }
 }
 
-// 3. KIRIM DATA ABSENSI KE BACKEND
+// ==========================================
+// 6. SUBMIT DATA KEHADIRAN (SAVE ABSEN)
+// ==========================================
 formAbsensi.addEventListener("submit", async (e) => {
   e.preventDefault();
   btnSimpan.disabled = true;
@@ -116,7 +166,10 @@ formAbsensi.addEventListener("submit", async (e) => {
   
   const dataKehadiran = [];
   containerSiswa.querySelectorAll('input[type="radio"]:checked').forEach(radio => {
-    dataKehadiran.push({ nama: radio.getAttribute("data-nama"), status: radio.value });
+    dataKehadiran.push({ 
+      nama: radio.getAttribute("data-nama"), 
+      status: radio.value 
+    });
   });
   
   const payload = {
@@ -129,17 +182,64 @@ formAbsensi.addEventListener("submit", async (e) => {
   };
   
   try {
-    await fetch(API_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(payload) });
+    // Menggunakan no-cors untuk bypass 302 Redirect pada Google Apps Script
+    await fetch(API_URL, { 
+      method: "POST", 
+      mode: "no-cors", 
+      body: JSON.stringify(payload) 
+    });
+    
     tampilkanAlert(`Absensi ${selectMapel.value} berhasil disimpan!`, "success");
+    // Refresh otomatis data guna memicu perpindahan status ke "Mode Edit"
     setTimeout(muatDaftarSiswa, 1500);
-  } catch (err) { tampilkanAlert("Koneksi gagal saat menyimpan data.", "error"); }
-  finally { btnSimpan.disabled = false; tampilkanLoading(false); }
+  } catch (err) { 
+    tampilkanAlert("Koneksi gagal saat menyimpan data.", "error"); 
+  } finally { 
+    btnSimpan.disabled = false; 
+    tampilkanLoading(false); 
+  }
 });
 
-function tampilkanLoading(isLoading) { loader.className = isLoading ? "loader" : "loader hidden"; }
+// ==========================================
+// 7. LOGIKA AUTHENTICATION: LOGOUT GURU
+// ==========================================
+btnLogout.addEventListener("click", () => {
+  // Hapus kredensial sesi lokal
+  sessionGuru = null;
+  
+  // Bersihkan form input login
+  formLogin.reset();
+  
+  // Sembunyikan Workspace utama & Tampilkan panel login kembali
+  mainApp.classList.add("hidden");
+  absensiSection.classList.add("hidden");
+  loginSection.classList.remove("hidden");
+  
+  // Sembunyikan tombol logout & kembalikan badge status
+  btnLogout.classList.add("hidden");
+  statusModeBadge.textContent = "Silakan Login";
+  statusModeBadge.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
+  
+  // Sterilisasi data dropdown agar tidak bocor ke user berikutnya
+  selectMapel.innerHTML = '<option value="">-- Pilih Mapel --</option>';
+  selectKelas.innerHTML = '<option value="">-- Pilih Kelas --</option>';
+  selectMapel.disabled = true;
+  selectKelas.disabled = true;
+});
+
+// ==========================================
+// 8. HELPERS MANAJEMEN UI STATE
+// ==========================================
+function tampilkanLoading(isLoading) { 
+  loader.className = isLoading ? "loader" : "loader hidden"; 
+}
+
 function tampilkanAlert(msg, type) {
   alertMsg.className = "alert";
-  if (type === "clear") { alertMsg.classList.add("hidden"); return; }
+  if (type === "clear") { 
+    alertMsg.classList.add("hidden"); 
+    return; 
+  }
   alertMsg.textContent = msg;
   alertMsg.classList.remove("hidden");
   alertMsg.classList.add(type === "success" ? "alert-success" : "alert-error");
