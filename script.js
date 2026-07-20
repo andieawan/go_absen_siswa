@@ -99,7 +99,7 @@ formLogin.addEventListener("submit", async (e) => {
       statusModeBadge.textContent = "Berhasil Masuk";
       statusModeBadge.style.backgroundColor = "rgba(255, 255, 255, 0.2)";
     } else {
-      // Menampilkan alert jika username atau password salah dari server
+      // MENAMPILKAN ALERT JIKA USERNAME ATAU PASSWORD SALAH DARI BACKEND
       tampilkanAlert(json.message || "Username atau Password salah!", "error");
     }
   } catch (err) {
@@ -120,7 +120,6 @@ async function muatDaftarSiswa() {
   const tanggal = inputTanggal.value;
   const mapel = selectMapel.value;
   
-  // Wajib memilih semua parameter filter sebelum merender siswa
   if (!kelas || !tanggal || !mapel) { 
     absensiSection.classList.add("hidden"); 
     return; 
@@ -138,7 +137,6 @@ async function muatDaftarSiswa() {
       const { siswa, riwayat } = json.data;
       totalSiswaBadge.textContent = `${siswa.length} Siswa`;
       
-      // Evaluasi apakah riwayat tanggal & mapel ini sudah terisi di server
       if (Object.keys(riwayat).length > 0) {
         statusModeBadge.textContent = "Mode Edit (Menimpa)";
         statusModeBadge.style.backgroundColor = "#eab308";
@@ -147,7 +145,6 @@ async function muatDaftarSiswa() {
         statusModeBadge.style.backgroundColor = "#22c55e";
       }
       
-      // Buat form radio button siswa secara dinamis
       siswa.forEach((nama, index) => {
         const statusLama = riwayat[nama] || "";
         const card = document.createElement("div");
