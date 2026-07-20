@@ -35,7 +35,12 @@
           <label for="input-password">Password</label>
           <input type="password" id="input-password" required placeholder="••••••••">
         </div>
-        <button type="submit" class="btn-submit">Masuk Aplikasi</button>
+        
+        <!-- Ganti tombol submit lama di form-login dengan ini -->
+<button type="submit" id="btn-login-submit" class="btn-submit">
+  <span id="text-login-btn">Masuk Aplikasi</span>
+  <div id="spinner-login" class="spinner-btn hidden"></div>
+</button>
       </form>
     </section>
 
