@@ -35,12 +35,49 @@
         #loading { text-align: center; font-weight: bold; margin-top: 15px; color: var(--primary); }
         
         .action-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 20px; }
+
+        /* =========================================
+           CUSTOM ALERT MODAL STYLING
+           ========================================= */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 1000;
+            opacity: 0; visibility: hidden; 
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal-overlay.active { opacity: 1; visibility: visible; }
+        
+        .modal-box {
+            background: white; padding: 30px; border-radius: 12px;
+            width: 90%; max-width: 380px; text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+            transform: translateY(-20px); 
+            transition: transform 0.3s ease;
+        }
+        .modal-overlay.active .modal-box { transform: translateY(0); }
+        
+        .modal-icon {
+            width: 60px; height: 60px; margin: 0 auto 15px auto;
+            border-radius: 50%; display: flex; justify-content: center; align-items: center;
+            font-size: 30px; font-weight: bold; color: white;
+        }
+        .icon-success { background-color: #10B981; }
+        .icon-error { background-color: #EF4444; }
+        
+        .modal-title { font-size: 1.25rem; font-weight: bold; margin-bottom: 10px; color: #1F2937; }
+        .modal-message { color: #4B5563; margin-bottom: 25px; line-height: 1.5; font-size: 0.95rem; }
+        
+        .modal-btn {
+            background-color: var(--primary);
+            width: 100%; padding: 12px; border-radius: 8px; font-size: 1rem;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    
     <!-- HALAMAN LOGIN -->
     <div id="loginSection">
         <h2>Login Guru</h2>
@@ -60,8 +97,6 @@
 
     <!-- HALAMAN DASHBOARD -->
     <div id="dashboardSection" class="hidden">
-        
-        <!-- Tombol Aksi (Rekap & Logout) -->
         <div class="action-buttons">
             <button id="btnRecap" onclick="generateRecap()" style="background-color: #10B981; width: auto;">📄 Buat Rekap</button>
             <button onclick="logout()" style="background-color: #EF4444; width: auto;">Logout</button>
@@ -69,19 +104,16 @@
 
         <div class="header-info">
             <h3 id="greeting" style="margin-top: 0;">Selamat Datang!</h3>
-            
             <div class="form-group">
                 <label>Pilih Mata Pelajaran:</label>
                 <select id="selectMapel" required></select>
             </div>
-            
             <div class="form-group">
                 <label>Pilih Kelas:</label>
                 <select id="selectKelas" required>
                     <option value="" disabled selected>-- Pilih Kelas --</option>
                 </select>
             </div>
-
             <div class="form-group">
                 <label>Tanggal Pertemuan:</label>
                 <input type="date" id="tanggalAbsen" required>
@@ -107,21 +139,58 @@
             <button type="submit" id="btnSubmit" style="margin-top: 20px; display: none;">Simpan Absensi</button>
         </form>
     </div>
+</div>
 
+<!-- =========================================
+     ELEMEN CUSTOM ALERT MODAL
+     ========================================= -->
+<div class="modal-overlay" id="customAlert">
+    <div class="modal-box">
+        <div class="modal-icon" id="alertIcon">✓</div>
+        <div class="modal-title" id="alertTitle">Pemberitahuan</div>
+        <div class="modal-message" id="alertMessage">Pesan di sini</div>
+        <button class="modal-btn" onclick="closeCustomAlert()">OK, Mengerti</button>
+    </div>
 </div>
 
 <script>
     // ==========================================
     // PASTE WEB APP URL DARI GOOGLE APPS SCRIPT DI SINI
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbyMGAl2rTMzOEVkosA-QKNrVvo69x3WZPrYgRBRcVF9JL-K1guOv-zJAWnisfCZ1t8n/exec';
+    const GAS_URL = 'GANTI_DENGAN_WEB_APP_URL_ANDA';
     // ==========================================
 
     const loginSection = document.getElementById('loginSection');
     const dashboardSection = document.getElementById('dashboardSection');
     let sessionData = JSON.parse(sessionStorage.getItem('guruSession'));
 
-    if (sessionData) {
-        showDashboard();
+    if (sessionData) showDashboard();
+
+    // --- FUNGSI CUSTOM ALERT ---
+    function showAlert(message, isSuccess = true) {
+        const modal = document.getElementById('customAlert');
+        const icon = document.getElementById('alertIcon');
+        const title = document.getElementById('alertTitle');
+        const msg = document.getElementById('alertMessage');
+        const btn = document.querySelector('.modal-box .modal-btn');
+        
+        if (isSuccess) {
+            icon.innerHTML = '✓';
+            icon.className = 'modal-icon icon-success';
+            title.innerText = 'Berhasil!';
+            btn.style.backgroundColor = '#10B981'; // Hijau
+        } else {
+            icon.innerHTML = '✕';
+            icon.className = 'modal-icon icon-error';
+            title.innerText = 'Oops, Gagal!';
+            btn.style.backgroundColor = '#EF4444'; // Merah
+        }
+        
+        msg.innerText = message;
+        modal.classList.add('active');
+    }
+
+    function closeCustomAlert() {
+        document.getElementById('customAlert').classList.remove('active');
     }
 
     // --- HANDLE LOGIN ---
@@ -155,7 +224,7 @@
         btn.innerText = 'Login';
     });
 
-    // --- TAMPILKAN DASHBOARD & PARSING DATA GURU ---
+    // --- TAMPILKAN DASHBOARD ---
     function showDashboard() {
         loginSection.classList.add('hidden');
         dashboardSection.classList.remove('hidden');
@@ -163,25 +232,22 @@
         document.getElementById('greeting').innerText = `Selamat Mengajar, ${sessionData.nama}`;
         document.getElementById('tanggalAbsen').valueAsDate = new Date();
 
-        // Pecah string Mapel
         const mapelArr = sessionData.mapel.split(',').map(s => s.trim());
         const selectMapel = document.getElementById('selectMapel');
         selectMapel.innerHTML = '';
         mapelArr.forEach(m => selectMapel.innerHTML += `<option value="${m}">${m}</option>`);
 
-        // Pecah string Kelas
         const kelasArr = sessionData.kelas.split(',').map(s => s.trim());
         const selectKelas = document.getElementById('selectKelas');
         selectKelas.innerHTML = '<option value="" disabled selected>-- Pilih Kelas --</option>';
         kelasArr.forEach(k => selectKelas.innerHTML += `<option value="${k}">${k}</option>`);
 
-        // Event listener saat parameter absen diubah
         selectKelas.addEventListener('change', (e) => fetchStudents(e.target.value));
         document.getElementById('tanggalAbsen').addEventListener('change', checkExistingAttendance);
         document.getElementById('selectMapel').addEventListener('change', checkExistingAttendance);
     }
 
-    // --- FETCH DATA SISWA BERDASARKAN KELAS ---
+    // --- FETCH DATA SISWA ---
     async function fetchStudents(kelas) {
         const tbody = document.getElementById('studentsBody');
         const loading = document.getElementById('loading');
@@ -215,8 +281,6 @@
                     tbody.appendChild(tr);
                 });
                 btnSubmit.style.display = 'block'; 
-                
-                // Cek apakah absen sudah pernah diisi
                 await checkExistingAttendance();
             } else {
                 tbody.innerHTML = `<tr><td colspan="3">${resData.message || 'Tidak ada data siswa.'}</td></tr>`;
@@ -227,7 +291,7 @@
         }
     }
 
-    // --- CEK ABSENSI YANG SUDAH ADA ---
+    // --- CEK ABSENSI ---
     async function checkExistingAttendance() {
         const mapel = document.getElementById('selectMapel').value;
         const kelas = document.getElementById('selectKelas').value;
@@ -304,26 +368,26 @@
             const resData = await response.json();
 
             if (resData.success) {
-                alert(resData.message);
+                showAlert(resData.message, true);
                 btn.innerText = "Perbarui Absensi";
             } else {
-                alert("Gagal: " + resData.message);
+                showAlert(resData.message, false);
                 btn.innerText = "Simpan Absensi";
             }
         } catch (error) {
-            alert("Terjadi kesalahan jaringan.");
+            showAlert("Terjadi kesalahan jaringan saat menyimpan data.", false);
             btn.innerText = "Simpan Absensi";
         }
 
         btn.disabled = false;
     });
 
-    // --- GENERATE REKAP (TOMBOL) ---
+    // --- GENERATE REKAP ---
     async function generateRecap() {
         const btn = document.getElementById('btnRecap');
         const originalText = btn.innerText;
         
-        btn.innerText = "Memproses... (Mohon Tunggu)";
+        btn.innerText = "Memproses... (Tunggu)";
         btn.disabled = true;
 
         try {
@@ -331,12 +395,12 @@
             const resData = await response.json();
 
             if (resData.success) {
-                alert("SUKSES: " + resData.message);
+                showAlert(resData.message, true);
             } else {
-                alert("GAGAL: " + resData.message);
+                showAlert(resData.message, false);
             }
         } catch (error) {
-            alert("Terjadi kesalahan jaringan saat mencoba membuat rekap.");
+            showAlert("Terjadi kesalahan jaringan saat mencoba membuat rekap.", false);
         }
 
         btn.innerText = originalText;
