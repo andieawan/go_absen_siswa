@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Absensi Sekolah</title>
+    <!-- Semua CSS sekarang ada di style.css -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <!-- ============================================
+         HALAMAN LOGIN
+         Tambah/hapus field login (misal lupa password)
+         cukup di blok <div id="loginSection"> ini
+         ============================================ -->
+    <div id="loginSection">
+        <h2>Login Guru</h2>
+        <form id="loginForm">
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="username" required>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password" required>
+            </div>
+            <button type="submit">Login</button>
+            <div id="loginMsg" style="color: red; text-align: center; margin-top: 10px;"></div>
+        </form>
+    </div>
+    <!-- ===== SELESAI: HALAMAN LOGIN ===== -->
+
+    <!-- ============================================
+         HALAMAN DASHBOARD
+         Bagian ini muncul setelah login berhasil
+         ============================================ -->
+    <div id="dashboardSection" class="hidden">
+        <div class="action-buttons">
+            <button id="btnRecap" onclick="generateRecap()" style="background-color: #10B981; width: auto;">📄 Buat Rekap</button>
+            <button onclick="logout()" style="background-color: #EF4444; width: auto;">Logout</button>
+        </div>
+
+        <!-- Filter mapel / kelas / tanggal. Tambah filter baru di sini -->
+        <div class="header-info">
+            <h3 id="greeting" style="margin-top: 0;">Selamat Datang!</h3>
+            <div class="form-group">
+                <label>Pilih Mata Pelajaran:</label>
+                <select id="selectMapel" required></select>
+            </div>
+            <div class="form-group">
+                <label>Pilih Kelas:</label>
+                <select id="selectKelas" required>
+                    <option value="" disabled selected>-- Pilih Kelas --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Tanggal Pertemuan:</label>
+                <input type="date" id="tanggalAbsen" required>
+            </div>
+        </div>
+
+        <!-- Tabel daftar siswa, diisi otomatis lewat script.js -->
+        <h3>Daftar Siswa</h3>
+        <div id="loading" class="hidden">Mengambil data dari server...</div>
+
+        <form id="absenForm">
+            <div class="table-wrapper">
+                <table id="studentsTable">
+                    <thead>
+                        <tr>
+                            <th>NIS</th>
+                            <th>Nama Siswa</th>
+                            <th>Kehadiran</th>
+                        </tr>
+                    </thead>
+                    <tbody id="studentsBody">
+                        <tr><td colspan="3" style="text-align: center;">Silakan pilih kelas terlebih dahulu.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <button type="submit" id="btnSubmit" style="margin-top: 20px; display: none;">Simpan Absensi</button>
+        </form>
+    </div>
+    <!-- ===== SELESAI: HALAMAN DASHBOARD ===== -->
+</div>
+
+<!-- ============================================
+     MODAL ALERT (popup notifikasi sukses/gagal)
+     ============================================ -->
+<div class="modal-overlay" id="customAlert">
+    <div class="modal-box">
+        <div class="modal-icon" id="alertIcon">✓</div>
+        <div class="modal-title" id="alertTitle">Pemberitahuan</div>
+        <div class="modal-message" id="alertMessage">Pesan di sini</div>
+        <button class="modal-btn" onclick="closeCustomAlert()">OK, Mengerti</button>
+    </div>
+</div>
+<!-- ===== SELESAI: MODAL ALERT ===== -->
+
+<!-- Semua logika JavaScript sekarang ada di script.js -->
+<script src="script.js"></script>
+</body>
+</html>

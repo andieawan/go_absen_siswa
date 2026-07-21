@@ -1,0 +1,157 @@
+/* =========================================================
+   VARIABEL WARNA & RESET DASAR
+   Ubah warna utama aplikasi di sini (--primary, --bg, --text)
+   ========================================================= */
+:root { --primary: #4F46E5; --bg: #F3F4F6; --text: #1F2937; }
+* { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+body { background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+/* ===== SELESAI: VARIABEL & RESET ===== */
+
+
+/* =========================================================
+   LAYOUT UTAMA (kotak putih pembungkus semua konten)
+   ========================================================= */
+.container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+h2 { text-align: center; margin-bottom: 20px; }
+/* ===== SELESAI: LAYOUT UTAMA ===== */
+
+
+/* =========================================================
+   STYLE FORM (input, label, select)
+   ========================================================= */
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+.form-group input, .form-group select {
+    width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px;
+    font-size: 16px; /* wajib >=16px, kalau tidak Safari iOS auto-zoom saat fokus input */
+    min-height: 44px; /* target sentuh minimal yang nyaman di HP */
+}
+/* ===== SELESAI: STYLE FORM ===== */
+
+
+/* =========================================================
+   STYLE TOMBOL
+   ========================================================= */
+button { padding: 10px; background-color: var(--primary); color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 100%; min-height: 44px; font-size: 1rem; }
+button:hover { background-color: #4338CA; }
+button:disabled { background-color: #9CA3AF; cursor: not-allowed; }
+/* ===== SELESAI: STYLE TOMBOL ===== */
+
+
+/* =========================================================
+   STYLE TABEL DAFTAR SISWA
+   ========================================================= */
+.table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 20px; }
+table { width: 100%; border-collapse: collapse; margin-top: 0; }
+th, td { border: 1px solid #E5E7EB; padding: 12px; text-align: left; }
+th { background-color: #F9FAFB; }
+/* ===== SELESAI: STYLE TABEL ===== */
+
+
+/* =========================================================
+   RADIO BUTTON KEHADIRAN (H/I/S/A)
+   Label dibuat seperti "pil" supaya area sentuhnya besar di HP
+   ========================================================= */
+.radio-group { display: flex; flex-wrap: wrap; gap: 10px; }
+.radio-group label {
+    cursor: pointer; display: flex; align-items: center; gap: 5px;
+    padding: 8px 12px; border: 1px solid #E5E7EB; border-radius: 6px;
+    min-height: 36px;
+}
+.radio-group input[type="radio"] { width: 18px; height: 18px; }
+/* ===== SELESAI: RADIO BUTTON ===== */
+
+
+/* =========================================================
+   UTILITAS / ELEMEN LAIN-LAIN
+   Tambahkan class utilitas baru (misal .hidden) di sini
+   ========================================================= */
+.hidden { display: none; }
+.header-info { background: #E0E7FF; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+#loading { text-align: center; font-weight: bold; margin-top: 15px; color: var(--primary); }
+.action-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 20px; }
+/* ===== SELESAI: UTILITAS ===== */
+
+
+/* =========================================================
+   MODAL ALERT (popup notifikasi sukses/gagal)
+   ========================================================= */
+.modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex; justify-content: center; align-items: center;
+    z-index: 1000;
+    opacity: 0; visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+.modal-overlay.active { opacity: 1; visibility: visible; }
+
+.modal-box {
+    background: white; padding: 30px; border-radius: 12px;
+    width: 90%; max-width: 380px; text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    transform: translateY(-20px);
+    transition: transform 0.3s ease;
+}
+.modal-overlay.active .modal-box { transform: translateY(0); }
+
+.modal-icon {
+    width: 60px; height: 60px; margin: 0 auto 15px auto;
+    border-radius: 50%; display: flex; justify-content: center; align-items: center;
+    font-size: 30px; font-weight: bold; color: white;
+}
+.icon-success { background-color: #10B981; }
+.icon-error { background-color: #EF4444; }
+
+.modal-title { font-size: 1.25rem; font-weight: bold; margin-bottom: 10px; color: #1F2937; }
+.modal-message { color: #4B5563; margin-bottom: 25px; line-height: 1.5; font-size: 0.95rem; }
+
+.modal-btn {
+    background-color: var(--primary);
+    width: 100%; padding: 12px; border-radius: 8px; font-size: 1rem;
+}
+/* ===== SELESAI: MODAL ALERT ===== */
+
+
+/* =========================================================
+   TAMPILAN KHUSUS MOBILE (layar <= 640px)
+   Ubah angka 640px kalau mau ganti titik patahnya (breakpoint).
+   Tambah aturan baru untuk mobile? taruh di dalam blok ini.
+   ========================================================= */
+@media (max-width: 640px) {
+    body { padding: 10px; }
+    .container { padding: 16px; border-radius: 8px; }
+    h2 { font-size: 1.25rem; }
+    h3 { font-size: 1.05rem; }
+
+    /* Tombol Rekap & Logout ditumpuk vertikal, full-width, biar mudah dipencet */
+    .action-buttons { flex-direction: column; }
+    .action-buttons button { width: 100%; }
+
+    .header-info { padding: 15px; }
+    .modal-box { padding: 20px; }
+
+    /* --- Ubah tabel siswa jadi kartu, bukan tabel sempit --- */
+    #studentsTable thead { display: none; } /* judul kolom disembunyikan, diganti label per kartu */
+    #studentsTable, #studentsTable tbody, #studentsTable tr, #studentsTable td {
+        display: block; width: 100%;
+    }
+
+    /* Baris placeholder ("Silakan pilih kelas...") tetap tampil biasa */
+    #studentsBody tr.student-row {
+        border: 1px solid #E5E7EB; border-radius: 8px;
+        padding: 12px; margin-bottom: 10px; background: #fff;
+    }
+    #studentsBody tr.student-row td { border: none; padding: 4px 0; }
+
+    /* Label kecil "NIS:" muncul otomatis di depan nomor induk siswa */
+    #studentsBody tr.student-row td:nth-child(1) { font-size: 0.8rem; color: #6B7280; }
+    #studentsBody tr.student-row td:nth-child(1)::before { content: "NIS: "; font-weight: bold; }
+
+    /* Nama siswa dibuat lebih besar & tebal sebagai judul kartu */
+    #studentsBody tr.student-row td:nth-child(2) { font-size: 1.05rem; font-weight: bold; }
+
+    /* Grup radio kehadiran diberi jarak lebih di atas */
+    #studentsBody tr.student-row td:nth-child(3) { padding-top: 8px; }
+}
+/* ===== SELESAI: TAMPILAN KHUSUS MOBILE ===== */
