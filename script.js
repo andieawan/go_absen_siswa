@@ -278,32 +278,42 @@ document.getElementById('absenForm').addEventListener('submit', async (e) => {
 
 
 // =========================================================
-// GENERATE REKAP (tombol "Buat Rekap")
+// REKAP KELAS SAYA (download .xlsx berisi rekap kelas/mapel milik guru sendiri)
+// File .xlsx dirakit langsung di browser pakai library SheetJS,
+// jadi tidak perlu bikin file sementara di Google Drive.
 // =========================================================
-async function generateRecap() {
+async function downloadRekapKelasSaya() {
     const btn = document.getElementById('btnRecap');
-    const originalText = btn.innerText;
+    const originalText = btn.innerHTML;
 
-    btn.innerText = "Memproses... (Tunggu)";
+    btn.innerText = "Menyiapkan file...";
     btn.disabled = true;
 
     try {
-        const response = await fetch(`${GAS_URL}?action=generateRecap`);
+        const response = await fetch(`${GAS_URL}?action=getRekapKelasSaya&mapel=${encodeURIComponent(sessionData.mapel)}&kelas=${encodeURIComponent(sessionData.kelas)}`);
         const resData = await response.json();
 
         if (resData.success) {
-            showAlert(resData.message, true);
+            const wb = XLSX.utils.book_new();
+            resData.data.forEach(sheetInfo => {
+                const ws = XLSX.utils.aoa_to_sheet([sheetInfo.headerRow, ...sheetInfo.rows]);
+                XLSX.utils.book_append_sheet(wb, ws, sheetInfo.tabName);
+            });
+
+            const namaFile = `Rekap_${sessionData.nama}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            XLSX.writeFile(wb, namaFile);
+            showAlert("Rekap berhasil dibuat dan diunduh!", true);
         } else {
             showAlert(resData.message, false);
         }
     } catch (error) {
-        showAlert("Terjadi kesalahan jaringan saat mencoba membuat rekap.", false);
+        showAlert("Terjadi kesalahan saat menyiapkan file rekap.", false);
     }
 
-    btn.innerText = originalText;
+    btn.innerHTML = originalText;
     btn.disabled = false;
 }
-// ===== SELESAI: GENERATE REKAP =====
+// ===== SELESAI: REKAP KELAS SAYA =====
 
 
 // =========================================================
