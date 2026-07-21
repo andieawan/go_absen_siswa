@@ -6,6 +6,8 @@
     <title>Aplikasi Absensi Sekolah</title>
     <!-- Semua CSS sekarang ada di style.css -->
     <link rel="stylesheet" href="style.css">
+    <!-- Chart.js untuk grafik tren kehadiran di Dashboard Analitik -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 </head>
 <body>
 
@@ -42,6 +44,22 @@
             <button onclick="logout()" style="background-color: #EF4444; width: auto;">Logout</button>
         </div>
 
+        <!-- ============================================
+             TAB NAVIGASI
+             Tambah tab baru? tambahkan 1 <button> di sini
+             DAN 1 <div class="tab-panel"> yang senasib di bawah
+             ============================================ -->
+        <div class="tab-nav">
+            <button class="tab-btn active" data-tab="panelInput" onclick="switchTab('panelInput')">📝 Input Absensi</button>
+            <button class="tab-btn" data-tab="panelRiwayat" onclick="switchTab('panelRiwayat')">🕒 Riwayat</button>
+            <button class="tab-btn" data-tab="panelDashboard" onclick="switchTab('panelDashboard')">📊 Dashboard</button>
+        </div>
+        <!-- ===== SELESAI: TAB NAVIGASI ===== -->
+
+        <!-- ============================================
+             PANEL: INPUT ABSENSI (konten lama, tidak berubah)
+             ============================================ -->
+        <div id="panelInput" class="tab-panel">
         <!-- Filter mapel / kelas / tanggal. Tambah filter baru di sini -->
         <div class="header-info">
             <h3 id="greeting" style="margin-top: 0;">Selamat Datang!</h3>
@@ -82,6 +100,55 @@
             </div>
             <button type="submit" id="btnSubmit" style="margin-top: 20px; display: none;">Simpan Absensi</button>
         </form>
+        </div>
+        <!-- ===== SELESAI: PANEL INPUT ABSENSI ===== -->
+
+        <!-- ============================================
+             PANEL: RIWAYAT ABSENSI (BARU)
+             Guru pilih mapel + kelas miliknya sendiri,
+             lalu muncul daftar tanggal yang sudah diinput.
+             ============================================ -->
+        <div id="panelRiwayat" class="tab-panel hidden">
+            <div class="header-info">
+                <div class="form-group">
+                    <label>Pilih Mata Pelajaran:</label>
+                    <select id="riwayatMapel"></select>
+                </div>
+                <div class="form-group">
+                    <label>Pilih Kelas:</label>
+                    <select id="riwayatKelas">
+                        <option value="" disabled selected>-- Pilih Kelas --</option>
+                    </select>
+                </div>
+            </div>
+            <div id="riwayatLoading" class="hidden">Mengambil riwayat...</div>
+            <div id="riwayatList">
+                <p class="empty-state">Pilih mata pelajaran dan kelas untuk melihat riwayat absensi.</p>
+            </div>
+        </div>
+        <!-- ===== SELESAI: PANEL RIWAYAT ABSENSI ===== -->
+
+        <!-- ============================================
+             PANEL: DASHBOARD ANALITIK (BARU)
+             Otomatis memuat data begitu tab ini dibuka.
+             ============================================ -->
+        <div id="panelDashboard" class="tab-panel hidden">
+            <div id="dashboardLoading">Memuat data analitik...</div>
+            <div id="dashboardContent" class="hidden">
+
+                <h3>Persentase Kehadiran per Kelas &amp; Mapel</h3>
+                <div id="rekapKelasMapelList"></div>
+
+                <h3>Tren Kehadiran dari Waktu ke Waktu</h3>
+                <div class="chart-wrapper">
+                    <canvas id="trendChart" height="220"></canvas>
+                </div>
+
+                <h3>Siswa Perlu Perhatian (Sering Alpa)</h3>
+                <div id="topAlpaList"></div>
+            </div>
+        </div>
+        <!-- ===== SELESAI: PANEL DASHBOARD ANALITIK ===== -->
     </div>
     <!-- ===== SELESAI: HALAMAN DASHBOARD ===== -->
 </div>
