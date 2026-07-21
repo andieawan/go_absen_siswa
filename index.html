@@ -8,49 +8,84 @@
         :root { --primary: #4F46E5; --bg: #F3F4F6; --text: #1F2937; }
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+        
         .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         h2 { text-align: center; margin-bottom: 20px; }
+        
+        /* Form Styling */
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
         .form-group input, .form-group select { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; }
-        button { width: 100%; padding: 10px; background-color: var(--primary); color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        
+        button { padding: 10px; background-color: var(--primary); color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 100%; }
         button:hover { background-color: #4338CA; }
         button:disabled { background-color: #9CA3AF; cursor: not-allowed; }
+        
+        /* Table Styling */
         table { width: 100%; border-collapse: collapse; margin-top: 20px; }
         th, td { border: 1px solid #E5E7EB; padding: 12px; text-align: left; }
         th { background-color: #F9FAFB; }
+        
+        /* Radio Buttons */
         .radio-group { display: flex; gap: 15px; }
         .radio-group label { cursor: pointer; }
+
         .hidden { display: none; }
         .header-info { background: #E0E7FF; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
         #loading { text-align: center; font-weight: bold; margin-top: 15px; color: var(--primary); }
+        
+        .action-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 20px; }
     </style>
 </head>
 <body>
 
 <div class="container">
+    
+    <!-- HALAMAN LOGIN -->
     <div id="loginSection">
         <h2>Login Guru</h2>
         <form id="loginForm">
-            <div class="form-group"><label>Username</label><input type="text" id="username" required></div>
-            <div class="form-group"><label>Password</label><input type="password" id="password" required></div>
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="username" required>
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="password" required>
+            </div>
             <button type="submit">Login</button>
             <div id="loginMsg" style="color: red; text-align: center; margin-top: 10px;"></div>
         </form>
     </div>
 
+    <!-- HALAMAN DASHBOARD -->
     <div id="dashboardSection" class="hidden">
-        <button onclick="logout()" style="background-color: #EF4444; margin-bottom: 20px; width: auto; float: right;">Logout</button>
-        <div style="clear: both;"></div>
+        
+        <!-- Tombol Aksi (Rekap & Logout) -->
+        <div class="action-buttons">
+            <button id="btnRecap" onclick="generateRecap()" style="background-color: #10B981; width: auto;">📄 Buat Rekap</button>
+            <button onclick="logout()" style="background-color: #EF4444; width: auto;">Logout</button>
+        </div>
 
         <div class="header-info">
             <h3 id="greeting" style="margin-top: 0;">Selamat Datang!</h3>
-            <div class="form-group"><label>Pilih Mata Pelajaran:</label><select id="selectMapel" required></select></div>
+            
+            <div class="form-group">
+                <label>Pilih Mata Pelajaran:</label>
+                <select id="selectMapel" required></select>
+            </div>
+            
             <div class="form-group">
                 <label>Pilih Kelas:</label>
-                <select id="selectKelas" required><option value="" disabled selected>-- Pilih Kelas --</option></select>
+                <select id="selectKelas" required>
+                    <option value="" disabled selected>-- Pilih Kelas --</option>
+                </select>
             </div>
-            <div class="form-group"><label>Tanggal Pertemuan:</label><input type="date" id="tanggalAbsen" required></div>
+
+            <div class="form-group">
+                <label>Tanggal Pertemuan:</label>
+                <input type="date" id="tanggalAbsen" required>
+            </div>
         </div>
 
         <h3>Daftar Siswa</h3>
@@ -58,12 +93,21 @@
         
         <form id="absenForm">
             <table id="studentsTable">
-                <thead><tr><th>NIS</th><th>Nama Siswa</th><th>Kehadiran</th></tr></thead>
-                <tbody id="studentsBody"><tr><td colspan="3" style="text-align: center;">Silakan pilih kelas terlebih dahulu.</td></tr></tbody>
+                <thead>
+                    <tr>
+                        <th>NIS</th>
+                        <th>Nama Siswa</th>
+                        <th>Kehadiran</th>
+                    </tr>
+                </thead>
+                <tbody id="studentsBody">
+                    <tr><td colspan="3" style="text-align: center;">Silakan pilih kelas terlebih dahulu.</td></tr>
+                </tbody>
             </table>
             <button type="submit" id="btnSubmit" style="margin-top: 20px; display: none;">Simpan Absensi</button>
         </form>
     </div>
+
 </div>
 
 <script>
@@ -76,53 +120,73 @@
     const dashboardSection = document.getElementById('dashboardSection');
     let sessionData = JSON.parse(sessionStorage.getItem('guruSession'));
 
-    if (sessionData) showDashboard();
+    if (sessionData) {
+        showDashboard();
+    }
 
+    // --- HANDLE LOGIN ---
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const user = document.getElementById('username').value;
         const pass = document.getElementById('password').value;
         const btn = e.target.querySelector('button');
         const msg = document.getElementById('loginMsg');
+        
         btn.innerText = 'Mengecek...';
         msg.innerText = '';
+
         try {
-            const response = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'login', username: user, password: pass }) });
+            const response = await fetch(GAS_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'login', username: user, password: pass })
+            });
             const resData = await response.json();
+
             if (resData.success) {
                 sessionStorage.setItem('guruSession', JSON.stringify(resData.data));
                 sessionData = resData.data;
                 showDashboard();
-            } else { msg.innerText = resData.message; }
-        } catch (error) { msg.innerText = "Gagal terhubung ke server."; }
+            } else {
+                msg.innerText = resData.message;
+            }
+        } catch (error) {
+            msg.innerText = "Gagal terhubung ke server.";
+        }
         btn.innerText = 'Login';
     });
 
+    // --- TAMPILKAN DASHBOARD & PARSING DATA GURU ---
     function showDashboard() {
         loginSection.classList.add('hidden');
         dashboardSection.classList.remove('hidden');
+        
         document.getElementById('greeting').innerText = `Selamat Mengajar, ${sessionData.nama}`;
         document.getElementById('tanggalAbsen').valueAsDate = new Date();
 
+        // Pecah string Mapel
         const mapelArr = sessionData.mapel.split(',').map(s => s.trim());
         const selectMapel = document.getElementById('selectMapel');
         selectMapel.innerHTML = '';
         mapelArr.forEach(m => selectMapel.innerHTML += `<option value="${m}">${m}</option>`);
 
+        // Pecah string Kelas
         const kelasArr = sessionData.kelas.split(',').map(s => s.trim());
         const selectKelas = document.getElementById('selectKelas');
         selectKelas.innerHTML = '<option value="" disabled selected>-- Pilih Kelas --</option>';
         kelasArr.forEach(k => selectKelas.innerHTML += `<option value="${k}">${k}</option>`);
 
+        // Event listener saat parameter absen diubah
         selectKelas.addEventListener('change', (e) => fetchStudents(e.target.value));
         document.getElementById('tanggalAbsen').addEventListener('change', checkExistingAttendance);
         document.getElementById('selectMapel').addEventListener('change', checkExistingAttendance);
     }
 
+    // --- FETCH DATA SISWA BERDASARKAN KELAS ---
     async function fetchStudents(kelas) {
         const tbody = document.getElementById('studentsBody');
         const loading = document.getElementById('loading');
         const btnSubmit = document.getElementById('btnSubmit');
+        
         tbody.innerHTML = '';
         btnSubmit.style.display = 'none';
         loading.classList.remove('hidden');
@@ -130,6 +194,7 @@
         try {
             const response = await fetch(`${GAS_URL}?action=getStudents&kelas=${kelas}`);
             const resData = await response.json();
+
             loading.classList.add('hidden');
 
             if (resData.success && resData.data.length > 0) {
@@ -140,7 +205,6 @@
                         <td class="nama-siswa">${siswa.nama}</td>
                         <td>
                             <div class="radio-group">
-                                <!-- Default Hadir (checked) ditambahkan di baris bawah ini -->
                                 <label><input type="radio" name="status_${index}" value="H" checked required> H</label>
                                 <label><input type="radio" name="status_${index}" value="I"> I</label>
                                 <label><input type="radio" name="status_${index}" value="S"> S</label>
@@ -150,9 +214,9 @@
                     `;
                     tbody.appendChild(tr);
                 });
-                btnSubmit.style.display = 'block';
+                btnSubmit.style.display = 'block'; 
                 
-                // Setelah load siswa, cek apakah absen sudah pernah diisi
+                // Cek apakah absen sudah pernah diisi
                 await checkExistingAttendance();
             } else {
                 tbody.innerHTML = `<tr><td colspan="3">${resData.message || 'Tidak ada data siswa.'}</td></tr>`;
@@ -163,7 +227,7 @@
         }
     }
 
-    // Fungsi untuk menarik status jika guru sudah pernah absen sebelumnya (Bisa Edit)
+    // --- CEK ABSENSI YANG SUDAH ADA ---
     async function checkExistingAttendance() {
         const mapel = document.getElementById('selectMapel').value;
         const kelas = document.getElementById('selectKelas').value;
@@ -179,7 +243,6 @@
             const resData = await response.json();
 
             if (resData.success && resData.data) {
-                // Parse nama siswa berdasarkan status yang disimpan
                 const savedIzin = resData.data.izin.split(',').map(s => s.trim());
                 const savedSakit = resData.data.sakit.split(',').map(s => s.trim());
                 const savedAlpa = resData.data.alpa.split(',').map(s => s.trim());
@@ -187,19 +250,17 @@
                 const rows = document.querySelectorAll('#studentsBody tr');
                 rows.forEach((row, index) => {
                     const nama = row.querySelector('.nama-siswa').innerText;
-                    let status = 'H'; // Tetap H secara default jika tidak ada di I/S/A
+                    let status = 'H'; 
 
                     if (savedIzin.includes(nama)) status = 'I';
                     else if (savedSakit.includes(nama)) status = 'S';
                     else if (savedAlpa.includes(nama)) status = 'A';
 
-                    // Update tombol radio sesuai status yang disetor sebelumnya
                     const targetRadio = document.querySelector(`input[name="status_${index}"][value="${status}"]`);
                     if (targetRadio) targetRadio.checked = true;
                 });
                 btnSubmit.innerText = "Perbarui Absensi";
             } else {
-                // Reset kembali ke Hadir jika data baru
                 const rows = document.querySelectorAll('#studentsBody tr');
                 rows.forEach((row, index) => {
                     document.querySelector(`input[name="status_${index}"][value="H"]`).checked = true;
@@ -211,6 +272,7 @@
         }
     }
 
+    // --- SUBMIT ABSENSI ---
     document.getElementById('absenForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = document.getElementById('btnSubmit');
@@ -233,18 +295,59 @@
 
         btn.innerText = "Menyimpan...";
         btn.disabled = true;
+
         try {
-            const response = await fetch(GAS_URL, { method: 'POST', body: JSON.stringify({ action: 'submit', payload: payload }) });
+            const response = await fetch(GAS_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'submit', payload: payload })
+            });
             const resData = await response.json();
+
             if (resData.success) {
                 alert(resData.message);
                 btn.innerText = "Perbarui Absensi";
-            } else { alert("Gagal: " + resData.message); btn.innerText = "Simpan Absensi"; }
-        } catch (error) { alert("Terjadi kesalahan jaringan."); btn.innerText = "Simpan Absensi"; }
+            } else {
+                alert("Gagal: " + resData.message);
+                btn.innerText = "Simpan Absensi";
+            }
+        } catch (error) {
+            alert("Terjadi kesalahan jaringan.");
+            btn.innerText = "Simpan Absensi";
+        }
+
         btn.disabled = false;
     });
 
-    function logout() { sessionStorage.removeItem('guruSession'); window.location.reload(); }
+    // --- GENERATE REKAP (TOMBOL) ---
+    async function generateRecap() {
+        const btn = document.getElementById('btnRecap');
+        const originalText = btn.innerText;
+        
+        btn.innerText = "Memproses... (Mohon Tunggu)";
+        btn.disabled = true;
+
+        try {
+            const response = await fetch(`${GAS_URL}?action=generateRecap`);
+            const resData = await response.json();
+
+            if (resData.success) {
+                alert("SUKSES: " + resData.message);
+            } else {
+                alert("GAGAL: " + resData.message);
+            }
+        } catch (error) {
+            alert("Terjadi kesalahan jaringan saat mencoba membuat rekap.");
+        }
+
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+
+    // --- LOGOUT ---
+    function logout() {
+        sessionStorage.removeItem('guruSession');
+        window.location.reload();
+    }
 </script>
 </body>
 </html>
