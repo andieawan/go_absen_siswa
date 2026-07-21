@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="style.css">
     <!-- Chart.js untuk grafik tren kehadiran di Dashboard Analitik -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+    <!-- SheetJS untuk membuat file .xlsx langsung di browser (Rekap Kelas Saya) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -40,7 +42,7 @@
          ============================================ -->
     <div id="dashboardSection" class="hidden">
         <div class="action-buttons">
-            <button id="btnRecap" onclick="generateRecap()" style="background-color: #10B981; width: auto;">📄 Buat Rekap</button>
+            <button id="btnRecap" onclick="downloadRekapKelasSaya()" style="background-color: #10B981; width: auto;">📥 Rekap Kelas Saya (.xlsx)</button>
             <button onclick="logout()" style="background-color: #EF4444; width: auto;">Logout</button>
         </div>
 
