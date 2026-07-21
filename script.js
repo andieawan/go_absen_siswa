@@ -113,6 +113,23 @@ function showDashboard() {
 
 
 // =========================================================
+// GANTI TAB (Input Absensi / Riwayat / Dashboard)
+// Tambah tab baru? tambahkan "if (tabId === '...')" di bawah
+// ========================================================
+function switchTab(tabId) {
+    document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
+    document.getElementById(tabId).classList.remove('hidden');
+
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`.tab-btn[data-tab="${tabId}"]`).classList.add('active');
+
+    if (tabId === 'panelRiwayat') setupRiwayatSelectors();
+    if (tabId === 'panelDashboard') loadDashboard();
+}
+// ===== SELESAI: GANTI TAB =====
+
+
+// =========================================================
 // FETCH DATA SISWA (dipanggil saat kelas dipilih)
 // =========================================================
 async function fetchStudents(kelas) {
@@ -297,3 +314,190 @@ function logout() {
     window.location.reload();
 }
 // ===== SELESAI: LOGOUT =====
+
+
+// =========================================================
+// FUNGSI BANTUAN: format tanggal "2026-07-22" -> "22 Jul 2026"
+// =========================================================
+function formatTanggalIndo(tanggalStr) {
+    const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const [y, m, d] = tanggalStr.split('-');
+    return `${parseInt(d, 10)} ${bulan[parseInt(m, 10) - 1]} ${y}`;
+}
+// ===== SELESAI: FUNGSI BANTUAN TANGGAL =====
+
+
+// =========================================================
+// PANEL RIWAYAT ABSENSI (BARU)
+// =========================================================
+
+// Isi dropdown mapel & kelas riwayat sekali saja (pakai data guru yang sama dengan login)
+function setupRiwayatSelectors() {
+    const selMapel = document.getElementById('riwayatMapel');
+    const selKelas = document.getElementById('riwayatKelas');
+    if (selMapel.dataset.filled) return; // sudah pernah diisi, tidak perlu diulang
+
+    const mapelArr = sessionData.mapel.split(',').map(s => s.trim());
+    mapelArr.forEach(m => selMapel.innerHTML += `<option value="${m}">${m}</option>`);
+
+    const kelasArr = sessionData.kelas.split(',').map(s => s.trim());
+    kelasArr.forEach(k => selKelas.innerHTML += `<option value="${k}">${k}</option>`);
+
+    selMapel.dataset.filled = "1";
+    selMapel.addEventListener('change', fetchRiwayat);
+    selKelas.addEventListener('change', fetchRiwayat);
+}
+
+// Ambil & tampilkan riwayat absensi untuk kombinasi mapel+kelas yang dipilih
+async function fetchRiwayat() {
+    const mapel = document.getElementById('riwayatMapel').value;
+    const kelas = document.getElementById('riwayatKelas').value;
+    const listEl = document.getElementById('riwayatList');
+    const loading = document.getElementById('riwayatLoading');
+
+    if (!mapel || !kelas) return;
+
+    listEl.innerHTML = '';
+    loading.classList.remove('hidden');
+
+    try {
+        const response = await fetch(`${GAS_URL}?action=getRiwayatAbsensi&mapel=${mapel}&kelas=${kelas}`);
+        const resData = await response.json();
+        loading.classList.add('hidden');
+
+        if (resData.success && resData.data.length > 0) {
+            listEl.innerHTML = resData.data.map(rec => {
+                const rincian = [
+                    rec.namaIzin.length ? `Izin: ${rec.namaIzin.join(', ')}` : '',
+                    rec.namaSakit.length ? `Sakit: ${rec.namaSakit.join(', ')}` : '',
+                    rec.namaAlpa.length ? `Alpa: ${rec.namaAlpa.join(', ')}` : ''
+                ].filter(Boolean).join(' &middot; ');
+
+                return `
+                    <div class="riwayat-card">
+                        <div class="riwayat-header">
+                            <span class="riwayat-tanggal">${formatTanggalIndo(rec.tanggal)}</span>
+                            <span class="riwayat-badge">${rec.jumlahHadir} Hadir</span>
+                        </div>
+                        <div class="riwayat-stats">
+                            <span>Izin: ${rec.jumlahIzin}</span>
+                            <span>Sakit: ${rec.jumlahSakit}</span>
+                            <span>Alpa: ${rec.jumlahAlpa}</span>
+                        </div>
+                        ${rincian ? `<div class="riwayat-detail">${rincian}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        } else {
+            listEl.innerHTML = `<p class="empty-state">Belum ada riwayat absensi untuk kelas &amp; mapel ini.</p>`;
+        }
+    } catch (error) {
+        loading.classList.add('hidden');
+        listEl.innerHTML = `<p class="empty-state">Gagal mengambil riwayat absensi.</p>`;
+    }
+}
+// ===== SELESAI: PANEL RIWAYAT ABSENSI =====
+
+
+// =========================================================
+// PANEL DASHBOARD ANALITIK (BARU)
+// =========================================================
+let trendChartInstance = null; // simpan referensi chart supaya bisa dihancurkan sebelum digambar ulang
+
+// Muat semua data dashboard (dipanggil setiap kali tab Dashboard dibuka)
+async function loadDashboard() {
+    const loading = document.getElementById('dashboardLoading');
+    const content = document.getElementById('dashboardContent');
+
+    loading.classList.remove('hidden');
+    content.classList.add('hidden');
+
+    try {
+        const response = await fetch(`${GAS_URL}?action=getDashboardData&mapel=${encodeURIComponent(sessionData.mapel)}&kelas=${encodeURIComponent(sessionData.kelas)}`);
+        const resData = await response.json();
+        loading.classList.add('hidden');
+        content.classList.remove('hidden');
+
+        if (resData.success) {
+            renderRekapKelasMapel(resData.data.rekapKelasMapel);
+            renderTrendChart(resData.data.trend);
+            renderTopAlpa(resData.data.topAlpa);
+        } else {
+            content.innerHTML = `<p class="empty-state">${resData.message || 'Belum ada data absensi untuk ditampilkan.'}</p>`;
+        }
+    } catch (error) {
+        loading.classList.add('hidden');
+        content.classList.remove('hidden');
+        content.innerHTML = `<p class="empty-state">Gagal memuat data dashboard.</p>`;
+    }
+}
+
+// Tampilkan progress bar persentase kehadiran per kelas & mapel
+function renderRekapKelasMapel(list) {
+    const el = document.getElementById('rekapKelasMapelList');
+    if (!list || list.length === 0) {
+        el.innerHTML = `<p class="empty-state">Belum ada data.</p>`;
+        return;
+    }
+    el.innerHTML = list.map(item => `
+        <div class="rekap-bar-item">
+            <div class="rekap-bar-label">
+                <span>${item.label}</span>
+                <span>${item.persenHadir}%</span>
+            </div>
+            <div class="rekap-bar-track">
+                <div class="rekap-bar-fill" style="width: ${item.persenHadir}%;"></div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Tampilkan daftar siswa dengan jumlah Alpa terbanyak
+function renderTopAlpa(list) {
+    const el = document.getElementById('topAlpaList');
+    if (!list || list.length === 0) {
+        el.innerHTML = `<p class="empty-state">Tidak ada siswa dengan catatan Alpa. Bagus!</p>`;
+        return;
+    }
+    el.innerHTML = list.map((s, i) => `
+        <div class="alpa-item">
+            <span class="alpa-rank">${i + 1}</span>
+            <span class="alpa-nama">${s.nama}</span>
+            <span class="alpa-jumlah">${s.jumlahAlpa}x Alpa</span>
+        </div>
+    `).join('');
+}
+
+// Gambar grafik garis tren % kehadiran dari waktu ke waktu (pakai Chart.js)
+function renderTrendChart(trend) {
+    const canvas = document.getElementById('trendChart');
+    if (trendChartInstance) {
+        trendChartInstance.destroy();
+        trendChartInstance = null;
+    }
+    if (!trend || trend.length === 0) return;
+
+    trendChartInstance = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: trend.map(t => formatTanggalIndo(t.tanggal)),
+            datasets: [{
+                label: '% Kehadiran',
+                data: trend.map(t => t.persenHadir),
+                borderColor: '#4F46E5',
+                backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                tension: 0.3,
+                fill: true,
+                pointRadius: 3
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: { min: 0, max: 100, ticks: { callback: v => v + '%' } }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+}
+// ===== SELESAI: PANEL DASHBOARD ANALITIK =====
