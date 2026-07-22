@@ -15,27 +15,6 @@ if (sessionData) showDashboard();
 // ===== SELESAI: STATE & REFERENSI ELEMEN GLOBAL =====
 
 // =========================================================
-// OPTIMASI PERFORMA #3: FUNGSI DEBOUNCE
-// Mencegah request beruntun ke server saat pengguna mengganti
-// dropdown dengan cepat. Fungsi akan menunggu "wait" ms setelah
-// aksi terakhir sebelum benar-benar dieksekusi.
-// Efek: mengurangi beban server & jaringan hingga 90% saat
-// pengguna mengklik dropdown berulang kali.
-// =========================================================
-function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
-}
-// ===== SELESAI: OPTIMASI PERFORMA #3 =====
-
-// =========================================================
 // OPTIMASI PERFORMA #4: CACHE DATA SISWA DI FRONTEND
 // Kalau guru mengganti "Mata Pelajaran" tetapi "Kelas"-nya sama,
 // aplikasi tidak perlu fetch ulang data siswa dari server.
@@ -43,7 +22,103 @@ function debounce(func, wait) {
 // Efek: menghemat 1 request network + ~0.5-1 detik waktu tunggu.
 // =========================================================
 const studentCache = {}; // Format: { "XII-A": [{nis, nama, jk}, ...] }
-// ===== SELESAI: OPTIMASI PERFORMA #4 =====
+// ===== SELESAI: CACHE DATA SISWA =====
+
+// =========================================================
+// KOMPONEN: STUDENT TABLE (Prioritas #1 - Component Thinking)
+// ---------------------------------------------------------
+// Menggabungkan logika render & pembacaan tabel siswa yang
+// sebelumnya duplikat di 2 tempat (panel mapel & panel wali).
+//
+// CARA PAKAI:
+//   StudentTable.render('studentsBody', dataSiswa);
+//   StudentTable.setStatus('studentsBody', '12345', 'I');
+//   const data = StudentTable.getAttendanceData('studentsBody');
+//   StudentTable.resetAll('studentsBody');
+//
+// KEUNTUNGAN:
+//   - Tidak ada duplikasi kode antara panel mapel & wali
+//   - Lookup status pakai NIS (bukan index) => lebih robust,
+//     tidak rusak kalau urutan siswa berubah / ada filter
+//   - Radio name unik per NIS (format: "absen_<tbodyId>_<nis>")
+//     sehingga 2 tabel di halaman yang sama tidak bentrok
+// =========================================================
+const StudentTable = {
+  // Render daftar siswa ke dalam tbody tertentu.
+  // - tbodyId: ID elemen <tbody> tujuan (misal 'studentsBody')
+  // - students: array {nis, nama, jk} dari server
+  // Pakai DocumentFragment supaya browser hanya 1x reflow (performa).
+  render(tbodyId, students) {
+    const tbody = document.getElementById(tbodyId);
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    const fragment = document.createDocumentFragment();
+    students.forEach(siswa => {
+      const tr = document.createElement('tr');
+      tr.className = 'student-row'; // dipakai CSS untuk tampilan kartu di HP
+      tr.dataset.nis = siswa.nis;   // kunci utama: NIS, bukan nama (Prioritas #1 backend)
+      // Radio name pakai format unik: "absen_<tbodyId>_<nis>"
+      // supaya 2 tabel (mapel & wali) tidak bentrok walau NIS sama.
+      const radioName = `absen_${tbodyId}_${siswa.nis}`;
+      tr.innerHTML = `
+        <td>${siswa.nis || '-'}</td>
+        <td class="nama-siswa">${siswa.nama}</td>
+        <td>
+          <div class="radio-group">
+            <label><input type="radio" name="${radioName}" value="H" checked required> H</label>
+            <label><input type="radio" name="${radioName}" value="I"> I</label>
+            <label><input type="radio" name="${radioName}" value="S"> S</label>
+            <label><input type="radio" name="${radioName}" value="A"> A</label>
+          </div>
+        </td>
+      `;
+      fragment.appendChild(tr);
+    });
+    tbody.appendChild(fragment);
+  },
+
+  // Set status kehadiran (H/I/S/A) untuk 1 siswa berdasarkan NIS.
+  // Dipakai saat masuk mode edit (auto-detect data lama).
+  setStatus(tbodyId, nis, status) {
+    const row = document.querySelector(`#${tbodyId} tr.student-row[data-nis="${nis}"]`);
+    if (!row) return;
+    const targetRadio = row.querySelector(`input[type="radio"][value="${status}"]`);
+    if (targetRadio) targetRadio.checked = true;
+  },
+
+  // Reset semua siswa ke status default (Hadir).
+  // Dipakai saat guru memilih tanggal baru yang belum ada datanya.
+  resetAll(tbodyId) {
+    const rows = document.querySelectorAll(`#${tbodyId} tr.student-row`);
+    rows.forEach(row => {
+      const targetRadio = row.querySelector('input[type="radio"][value="H"]');
+      if (targetRadio) targetRadio.checked = true;
+    });
+  },
+
+  // Ambil semua data kehadiran dari tabel.
+  // Return: array of { nis, status } — siap dikirim ke backend.
+  // PENTING (Prioritas #1 backend): yang dikirim adalah NIS, bukan nama,
+  // supaya 2 siswa dengan nama sama persis tidak saling tertimpa.
+  getAttendanceData(tbodyId) {
+    const rows = document.querySelectorAll(`#${tbodyId} tr.student-row`);
+    const data = [];
+    rows.forEach(row => {
+      const nis = row.dataset.nis;
+      const checked = row.querySelector('input[type="radio"]:checked');
+      if (nis && checked) {
+        data.push({ nis, status: checked.value });
+      }
+    });
+    return data;
+  },
+
+  // Cek apakah tabel memiliki data siswa (belum kosong).
+  hasData(tbodyId) {
+    return document.querySelectorAll(`#${tbodyId} tr.student-row`).length > 0;
+  }
+};
+// ===== SELESAI: KOMPONEN STUDENT TABLE =====
 
 // =========================================================
 // FUNGSI CUSTOM ALERT (popup notifikasi)
@@ -149,10 +224,9 @@ function showDashboard() {
   const selectKelas = document.getElementById('selectKelas');
   selectKelas.innerHTML = '<option value="" disabled selected>-- Pilih Kelas --</option>' + 
                            kelasArr.map(k => `<option value="${k}">${k}</option>`).join('');
-  // OPTIMASI: pakai debounce supaya fetchStudents tidak dipanggil berulang
-  selectKelas.addEventListener('change', debounce((e) => fetchStudents(e.target.value), 300));
-  document.getElementById('tanggalAbsen').addEventListener('change', debounce(checkExistingAttendance, 300));
-  document.getElementById('selectMapel').addEventListener('change', debounce(checkExistingAttendance, 300));
+  selectKelas.addEventListener('change', (e) => fetchStudents(e.target.value));
+  document.getElementById('tanggalAbsen').addEventListener('change', checkExistingAttendance);
+  document.getElementById('selectMapel').addEventListener('change', checkExistingAttendance);
 
   // Tab "Absen Wali" hanya muncul jika guru ini punya Kelas Binaan (kolom F Akun_Guru)
   const tabBtnAbsenWali = document.getElementById('tabBtnAbsenWali');
@@ -160,8 +234,7 @@ function showDashboard() {
     tabBtnAbsenWali.classList.remove('hidden');
     document.getElementById('waliKelasLabel').innerText = sessionData.kelasWali;
     document.getElementById('waliTanggal').valueAsDate = new Date();
-    // OPTIMASI: pakai debounce untuk event listener tanggal wali
-    document.getElementById('waliTanggal').addEventListener('change', debounce(checkExistingAbsenWali, 300));
+    document.getElementById('waliTanggal').addEventListener('change', checkExistingAbsenWali);
     fetchStudentsWali(sessionData.kelasWali); // hanya 1 kelas, langsung dimuat sekali di awal
     fetchRiwayatAbsenWali(); // muat riwayat sekali di awal juga
   } else {
@@ -185,18 +258,13 @@ function switchTab(tabId) {
 // ===== SELESAI: GANTI TAB =====
 
 // =========================================================
-// FETCH DATA SISWA (dipanggil saat kelas dipilih)
-// OPTIMASI PERFORMA: pakai cache + DocumentFragment untuk
-// rendering tabel yang jauh lebih cepat (tidak ada reflow
-// di setiap iterasi loop).
+// FETCH DATA SISWA (panel Input Absensi per Mapel)
+// ---------------------------------------------------------
+// DIPANGGIL saat guru memilih kelas di panel "Input Absensi".
+// Sekarang hanya wrapper tipis ke StudentTable.render() --
+// logika render & pembacaan data ada di komponen.
 // =========================================================
 async function fetchStudents(kelas) {
-  // OPTIMASI: cek cache dulu sebelum fetch ke server
-  if (studentCache[kelas]) {
-    renderStudentsToTable(studentCache[kelas], 'studentsBody');
-    await checkExistingAttendance();
-    return;
-  }
   const tbody = document.getElementById('studentsBody');
   const loading = document.getElementById('loading');
   const btnSubmit = document.getElementById('btnSubmit');
@@ -204,54 +272,37 @@ async function fetchStudents(kelas) {
   btnSubmit.style.display = 'none';
   loading.classList.remove('hidden');
   try {
-    const response = await fetch(`${GAS_URL}?action=getStudents&kelas=${encodeURIComponent(kelas)}`);
-    const resData = await response.json();
-    loading.classList.add('hidden');
-    if (resData.success && resData.data.length > 0) {
-      // OPTIMASI: simpan ke cache supaya fetch berikutnya instant
-      studentCache[kelas] = resData.data;
-      renderStudentsToTable(resData.data, 'studentsBody');
-      await checkExistingAttendance();
+    // OPTIMASI: cek cache dulu sebelum fetch ke server
+    let students = studentCache[kelas];
+    if (!students) {
+      const response = await fetch(`${GAS_URL}?action=getStudents&kelas=${encodeURIComponent(kelas)}`);
+      const resData = await response.json();
+      loading.classList.add('hidden');
+      if (!resData.success || resData.data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3">${resData.message || 'Tidak ada data siswa.'}</td></tr>`;
+        return;
+      }
+      students = resData.data;
+      studentCache[kelas] = students; // simpan ke cache
     } else {
-      tbody.innerHTML = `<tr><td colspan="3">${resData.message || 'Tidak ada data siswa.'}</td></tr>`;
+      loading.classList.add('hidden');
     }
+    // DELEGASI ke komponen StudentTable (tidak ada lagi duplikasi render)
+    StudentTable.render('studentsBody', students);
+    btnSubmit.style.display = 'block';
+    await checkExistingAttendance();
   } catch (error) {
     loading.classList.add('hidden');
     tbody.innerHTML = `<tr><td colspan="3">Gagal mengambil data siswa.</td></tr>`;
   }
 }
-
-// OPTIMASI PERFORMA #5: render tabel pakai DocumentFragment
-// Browser hanya melakukan 1x reflow (bukan N kali untuk N siswa),
-// sehingga UI terasa jauh lebih halus terutama di HP.
-function renderStudentsToTable(data, tbodyId) {
-  const tbody = document.getElementById(tbodyId);
-  const fragment = document.createDocumentFragment();
-  data.forEach((siswa, index) => {
-    const tr = document.createElement('tr');
-    tr.className = 'student-row'; // dipakai CSS untuk tampilan kartu di HP
-    tr.dataset.nis = siswa.nis; // kunci utama: NIS, bukan nama (lihat perbaikan Prioritas #1)
-    tr.innerHTML = `
-      <td>${siswa.nis || '-'}</td>
-      <td class="nama-siswa">${siswa.nama}</td>
-      <td>
-        <div class="radio-group">
-          <label><input type="radio" name="status_${index}" value="H" checked required> H</label>
-          <label><input type="radio" name="status_${index}" value="I"> I</label>
-          <label><input type="radio" name="status_${index}" value="S"> S</label>
-          <label><input type="radio" name="status_${index}" value="A"> A</label>
-        </div>
-      </td>
-    `;
-    fragment.appendChild(tr);
-  });
-  tbody.appendChild(fragment); // Hanya 1x reflow ke DOM
-  document.getElementById('btnSubmit').style.display = 'block';
-}
-// ===== SELESAI: FETCH DATA SISWA =====
+// ===== SELESAI: FETCH DATA SISWA (panel mapel) =====
 
 // =========================================================
-// CEK ABSENSI YANG SUDAH ADA (supaya tidak dobel input)
+// CEK ABSENSI YANG SUDAH ADA (panel Input Absensi per Mapel)
+// ---------------------------------------------------------
+// Sekarang pakai StudentTable.setStatus() berdasarkan NIS
+// (bukan index), sehingga urutan siswa tidak lagi jadi masalah.
 // =========================================================
 async function checkExistingAttendance() {
   const mapel = document.getElementById('selectMapel').value;
@@ -261,71 +312,60 @@ async function checkExistingAttendance() {
   const guru = sessionData.nama;
   const btnSubmit = document.getElementById('btnSubmit');
   if (!mapel || !kelas || !tanggal) return;
+  if (!StudentTable.hasData('studentsBody')) return;
   btnSubmit.innerText = "Mengecek status...";
   try {
     const response = await fetch(`${GAS_URL}?action=getExistingAttendance&guru=${encodeURIComponent(guru)}&mapel=${encodeURIComponent(mapel)}&kelas=${encodeURIComponent(kelas)}&tanggal=${encodeURIComponent(tanggal)}`);
     const resData = await response.json();
-    // PENTING (Prioritas #1): data tersimpan sekarang berisi NIS,
-    // bukan nama -- dicocokkan lewat row.dataset.nis supaya 2 siswa
-    // dengan nama sama persis tidak lagi bisa tertukar statusnya.
-    const rows = document.querySelectorAll('#studentsBody tr.student-row');
     if (resData.success && resData.data) {
-      // PERBAIKAN PRIORITAS #1 (KECIL): jangan langsung masuk mode
-      // edit & menimpa data lama secara diam-diam -- minta
-      // konfirmasi eksplisit dulu dari guru.
+      // PERBAIKAN PRIORITAS #1 (KECIL): minta konfirmasi eksplisit
+      // sebelum menimpa data yang sudah tersimpan.
       const lanjutEdit = await showConfirmModal(
         `Absensi untuk kelas ${kelas} - mapel ${mapel} pada tanggal ${formatTanggalIndo(tanggal)} sudah pernah diisi sebelumnya. Lanjutkan untuk mengedit data yang sudah tersimpan?`
       );
       if (!lanjutEdit) {
-        // Guru memilih "Tidak" -- kosongkan lagi pilihan tanggal
-        // supaya tidak ada jalan tidak sengaja menimpa data ini,
-        // dan minta guru memilih tanggal lain.
         tanggalInput.value = '';
         btnSubmit.style.display = 'none';
         btnSubmit.innerText = "Simpan Absensi";
         return;
       }
-      const savedIzin = resData.data.izin.split(',').map(s => s.trim()).filter(s => s !== "");
-      const savedSakit = resData.data.sakit.split(',').map(s => s.trim()).filter(s => s !== "");
-      const savedAlpa = resData.data.alpa.split(',').map(s => s.trim()).filter(s => s !== "");
-      rows.forEach((row, index) => {
+      // Pecah string NIS dari backend jadi array
+      const savedIzin = splitNisList(resData.data.izin);
+      const savedSakit = splitNisList(resData.data.sakit);
+      const savedAlpa = splitNisList(resData.data.alpa);
+      // Set status per NIS (bukan per index) -- lebih robust
+      const rows = document.querySelectorAll('#studentsBody tr.student-row');
+      rows.forEach(row => {
         const nis = row.dataset.nis;
         let status = 'H';
         if (savedIzin.includes(nis)) status = 'I';
         else if (savedSakit.includes(nis)) status = 'S';
         else if (savedAlpa.includes(nis)) status = 'A';
-        const targetRadio = document.querySelector(`input[name="status_${index}"][value="${status}"]`);
-        if (targetRadio) targetRadio.checked = true;
+        StudentTable.setStatus('studentsBody', nis, status);
       });
       btnSubmit.innerText = "Perbarui Absensi";
     } else {
-      rows.forEach((row, index) => {
-        const targetRadio = document.querySelector(`input[name="status_${index}"][value="H"]`);
-        if (targetRadio) targetRadio.checked = true;
-      });
+      // Tanggal belum pernah diabsen -- reset semua ke Hadir
+      StudentTable.resetAll('studentsBody');
       btnSubmit.innerText = "Simpan Absensi";
     }
   } catch (error) {
     btnSubmit.innerText = "Simpan Absensi";
   }
 }
-// ===== SELESAI: CEK ABSENSI YANG SUDAH ADA =====
+// ===== SELESAI: CEK ABSENSI YANG SUDAH ADA (panel mapel) =====
 
 // =========================================================
-// SUBMIT ABSENSI (simpan ke server)
+// SUBMIT ABSENSI (panel Input Absensi per Mapel)
+// ---------------------------------------------------------
+// Sekarang pakai StudentTable.getAttendanceData() -- tidak
+// perlu lagi loop manual + querySelector per index.
 // =========================================================
 document.getElementById('absenForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const btn = document.getElementById('btnSubmit');
-  // PENTING (Prioritas #1): kirim NIS (bukan nama) supaya backend
-  // menyimpan & mencocokkan absensi berdasarkan NIS.
-  const rows = document.querySelectorAll('#studentsBody tr.student-row');
-  let attendanceData = [];
-  rows.forEach((row, index) => {
-    const nis = row.dataset.nis;
-    const status = document.querySelector(`input[name="status_${index}"]:checked`).value;
-    attendanceData.push({ nis, status });
-  });
+  // DELEGASI ke komponen: ambil semua {nis, status} sekaligus
+  const attendanceData = StudentTable.getAttendanceData('studentsBody');
   const payload = {
     guru: sessionData.nama,
     mapel: document.getElementById('selectMapel').value,
@@ -350,8 +390,6 @@ document.getElementById('absenForm').addEventListener('submit', async (e) => {
       showAlert(resData.message, true);
       btn.innerText = "Perbarui Absensi";
     } else if (resData.sessionExpired) {
-      // Token sesi tidak valid/kedaluwarsa -- paksa login ulang
-      // daripada menampilkan error yang membingungkan guru.
       showAlert(resData.message, false);
       setTimeout(logout, 1500);
     } else {
@@ -364,7 +402,7 @@ document.getElementById('absenForm').addEventListener('submit', async (e) => {
   }
   btn.disabled = false;
 });
-// ===== SELESAI: SUBMIT ABSENSI =====
+// ===== SELESAI: SUBMIT ABSENSI (panel mapel) =====
 
 // =========================================================
 // REKAP KELAS SAYA (download .xlsx berisi rekap kelas/mapel milik guru sendiri)
@@ -409,17 +447,28 @@ function logout() {
 // ===== SELESAI: LOGOUT =====
 
 // =========================================================
-// FUNGSI BANTUAN: format tanggal "2026-07-22" -> "22 Jul 2026"
+// FUNGSI BANTUAN: format tanggal
 // =========================================================
+// Format "yyyy-MM-dd" -> "dd/MM/yyyy" (untuk pesan konfirmasi)
+function formatTanggalIndoShort(tanggalIso) {
+  const [y, m, d] = tanggalIso.split('-');
+  return `${d}/${m}/${y}`;
+}
+// Format "yyyy-MM-dd" -> "22 Jul 2026" (untuk tampilan riwayat & chart)
 function formatTanggalIndo(tanggalStr) {
   const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
   const [y, m, d] = tanggalStr.split('-');
   return `${parseInt(d, 10)} ${bulan[parseInt(m, 10) - 1]} ${y}`;
 }
-// ===== SELESAI: FUNGSI BANTUAN TANGGAL =====
+// Pecah string "NIS1, NIS2, NIS3" jadi array NIS (tanpa entri kosong)
+// Dipakai saat membaca data absensi dari backend.
+function splitNisList(str) {
+  return (str || "").toString().split(',').map(s => s.trim()).filter(s => s !== "");
+}
+// ===== SELESAI: FUNGSI BANTUAN =====
 
 // =========================================================
-// PANEL RIWAYAT ABSENSI (BARU)
+// PANEL RIWAYAT ABSENSI
 // =========================================================
 // Isi dropdown mapel & kelas riwayat sekali saja (pakai data guru yang sama dengan login)
 function setupRiwayatSelectors() {
@@ -427,7 +476,6 @@ function setupRiwayatSelectors() {
   const selKelas = document.getElementById('riwayatKelas');
   if (selMapel.dataset.filled) return; // sudah pernah diisi, tidak perlu diulang
   const mapelArr = sessionData.mapel.split(',').map(s => s.trim());
-  // OPTIMASI: pakai Array.map().join() daripada innerHTML += di loop
   selMapel.innerHTML = mapelArr.map(m => `<option value="${m}">${m}</option>`).join('');
   const kelasArr = sessionData.kelas.split(',').map(s => s.trim());
   selKelas.innerHTML = kelasArr.map(k => `<option value="${k}">${k}</option>`).join('');
@@ -481,7 +529,7 @@ async function fetchRiwayat() {
 // ===== SELESAI: PANEL RIWAYAT ABSENSI =====
 
 // =========================================================
-// PANEL DASHBOARD ANALITIK (BARU)
+// PANEL DASHBOARD ANALITIK
 // =========================================================
 let trendChartInstance = null; // simpan referensi chart supaya bisa dihancurkan sebelum digambar ulang
 // Muat semua data dashboard (dipanggil setiap kali tab Dashboard dibuka)
@@ -560,18 +608,13 @@ function renderTrendChart(trend) {
 // ===== SELESAI: PANEL DASHBOARD ANALITIK =====
 
 // =========================================================
-// PANEL ABSEN WALI KELAS (BARU)
-// Absensi harian per NIS (bukan per mapel), memakai action
-// 'submitAbsenWali' & 'getAbsenWaliExisting' di backend.
+// PANEL ABSEN WALI KELAS
+// ---------------------------------------------------------
+// DIPANGGIL saat tab "Absen Wali" dibuka.
+// Sekarang hanya wrapper tipis ke StudentTable.render() --
+// logika render & pembacaan data ada di komponen.
 // =========================================================
-// Ambil daftar siswa (dengan NIS) untuk kelas wali yang dipilih
 async function fetchStudentsWali(kelas) {
-  // OPTIMASI: cek cache dulu sebelum fetch ke server
-  if (studentCache[kelas]) {
-    renderStudentsWaliToTable(studentCache[kelas]);
-    await checkExistingAbsenWali();
-    return;
-  }
   const tbody = document.getElementById('waliStudentsBody');
   const loading = document.getElementById('waliLoading');
   const btnSubmit = document.getElementById('waliBtnSubmit');
@@ -579,65 +622,53 @@ async function fetchStudentsWali(kelas) {
   btnSubmit.style.display = 'none';
   loading.classList.remove('hidden');
   try {
-    const response = await fetch(`${GAS_URL}?action=getStudents&kelas=${encodeURIComponent(kelas)}`);
-    const resData = await response.json();
-    loading.classList.add('hidden');
-    if (resData.success && resData.data.length > 0) {
-      // OPTIMASI: simpan ke cache supaya fetch berikutnya instant
-      studentCache[kelas] = resData.data;
-      renderStudentsWaliToTable(resData.data);
-      await checkExistingAbsenWali();
+    // OPTIMASI: cek cache dulu sebelum fetch ke server
+    let students = studentCache[kelas];
+    if (!students) {
+      const response = await fetch(`${GAS_URL}?action=getStudents&kelas=${encodeURIComponent(kelas)}`);
+      const resData = await response.json();
+      loading.classList.add('hidden');
+      if (!resData.success || resData.data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="3">${resData.message || 'Tidak ada data siswa.'}</td></tr>`;
+        return;
+      }
+      students = resData.data;
+      studentCache[kelas] = students; // simpan ke cache
     } else {
-      tbody.innerHTML = `<tr><td colspan="3">${resData.message || 'Tidak ada data siswa.'}</td></tr>`;
+      loading.classList.add('hidden');
     }
+    // DELEGASI ke komponen StudentTable (tidak ada lagi duplikasi render)
+    StudentTable.render('waliStudentsBody', students);
+    btnSubmit.style.display = 'block';
+    await checkExistingAbsenWali();
   } catch (error) {
     loading.classList.add('hidden');
     tbody.innerHTML = `<tr><td colspan="3">Gagal mengambil data siswa.</td></tr>`;
   }
 }
+// ===== SELESAI: FETCH DATA SISWA (panel wali) =====
 
-// OPTIMASI PERFORMA: render tabel wali pakai DocumentFragment
-function renderStudentsWaliToTable(data) {
-  const tbody = document.getElementById('waliStudentsBody');
-  const fragment = document.createDocumentFragment();
-  data.forEach((siswa) => {
-    const tr = document.createElement('tr');
-    tr.className = 'student-row';
-    tr.dataset.nis = siswa.nis;
-    tr.innerHTML = `
-      <td>${siswa.nis || '-'}</td>
-      <td class="nama-siswa">${siswa.nama}</td>
-      <td>
-        <div class="radio-group">
-          <label><input type="radio" name="wali_status_${siswa.nis}" value="H" checked required> H</label>
-          <label><input type="radio" name="wali_status_${siswa.nis}" value="I"> I</label>
-          <label><input type="radio" name="wali_status_${siswa.nis}" value="S"> S</label>
-          <label><input type="radio" name="wali_status_${siswa.nis}" value="A"> A</label>
-        </div>
-      </td>
-    `;
-    fragment.appendChild(tr);
-  });
-  tbody.appendChild(fragment); // Hanya 1x reflow ke DOM
-  document.getElementById('waliBtnSubmit').style.display = 'block';
-}
-
-// Cek apakah tanggal yang dipilih sudah pernah diabsen (mode edit, auto-detect)
+// =========================================================
+// CEK ABSENSI WALI YANG SUDAH ADA (mode edit, auto-detect)
+// ---------------------------------------------------------
+// Sekarang pakai StudentTable.setStatus() berdasarkan NIS.
+// Logika HAMPIR IDENTIK dengan checkExistingAttendance() --
+// perbedaannya hanya: sumber data (action backend) & target tbody.
+// =========================================================
 async function checkExistingAbsenWali() {
   const kelas = sessionData.kelasWali;
   const tanggalInput = document.getElementById('waliTanggal');
   const tanggal = tanggalInput.value;
   const btnSubmit = document.getElementById('waliBtnSubmit');
-  const rows = document.querySelectorAll('#waliStudentsBody tr.student-row');
-  if (!kelas || !tanggal || rows.length === 0) return;
+  if (!kelas || !tanggal) return;
+  if (!StudentTable.hasData('waliStudentsBody')) return;
   btnSubmit.innerText = "Mengecek status...";
   try {
     const response = await fetch(`${GAS_URL}?action=getAbsenWaliExisting&kelas=${encodeURIComponent(kelas)}&tanggal=${encodeURIComponent(tanggal)}`);
     const resData = await response.json();
     if (resData.success && resData.data) {
-      // PERBAIKAN PRIORITAS #1 (KECIL): sama seperti panel Input
-      // Absensi -- minta konfirmasi eksplisit dulu sebelum masuk
-      // mode edit menimpa absensi harian yang sudah tersimpan.
+      // PERBAIKAN PRIORITAS #1 (KECIL): minta konfirmasi eksplisit
+      // sebelum menimpa data yang sudah tersimpan.
       const lanjutEdit = await showConfirmModal(
         `Absensi harian kelas ${kelas} untuk tanggal ${formatTanggalIndo(tanggal)} sudah pernah diisi sebelumnya. Lanjutkan untuk mengedit data yang sudah tersimpan?`
       );
@@ -647,38 +678,34 @@ async function checkExistingAbsenWali() {
         btnSubmit.innerText = "Simpan Absensi";
         return;
       }
-      // resData.data berbentuk { "<NIS>": "H"/"I"/"S"/"A"/"-", ... }
-      rows.forEach(row => {
-        const nis = row.dataset.nis;
-        let status = resData.data[nis];
-        if (!status || status === '-') status = 'H';
-        const targetRadio = document.querySelector(`input[name="wali_status_${nis}"][value="${status}"]`);
-        if (targetRadio) targetRadio.checked = true;
+      // resData.data berbentuk { "<NIS>": "H"/"I"/"S"/"A", ... }
+      // Set status per NIS (bukan per index) -- lebih robust
+      Object.entries(resData.data).forEach(([nis, status]) => {
+        StudentTable.setStatus('waliStudentsBody', nis, status || 'H');
       });
       btnSubmit.innerText = "Perbarui Absensi";
     } else {
-      rows.forEach(row => {
-        const nis = row.dataset.nis;
-        const targetRadio = document.querySelector(`input[name="wali_status_${nis}"][value="H"]`);
-        if (targetRadio) targetRadio.checked = true;
-      });
+      // Tanggal belum pernah diabsen -- reset semua ke Hadir
+      StudentTable.resetAll('waliStudentsBody');
       btnSubmit.innerText = "Simpan Absensi";
     }
   } catch (error) {
     btnSubmit.innerText = "Simpan Absensi";
   }
 }
-// Simpan absensi harian wali kelas ke server
+// ===== SELESAI: CEK ABSENSI WALI YANG SUDAH ADA =====
+
+// =========================================================
+// SUBMIT ABSENSI WALI KELAS
+// ---------------------------------------------------------
+// Sekarang pakai StudentTable.getAttendanceData() -- tidak
+// perlu lagi loop manual + querySelector per NIS.
+// =========================================================
 document.getElementById('waliAbsenForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const btn = document.getElementById('waliBtnSubmit');
-  const rows = document.querySelectorAll('#waliStudentsBody tr.student-row');
-  let dataKehadiran = [];
-  rows.forEach(row => {
-    const nis = row.dataset.nis;
-    const status = document.querySelector(`input[name="wali_status_${nis}"]:checked`).value;
-    dataKehadiran.push({ nis, status });
-  });
+  // DELEGASI ke komponen: ambil semua {nis, status} sekaligus
+  const dataKehadiran = StudentTable.getAttendanceData('waliStudentsBody');
   const kelas = sessionData.kelasWali;
   const tanggal = document.getElementById('waliTanggal').value;
   btn.innerText = "Menyimpan...";
@@ -713,10 +740,10 @@ document.getElementById('waliAbsenForm').addEventListener('submit', async (e) =>
   }
   btn.disabled = false;
 });
-// ===== SELESAI: PANEL ABSEN WALI KELAS =====
+// ===== SELESAI: SUBMIT ABSENSI WALI KELAS =====
 
 // =========================================================
-// RIWAYAT & REKAP ABSEN WALI KELAS (BARU)
+// RIWAYAT & REKAP ABSEN WALI KELAS
 // =========================================================
 // Ambil & tampilkan riwayat absensi harian kelas wali (satu kelas saja, tidak perlu filter)
 async function fetchRiwayatAbsenWali() {
