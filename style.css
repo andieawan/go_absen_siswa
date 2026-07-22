@@ -158,6 +158,7 @@ th { background-color: #F9FAFB; }
 }
 .icon-success { background-color: #10B981; }
 .icon-error { background-color: #EF4444; }
+.icon-warning { background-color: #F59E0B; }
 
 .modal-title { font-size: 1.25rem; font-weight: bold; margin-bottom: 10px; color: #1F2937; }
 .modal-message { color: #4B5563; margin-bottom: 25px; line-height: 1.5; font-size: 0.95rem; }
@@ -167,6 +168,18 @@ th { background-color: #F9FAFB; }
     width: 100%; padding: 12px; border-radius: 8px; font-size: 1rem;
 }
 /* ===== SELESAI: MODAL ALERT ===== */
+
+
+/* =========================================================
+   MODAL KONFIRMASI (Ya/Tidak) -- Perbaikan Prioritas #1 (KECIL)
+   Menumpang struktur .modal-box yang sama dengan modal alert,
+   hanya beda: 2 tombol berdampingan (Tidak / Ya, Lanjutkan)
+   ========================================================= */
+.modal-btn-group { display: flex; gap: 10px; }
+.modal-btn-group .modal-btn { width: auto; flex: 1; }
+.modal-btn-secondary { background-color: #9CA3AF; }
+.modal-btn-secondary:hover { background-color: #6B7280; }
+/* ===== SELESAI: MODAL KONFIRMASI ===== */
 
 
 /* =========================================================
