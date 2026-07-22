@@ -1,0 +1,6 @@
+# File lokal yang tidak perlu di-push
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
