@@ -164,6 +164,7 @@ async function fetchStudents(kelas) {
             resData.data.forEach((siswa, index) => {
                 const tr = document.createElement('tr');
                 tr.className = 'student-row'; // dipakai CSS untuk tampilan kartu di HP
+                tr.dataset.nis = siswa.nis; // kunci utama: NIS, bukan nama (lihat perbaikan Prioritas #1)
                 tr.innerHTML = `
                     <td>${siswa.nis || '-'}</td>
                     <td class="nama-siswa">${siswa.nama}</td>
@@ -208,28 +209,32 @@ async function checkExistingAttendance() {
         const response = await fetch(`${GAS_URL}?action=getExistingAttendance&guru=${guru}&mapel=${mapel}&kelas=${kelas}&tanggal=${tanggal}`);
         const resData = await response.json();
 
-        if (resData.success && resData.data) {
-            const savedIzin = resData.data.izin.split(',').map(s => s.trim());
-            const savedSakit = resData.data.sakit.split(',').map(s => s.trim());
-            const savedAlpa = resData.data.alpa.split(',').map(s => s.trim());
+        // PENTING (Prioritas #1): data tersimpan sekarang berisi NIS,
+        // bukan nama -- dicocokkan lewat row.dataset.nis supaya 2 siswa
+        // dengan nama sama persis tidak lagi bisa tertukar statusnya.
+        const rows = document.querySelectorAll('#studentsBody tr.student-row');
 
-            const rows = document.querySelectorAll('#studentsBody tr');
+        if (resData.success && resData.data) {
+            const savedIzin = resData.data.izin.split(',').map(s => s.trim()).filter(s => s !== "");
+            const savedSakit = resData.data.sakit.split(',').map(s => s.trim()).filter(s => s !== "");
+            const savedAlpa = resData.data.alpa.split(',').map(s => s.trim()).filter(s => s !== "");
+
             rows.forEach((row, index) => {
-                const nama = row.querySelector('.nama-siswa').innerText;
+                const nis = row.dataset.nis;
                 let status = 'H';
 
-                if (savedIzin.includes(nama)) status = 'I';
-                else if (savedSakit.includes(nama)) status = 'S';
-                else if (savedAlpa.includes(nama)) status = 'A';
+                if (savedIzin.includes(nis)) status = 'I';
+                else if (savedSakit.includes(nis)) status = 'S';
+                else if (savedAlpa.includes(nis)) status = 'A';
 
                 const targetRadio = document.querySelector(`input[name="status_${index}"][value="${status}"]`);
                 if (targetRadio) targetRadio.checked = true;
             });
             btnSubmit.innerText = "Perbarui Absensi";
         } else {
-            const rows = document.querySelectorAll('#studentsBody tr');
             rows.forEach((row, index) => {
-                document.querySelector(`input[name="status_${index}"][value="H"]`).checked = true;
+                const targetRadio = document.querySelector(`input[name="status_${index}"][value="H"]`);
+                if (targetRadio) targetRadio.checked = true;
             });
             btnSubmit.innerText = "Simpan Absensi";
         }
@@ -246,13 +251,15 @@ async function checkExistingAttendance() {
 document.getElementById('absenForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('btnSubmit');
-    const rows = document.querySelectorAll('#studentsBody tr');
+    // PENTING (Prioritas #1): kirim NIS (bukan nama) supaya backend
+    // menyimpan & mencocokkan absensi berdasarkan NIS.
+    const rows = document.querySelectorAll('#studentsBody tr.student-row');
     let attendanceData = [];
 
     rows.forEach((row, index) => {
-        const nama = row.querySelector('.nama-siswa').innerText;
+        const nis = row.dataset.nis;
         const status = document.querySelector(`input[name="status_${index}"]:checked`).value;
-        attendanceData.push({ nama, status });
+        attendanceData.push({ nis, status });
     });
 
     const payload = {
@@ -269,13 +276,23 @@ document.getElementById('absenForm').addEventListener('submit', async (e) => {
     try {
         const response = await fetch(GAS_URL, {
             method: 'POST',
-            body: JSON.stringify({ action: 'submit', payload: payload })
+            body: JSON.stringify({
+                action: 'submit',
+                username: sessionData.username,
+                token: sessionData.token,
+                payload: payload
+            })
         });
         const resData = await response.json();
 
         if (resData.success) {
             showAlert(resData.message, true);
             btn.innerText = "Perbarui Absensi";
+        } else if (resData.sessionExpired) {
+            // Token sesi tidak valid/kedaluwarsa -- paksa login ulang
+            // daripada menampilkan error yang membingungkan guru.
+            showAlert(resData.message, false);
+            setTimeout(logout, 1500);
         } else {
             showAlert(resData.message, false);
             btn.innerText = "Simpan Absensi";
@@ -637,7 +654,14 @@ document.getElementById('waliAbsenForm').addEventListener('submit', async (e) =>
     try {
         const response = await fetch(GAS_URL, {
             method: 'POST',
-            body: JSON.stringify({ action: 'submitAbsenWali', kelas, tanggal, dataKehadiran })
+            body: JSON.stringify({
+                action: 'submitAbsenWali',
+                username: sessionData.username,
+                token: sessionData.token,
+                kelas,
+                tanggal,
+                dataKehadiran
+            })
         });
         const resData = await response.json();
 
@@ -645,6 +669,9 @@ document.getElementById('waliAbsenForm').addEventListener('submit', async (e) =>
             showAlert(resData.message, true);
             btn.innerText = "Perbarui Absensi";
             fetchRiwayatAbsenWali(); // refresh riwayat supaya data terbaru langsung terlihat
+        } else if (resData.sessionExpired) {
+            showAlert(resData.message, false);
+            setTimeout(logout, 1500);
         } else {
             showAlert(resData.message, false);
             btn.innerText = "Simpan Absensi";
