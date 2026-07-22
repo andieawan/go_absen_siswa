@@ -26,7 +26,7 @@ function showAlert(message, isSuccess = true) {
     const icon = document.getElementById('alertIcon');
     const title = document.getElementById('alertTitle');
     const msg = document.getElementById('alertMessage');
-    const btn = document.querySelector('.modal-box .modal-btn');
+    const btn = document.querySelector('#customAlert .modal-btn');
 
     if (isSuccess) {
         icon.innerHTML = '✓';
@@ -48,6 +48,38 @@ function closeCustomAlert() {
     document.getElementById('customAlert').classList.remove('active');
 }
 // ===== SELESAI: FUNGSI CUSTOM ALERT =====
+
+
+// =========================================================
+// FUNGSI CUSTOM CONFIRM (popup Ya/Tidak) -- Perbaikan Prioritas #1 (KECIL)
+// Dipakai untuk minta konfirmasi eksplisit sebelum masuk mode edit
+// menimpa absensi yang sudah ada di tanggal yang sama.
+// Panggil: const lanjut = await showConfirmModal("pesan...");
+// lanjut bernilai true kalau guru pilih "Ya, Lanjutkan", false kalau "Tidak".
+// =========================================================
+function showConfirmModal(message) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('confirmModal');
+        document.getElementById('confirmMessage').innerText = message;
+        modal.classList.add('active');
+
+        const btnYes = document.getElementById('confirmBtnYes');
+        const btnNo = document.getElementById('confirmBtnNo');
+
+        function selesai(hasil) {
+            modal.classList.remove('active');
+            btnYes.removeEventListener('click', onYes);
+            btnNo.removeEventListener('click', onNo);
+            resolve(hasil);
+        }
+        function onYes() { selesai(true); }
+        function onNo() { selesai(false); }
+
+        btnYes.addEventListener('click', onYes);
+        btnNo.addEventListener('click', onNo);
+    });
+}
+// ===== SELESAI: FUNGSI CUSTOM CONFIRM =====
 
 
 // =========================================================
@@ -198,7 +230,8 @@ async function fetchStudents(kelas) {
 async function checkExistingAttendance() {
     const mapel = document.getElementById('selectMapel').value;
     const kelas = document.getElementById('selectKelas').value;
-    const tanggal = document.getElementById('tanggalAbsen').value;
+    const tanggalInput = document.getElementById('tanggalAbsen');
+    const tanggal = tanggalInput.value;
     const guru = sessionData.nama;
     const btnSubmit = document.getElementById('btnSubmit');
 
@@ -215,6 +248,23 @@ async function checkExistingAttendance() {
         const rows = document.querySelectorAll('#studentsBody tr.student-row');
 
         if (resData.success && resData.data) {
+            // PERBAIKAN PRIORITAS #1 (KECIL): jangan langsung masuk mode
+            // edit & menimpa data lama secara diam-diam -- minta
+            // konfirmasi eksplisit dulu dari guru.
+            const lanjutEdit = await showConfirmModal(
+                `Absensi untuk kelas ${kelas} - mapel ${mapel} pada tanggal ${formatTanggalIndo(tanggal)} sudah pernah diisi sebelumnya. Lanjutkan untuk mengedit data yang sudah tersimpan?`
+            );
+
+            if (!lanjutEdit) {
+                // Guru memilih "Tidak" -- kosongkan lagi pilihan tanggal
+                // supaya tidak ada jalan tidak sengaja menimpa data ini,
+                // dan minta guru memilih tanggal lain.
+                tanggalInput.value = '';
+                btnSubmit.style.display = 'none';
+                btnSubmit.innerText = "Simpan Absensi";
+                return;
+            }
+
             const savedIzin = resData.data.izin.split(',').map(s => s.trim()).filter(s => s !== "");
             const savedSakit = resData.data.sakit.split(',').map(s => s.trim()).filter(s => s !== "");
             const savedAlpa = resData.data.alpa.split(',').map(s => s.trim()).filter(s => s !== "");
@@ -241,6 +291,12 @@ async function checkExistingAttendance() {
     } catch (error) {
         btnSubmit.innerText = "Simpan Absensi";
     }
+}
+
+// Bantu format tanggal "yyyy-MM-dd" jadi "dd/MM/yyyy" untuk pesan konfirmasi
+function formatTanggalIndo(tanggalIso) {
+    const [y, m, d] = tanggalIso.split('-');
+    return `${d}/${m}/${y}`;
 }
 // ===== SELESAI: CEK ABSENSI YANG SUDAH ADA =====
 
@@ -598,7 +654,8 @@ async function fetchStudentsWali(kelas) {
 // Cek apakah tanggal yang dipilih sudah pernah diabsen (mode edit, auto-detect)
 async function checkExistingAbsenWali() {
     const kelas = sessionData.kelasWali;
-    const tanggal = document.getElementById('waliTanggal').value;
+    const tanggalInput = document.getElementById('waliTanggal');
+    const tanggal = tanggalInput.value;
     const btnSubmit = document.getElementById('waliBtnSubmit');
     const rows = document.querySelectorAll('#waliStudentsBody tr.student-row');
 
@@ -610,6 +667,20 @@ async function checkExistingAbsenWali() {
         const resData = await response.json();
 
         if (resData.success && resData.data) {
+            // PERBAIKAN PRIORITAS #1 (KECIL): sama seperti panel Input
+            // Absensi -- minta konfirmasi eksplisit dulu sebelum masuk
+            // mode edit menimpa absensi harian yang sudah tersimpan.
+            const lanjutEdit = await showConfirmModal(
+                `Absensi harian kelas ${kelas} untuk tanggal ${formatTanggalIndo(tanggal)} sudah pernah diisi sebelumnya. Lanjutkan untuk mengedit data yang sudah tersimpan?`
+            );
+
+            if (!lanjutEdit) {
+                tanggalInput.value = '';
+                btnSubmit.style.display = 'none';
+                btnSubmit.innerText = "Simpan Absensi";
+                return;
+            }
+
             // resData.data berbentuk { "<NIS>": "H"/"I"/"S"/"A"/"-", ... }
             rows.forEach(row => {
                 const nis = row.dataset.nis;
