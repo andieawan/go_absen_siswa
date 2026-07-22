@@ -2,157 +2,151 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-
-    <!-- =========================================================
-    META TAGS UNTUK GITHUB PAGES (PENTING!)
-    ---------------------------------------------------------
-    1. viewport: wajib untuk tampilan mobile yang benar
-    2. cache-control: paksa browser selalu cek versi terbaru
-       dari GitHub Pages, supaya update kode langsung terlihat
-       tanpa pengguna perlu hard-refresh (Ctrl+F5).
-    3. theme-color: warna status bar di HP (Android)
-    ========================================================= -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <meta name="theme-color" content="#4F46E5">
-
-    <!-- =========================================================
-    JUDUL TAB BROWSER
-    Ganti "Aplikasi Absensi Sekolah" sesuai nama sekolah Anda
-    ========================================================= -->
-    <title>Aplikasi Absensi Sekolah</title>
-
-    <!-- =========================================================
-    FAVICON (ikon di tab browser)
-    Kalau belum punya, bisa pakai favicon gratis dari
-    https://favicon.io/ atau hapus baris ini untuk pakai default browser
-    ========================================================= -->
+    <meta name="theme-color" content="#6366F1">
+    
+    <title>Absensi Sekolah</title>
     <link rel="icon" type="image/png" href="assets/favicon.png">
-
+    
     <!-- =========================================================
-    CACHE-BUSTING UNTUK CSS (PENTING!)
-    ---------------------------------------------------------
-    Tambahkan ?v=YYYYMMDD di akhir URL file CSS/JS setiap kali
-    Anda push update ke GitHub. Ini memaksa browser download
-    versi terbaru, bukan pakai cache lama.
-
-    CARA PAKAI:
-    - Saat push update, ubah angka setelah ?v= jadi tanggal hari ini
-    - Contoh: ?v=20260722  (artinya versi 22 Juli 2026)
-    - Atau pakai git commit hash pendek kalau mau lebih presisi
-
-    PENTING: angka versi di CSS & JS HARUS SAMA, supaya tidak ada
-    kasus CSS versi baru tapi JS versi lama (atau sebaliknya).
+    GOOGLE FONTS - Plus Jakarta Sans
+    Font modern yang friendly tapi tetap profesional.
+    Ganti link ini kalau mau pakai font lain.
     ========================================================= -->
-    <link rel="stylesheet" href="style.css?v=20260722">
-
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
     <!-- =========================================================
     LIBRARY LUAR (dari CDN)
-    - SheetJS (XLSX): untuk generate file rekap .xlsx di browser
-    - Chart.js: untuk grafik tren kehadiran di Dashboard
-    Pakai CDN Cloudflare karena lebih cepat dari jsDelivr di Indonesia.
-    Kalau CDN down, fitur rekap & dashboard tidak bekerja, tapi
-    fitur input absensi tetap bisa dipakai.
+    - SheetJS: untuk generate file rekap .xlsx
+    - Chart.js: untuk grafik tren kehadiran
     ========================================================= -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    
+    <!-- CSS dengan cache-busting (update ?v= saat push ke GitHub) -->
+    <link rel="stylesheet" href="style.css?v=20260723">
 </head>
 <body>
 
     <!-- =========================================================
-    KONTAINER UTAMA
-    Semua konten aplikasi dibungkus dalam .container supaya
-    lebar maksimum 800px & tetap rapi di layar besar
+    TOAST NOTIFICATION CONTAINER
+    ---------------------------------------------------------
+    Toast muncul di pojok kanan atas untuk notifikasi sukses/info.
+    Auto-dismiss setelah 3 detik. Lebih tidak mengganggu dari modal.
+    Dipanggil dari script.js lewat showToast(message, type).
     ========================================================= -->
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+    <!-- =========================================================
+    FLOATING ACTION BUTTON (FAB) - Quick Actions
+    ---------------------------------------------------------
+    Tombol melayang di pojok kanan bawah untuk aksi cepat.
+    Klik untuk expand menu: "Absen Hari Ini", "Lihat Riwayat", dll.
+    Hanya muncul setelah login (di-toggle oleh script.js).
+    ========================================================= -->
+    <div id="fabContainer" class="fab-container hidden">
+        <div class="fab-menu" id="fabMenu">
+            <button class="fab-menu-item" data-action="quickAbsenHariIni">
+                <span class="fab-icon">📝</span>
+                <span class="fab-label">Absen Hari Ini</span>
+            </button>
+            <button class="fab-menu-item" data-action="quickLihatRiwayat">
+                <span class="fab-icon">🕒</span>
+                <span class="fab-label">Lihat Riwayat</span>
+            </button>
+            <button class="fab-menu-item" data-action="quickDownloadRekap">
+                <span class="fab-icon">📥</span>
+                <span class="fab-label">Download Rekap</span>
+            </button>
+        </div>
+        <button class="fab-main" id="fabMain" aria-label="Menu aksi cepat">
+            <span class="fab-main-icon">⚡</span>
+        </button>
+    </div>
+
     <div class="container">
 
         <!-- =========================================================
         PANEL LOGIN
-        Hanya muncul sebelum guru berhasil login.
-        Setelah login, panel ini disembunyikan lewat class .hidden
-        oleh script.js (lihat fungsi showDashboard()).
         ========================================================= -->
-        <section id="loginSection">
-            <h2>🏫 Login Guru</h2>
-            <form id="loginForm">
-                <div class="form-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" required autocomplete="username">
-                </div>
-                <div class="form-group">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" required autocomplete="current-password">
-                </div>
-                <button type="submit">Login</button>
-                <p id="loginMsg" style="color: #EF4444; text-align: center; margin-top: 10px;"></p>
-            </form>
+        <section id="loginSection" class="login-section">
+            <div class="login-card">
+                <div class="login-logo">🏫</div>
+                <h1 class="login-title">Selamat Datang!</h1>
+                <p class="login-subtitle">Silakan login untuk mulai mengisi absensi</p>
+                
+                <form id="loginForm" class="login-form">
+                    <div class="form-group">
+                        <label for="username">
+                            <span class="label-icon">👤</span>
+                            Username
+                        </label>
+                        <input type="text" id="username" required autocomplete="username" placeholder="Masukkan username">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">
+                            <span class="label-icon">🔒</span>
+                            Password
+                        </label>
+                        <input type="password" id="password" required autocomplete="current-password" placeholder="Masukkan password">
+                    </div>
+                    <button type="submit" class="btn-primary btn-full">
+                        <span class="btn-text">Login</span>
+                        <span class="btn-loader hidden">⏳ Memproses...</span>
+                    </button>
+                    <p id="loginMsg" class="login-msg"></p>
+                </form>
+            </div>
         </section>
-        <!-- ===== SELESAI: PANEL LOGIN ===== -->
 
         <!-- =========================================================
-        PANEL DASHBOARD UTAMA (setelah login)
-        Berisi tab navigasi + 4 panel konten:
-        1. Input Absensi (per mapel)
-        2. Riwayat Absensi
-        3. Dashboard Analitik
-        4. Absen Wali Kelas (hanya muncul kalau guru punya kelas binaan)
+        PANEL DASHBOARD UTAMA
         ========================================================= -->
         <section id="dashboardSection" class="hidden">
-
-            <!-- Header info guru yang login -->
-            <div class="header-info">
-                <h2 id="greeting">Selamat Datang!</h2>
-                <div class="action-buttons">
-                    <!-- =====================================================
-                    TOMBOL AKSI GLOBAL
-                    ---------------------------------------------------------
-                    Pakai data-action="..." (bukan onclick inline) supaya
-                    konsisten dengan pola Event Delegation di script.js.
-                    EventDelegation.handleAction() akan otomatis memanggil
-                    fungsi yang sesuai berdasarkan nilai data-action.
-
-                    Untuk menambah tombol aksi baru:
-                    1. Tambah <button data-action="namaAksiBaru">...</button>
-                    2. Di script.js, tambahkan case di EventDelegation.handleAction()
-                    ===================================================== -->
-                    <button data-action="downloadRekapKelasSaya" id="btnRecap" style="background-color: #10B981;">
-                        📥 Rekap Kelas Saya (.xlsx)
+            
+            <!-- Header dengan info guru -->
+            <div class="header-card">
+                <div class="header-content">
+                    <div class="header-avatar" id="headerAvatar">👨‍🏫</div>
+                    <div class="header-info-text">
+                        <h2 id="greeting">Selamat Datang!</h2>
+                        <p class="header-date" id="headerDate"></p>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button data-action="downloadRekapKelasSaya" class="btn-secondary btn-sm">
+                        <span>📥</span> Rekap
                     </button>
-                    <button data-action="logout" style="background-color: #EF4444;">
-                        Logout
+                    <button data-action="logout" class="btn-danger btn-sm">
+                        <span>🚪</span> Keluar
                     </button>
                 </div>
             </div>
 
             <!-- =========================================================
             TAB NAVIGASI
-            ---------------------------------------------------------
-            Tambah tab baru? Ikuti 3 langkah:
-            1. Tambah <button class="tab-btn" data-tab="panelBaru">...</button>
-               di bawah ini (JANGAN pakai onclick inline!)
-            2. Tambah <div id="panelBaru" class="tab-panel hidden">...</div>
-               di bagian panel konten
-            3. Tambahkan kondisi "if (tabId === 'panelBaru')" di fungsi
-               switchTab() pada script.js
-
-            EventDelegation.init() akan otomatis menangani klik pada
-            semua .tab-btn lewat event delegation di level document.
             ========================================================= -->
             <div class="tab-nav" role="tablist">
                 <button class="tab-btn active" data-tab="panelAbsensi" role="tab">
-                    📝 Input Absensi
+                    <span class="tab-icon">📝</span>
+                    <span class="tab-label">Input</span>
                 </button>
                 <button class="tab-btn" data-tab="panelRiwayat" role="tab">
-                    🕒 Riwayat
+                    <span class="tab-icon">🕒</span>
+                    <span class="tab-label">Riwayat</span>
                 </button>
                 <button class="tab-btn" data-tab="panelDashboard" role="tab">
-                    📊 Dashboard
+                    <span class="tab-icon">📊</span>
+                    <span class="tab-label">Dashboard</span>
                 </button>
-                <!-- Tab Absen Wali disembunyikan default, baru muncul kalau guru punya kelasWali -->
                 <button id="tabBtnAbsenWali" class="tab-btn hidden" data-tab="panelAbsenWali" role="tab">
-                    👪 Absen Wali
+                    <span class="tab-icon">👪</span>
+                    <span class="tab-label">Wali</span>
                 </button>
             </div>
 
@@ -160,176 +154,291 @@
             PANEL 1: INPUT ABSENSI PER MAPEL
             ========================================================= -->
             <div id="panelAbsensi" class="tab-panel">
-                <h3>Input Absensi per Mata Pelajaran</h3>
-                <form id="absenForm">
-                    <div class="form-group">
-                        <label for="selectMapel">Pilih Mata Pelajaran:</label>
-                        <select id="selectMapel" required></select>
+                <div class="panel-header">
+                    <h3>📝 Input Absensi</h3>
+                    <p class="panel-subtitle">Pilih mata pelajaran, kelas, dan tanggal untuk mulai absensi</p>
+                </div>
+                
+                <form id="absenForm" class="card">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="selectMapel">Mata Pelajaran</label>
+                            <select id="selectMapel" required></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="selectKelas">Kelas</label>
+                            <select id="selectKelas" required>
+                                <option value="" disabled selected>-- Pilih Kelas --</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label for="selectKelas">Pilih Kelas:</label>
-                        <select id="selectKelas" required>
-                            <option value="" disabled selected>-- Pilih Kelas --</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="tanggalAbsen">Tanggal Pertemuan:</label>
+                        <label for="tanggalAbsen">Tanggal Pertemuan</label>
                         <input type="date" id="tanggalAbsen" required>
                     </div>
 
-                    <h3>Daftar Siswa</h3>
-                    <p id="loading" class="hidden">Mengambil data dari server...</p>
-
-                    <!-- Wrapper supaya tabel bisa di-scroll horizontal di HP -->
-                    <div class="table-wrapper">
-                        <table id="studentsTable">
-                            <thead>
-                                <tr>
-                                    <th>NIS</th>
-                                    <th>Nama Siswa</th>
-                                    <th>Kehadiran</th>
-                                </tr>
-                            </thead>
-                            <tbody id="studentsBody">
-                                <tr>
-                                    <td colspan="3">Silakan pilih kelas terlebih dahulu.</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div class="students-section">
+                        <div class="section-header">
+                            <h4>👥 Daftar Siswa</h4>
+                            <div class="quick-status-buttons">
+                                <button type="button" class="btn-quick" data-quick-status="H">✓ Semua Hadir</button>
+                                <button type="button" class="btn-quick" data-quick-status="reset">↺ Reset</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Skeleton loader (muncul saat fetch data) -->
+                        <div id="skeletonLoader" class="skeleton-loader hidden">
+                            <div class="skeleton-item">
+                                <div class="skeleton skeleton-nis"></div>
+                                <div class="skeleton skeleton-name"></div>
+                                <div class="skeleton skeleton-status"></div>
+                            </div>
+                            <div class="skeleton-item">
+                                <div class="skeleton skeleton-nis"></div>
+                                <div class="skeleton skeleton-name"></div>
+                                <div class="skeleton skeleton-status"></div>
+                            </div>
+                            <div class="skeleton-item">
+                                <div class="skeleton skeleton-nis"></div>
+                                <div class="skeleton skeleton-name"></div>
+                                <div class="skeleton skeleton-status"></div>
+                            </div>
+                            <div class="skeleton-item">
+                                <div class="skeleton skeleton-nis"></div>
+                                <div class="skeleton skeleton-name"></div>
+                                <div class="skeleton skeleton-status"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="table-wrapper">
+                            <table id="studentsTable">
+                                <thead>
+                                    <tr>
+                                        <th>NIS</th>
+                                        <th>Nama Siswa</th>
+                                        <th>Kehadiran</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="studentsBody">
+                                    <tr class="empty-row">
+                                        <td colspan="3">
+                                            <div class="empty-state-illustration">
+                                                <svg viewBox="0 0 200 150" xmlns="http://www.w3.org/2000/svg">
+                                                    <circle cx="100" cy="75" r="50" fill="#E0E7FF"/>
+                                                    <text x="100" y="85" text-anchor="middle" font-size="40">📋</text>
+                                                </svg>
+                                                <p>Silakan pilih kelas terlebih dahulu</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
-                    <button type="submit" id="btnSubmit" style="display: none; margin-top: 20px;">
-                        Simpan Absensi
+                    <button type="submit" id="btnSubmit" class="btn-primary btn-full btn-submit hidden">
+                        <span class="btn-text">💾 Simpan Absensi</span>
+                        <span class="btn-loader hidden">⏳ Menyimpan...</span>
+                        <div class="btn-progress hidden">
+                            <div class="btn-progress-bar"></div>
+                        </div>
                     </button>
                 </form>
             </div>
-            <!-- ===== SELESAI: PANEL INPUT ABSENSI ===== -->
 
             <!-- =========================================================
-            PANEL 2: RIWAYAT ABSENSI PER MAPEL
+            PANEL 2: RIWAYAT ABSENSI
             ========================================================= -->
             <div id="panelRiwayat" class="tab-panel hidden">
-                <h3>Riwayat Absensi</h3>
-                <div class="form-group">
-                    <label for="riwayatMapel">Pilih Mata Pelajaran:</label>
-                    <select id="riwayatMapel"></select>
+                <div class="panel-header">
+                    <h3>🕒 Riwayat Absensi</h3>
+                    <p class="panel-subtitle">Lihat riwayat absensi per mata pelajaran dan kelas</p>
                 </div>
-                <div class="form-group">
-                    <label for="riwayatKelas">Pilih Kelas:</label>
-                    <select id="riwayatKelas">
-                        <option value="" disabled selected>-- Pilih Kelas --</option>
-                    </select>
+                
+                <div class="card">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="riwayatMapel">Mata Pelajaran</label>
+                            <select id="riwayatMapel"></select>
+                        </div>
+                        <div class="form-group">
+                            <label for="riwayatKelas">Kelas</label>
+                            <select id="riwayatKelas">
+                                <option value="" disabled selected>-- Pilih Kelas --</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
-                <p id="riwayatLoading" class="hidden">Mengambil riwayat...</p>
+
+                <div id="riwayatLoading" class="skeleton-loader hidden">
+                    <div class="skeleton-card"></div>
+                    <div class="skeleton-card"></div>
+                    <div class="skeleton-card"></div>
+                </div>
+
                 <div id="riwayatList">
-                    <p class="empty-state">Pilih mata pelajaran dan kelas untuk melihat riwayat absensi.</p>
+                    <div class="empty-state-illustration large">
+                        <svg viewBox="0 0 200 150" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="100" cy="75" r="50" fill="#E0E7FF"/>
+                            <text x="100" y="85" text-anchor="middle" font-size="40">📚</text>
+                        </svg>
+                        <p>Pilih mata pelajaran dan kelas untuk melihat riwayat</p>
+                    </div>
                 </div>
             </div>
-            <!-- ===== SELESAI: PANEL RIWAYAT ===== -->
 
             <!-- =========================================================
             PANEL 3: DASHBOARD ANALITIK
             ========================================================= -->
             <div id="panelDashboard" class="tab-panel hidden">
-                <h3>Dashboard Analitik</h3>
-                <p id="dashboardLoading" class="hidden">Memuat data analitik...</p>
-                <div id="dashboardContent" class="hidden">
-                    <h4>Persentase Kehadiran per Kelas & Mapel</h4>
-                    <div id="rekapKelasMapelList"></div>
+                <div class="panel-header">
+                    <h3>📊 Dashboard Analitik</h3>
+                    <p class="panel-subtitle">Analisis kehadiran siswa secara visual</p>
+                </div>
 
-                    <h4 style="margin-top: 20px;">Tren Kehadiran dari Waktu ke Waktu</h4>
-                    <div class="chart-wrapper">
-                        <canvas id="trendChart"></canvas>
+                <div id="dashboardLoading" class="skeleton-loader hidden">
+                    <div class="skeleton skeleton-chart"></div>
+                    <div class="skeleton skeleton-chart"></div>
+                </div>
+
+                <div id="dashboardContent" class="hidden">
+                    <div class="card">
+                        <h4>📈 Persentase Kehadiran</h4>
+                        <div id="rekapKelasMapelList"></div>
                     </div>
 
-                    <h4 style="margin-top: 20px;">Siswa Perlu Perhatian (Sering Alpa)</h4>
-                    <div id="topAlpaList"></div>
+                    <div class="card">
+                        <h4>📉 Tren Kehadiran</h4>
+                        <div class="chart-wrapper">
+                            <canvas id="trendChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <h4>⚠️ Perlu Perhatian</h4>
+                        <p class="card-subtitle">Siswa dengan absensi Alpa terbanyak</p>
+                        <div id="topAlpaList"></div>
+                    </div>
                 </div>
             </div>
-            <!-- ===== SELESAI: PANEL DASHBOARD ===== -->
 
             <!-- =========================================================
-            PANEL 4: ABSEN WALI KELAS (harian, bukan per mapel)
-            Hanya muncul kalau guru ini adalah wali kelas (kolom F di Akun_Guru)
+            PANEL 4: ABSEN WALI KELAS
             ========================================================= -->
             <div id="panelAbsenWali" class="tab-panel hidden">
-                <h3>Absensi Harian (Wali Kelas)</h3>
-                <form id="waliAbsenForm">
+                <div class="panel-header">
+                    <h3>👪 Absensi Harian Wali Kelas</h3>
+                    <p class="panel-subtitle">Absensi harian untuk kelas binaan: <strong id="waliKelasLabel">-</strong></p>
+                </div>
+
+                <form id="waliAbsenForm" class="card">
                     <div class="form-group">
-                        <label>Kelas Wali: <strong id="waliKelasLabel">-</strong></label>
-                    </div>
-                    <div class="form-group">
-                        <label for="waliTanggal">Tanggal:</label>
+                        <label for="waliTanggal">Tanggal</label>
                         <input type="date" id="waliTanggal" required>
                     </div>
 
-                    <h3>Daftar Siswa</h3>
-                    <p id="waliLoading" class="hidden">Mengambil data dari server...</p>
+                    <div class="students-section">
+                        <div class="section-header">
+                            <h4>👥 Daftar Siswa</h4>
+                            <div class="quick-status-buttons">
+                                <button type="button" class="btn-quick" data-quick-status="H" data-target="wali">✓ Semua Hadir</button>
+                                <button type="button" class="btn-quick" data-quick-status="reset" data-target="wali">↺ Reset</button>
+                            </div>
+                        </div>
 
-                    <div class="table-wrapper">
-                        <table id="waliStudentsTable">
-                            <thead>
-                                <tr>
-                                    <th>NIS</th>
-                                    <th>Nama Siswa</th>
-                                    <th>Kehadiran</th>
-                                </tr>
-                            </thead>
-                            <tbody id="waliStudentsBody">
-                                <tr>
-                                    <td colspan="3">Silakan pilih tanggal terlebih dahulu.</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                        <div id="waliSkeletonLoader" class="skeleton-loader hidden">
+                            <div class="skeleton-item">
+                                <div class="skeleton skeleton-nis"></div>
+                                <div class="skeleton skeleton-name"></div>
+                                <div class="skeleton skeleton-status"></div>
+                            </div>
+                            <div class="skeleton-item">
+                                <div class="skeleton skeleton-nis"></div>
+                                <div class="skeleton skeleton-name"></div>
+                                <div class="skeleton skeleton-status"></div>
+                            </div>
+                            <div class="skeleton-item">
+                                <div class="skeleton skeleton-nis"></div>
+                                <div class="skeleton skeleton-name"></div>
+                                <div class="skeleton skeleton-status"></div>
+                            </div>
+                        </div>
+
+                        <div class="table-wrapper">
+                            <table id="waliStudentsTable">
+                                <thead>
+                                    <tr>
+                                        <th>NIS</th>
+                                        <th>Nama Siswa</th>
+                                        <th>Kehadiran</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="waliStudentsBody">
+                                    <tr class="empty-row">
+                                        <td colspan="3">
+                                            <div class="empty-state-illustration">
+                                                <svg viewBox="0 0 200 150" xmlns="http://www.w3.org/2000/svg">
+                                                    <circle cx="100" cy="75" r="50" fill="#E0E7FF"/>
+                                                    <text x="100" y="85" text-anchor="middle" font-size="40">👨‍👩‍👧</text>
+                                                </svg>
+                                                <p>Memuat data siswa...</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
-                    <button type="submit" id="waliBtnSubmit" style="display: none; margin-top: 20px;">
-                        Simpan Absensi
+                    <button type="submit" id="waliBtnSubmit" class="btn-primary btn-full btn-submit hidden">
+                        <span class="btn-text">💾 Simpan Absensi</span>
+                        <span class="btn-loader hidden">⏳ Menyimpan...</span>
+                        <div class="btn-progress hidden">
+                            <div class="btn-progress-bar"></div>
+                        </div>
                     </button>
                 </form>
 
-                <!-- Tombol download rekap wali kelas (pakai data-action untuk konsistensi) -->
-                <button data-action="downloadRekapAbsenWali" id="btnRekapWali"
-                        style="margin-top: 20px; background-color: #10B981;">
+                <button data-action="downloadRekapAbsenWali" id="btnRekapWali" class="btn-secondary btn-full" style="margin-top: 16px;">
                     📥 Unduh Rekap Wali Kelas (.xlsx)
                 </button>
 
-                <h3 style="margin-top: 30px;">Riwayat Absensi Wali Kelas</h3>
-                <p id="waliRiwayatLoading" class="hidden">Mengambil riwayat...</p>
-                <div id="waliRiwayatList">
-                    <p class="empty-state">Riwayat akan muncul di sini setelah ada absensi tersimpan.</p>
+                <div class="card" style="margin-top: 24px;">
+                    <h4>📜 Riwayat Absensi Wali</h4>
+                    <div id="waliRiwayatLoading" class="skeleton-loader hidden">
+                        <div class="skeleton-card"></div>
+                        <div class="skeleton-card"></div>
+                    </div>
+                    <div id="waliRiwayatList">
+                        <div class="empty-state-illustration">
+                            <svg viewBox="0 0 200 150" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="100" cy="75" r="50" fill="#E0E7FF"/>
+                                <text x="100" y="85" text-anchor="middle" font-size="40">📖</text>
+                            </svg>
+                            <p>Riwayat akan muncul setelah ada absensi tersimpan</p>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <!-- ===== SELESAI: PANEL ABSEN WALI ===== -->
 
         </section>
-        <!-- ===== SELESAI: PANEL DASHBOARD UTAMA ===== -->
-
     </div>
-    <!-- ===== SELESAI: KONTAINER UTAMA ===== -->
 
     <!-- =========================================================
-    MODAL ALERT (popup notifikasi sukses/gagal)
-    ---------------------------------------------------------
-    Dipanggil dari script.js lewat showAlert(message, isSuccess).
-    Tombol "OK, Mengerti" pakai onclick inline karena ini spesifik
-    untuk modal ini saja (tidak perlu event delegation global).
+    MODAL ALERT (untuk error kritis yang butuh konfirmasi eksplisit)
+    Toast dipakai untuk notifikasi sukses/info yang tidak mengganggu.
     ========================================================= -->
     <div id="customAlert" class="modal-overlay" role="dialog" aria-modal="true">
         <div class="modal-box">
             <div id="alertIcon" class="modal-icon icon-success">✓</div>
             <h3 id="alertTitle" class="modal-title">Pemberitahuan</h3>
             <p id="alertMessage" class="modal-message">Pesan di sini</p>
-            <button class="modal-btn" onclick="closeCustomAlert()">OK, Mengerti</button>
+            <button class="modal-btn btn-primary" onclick="closeCustomAlert()">OK, Mengerti</button>
         </div>
     </div>
 
     <!-- =========================================================
     MODAL KONFIRMASI (Ya/Tidak)
-    ---------------------------------------------------------
-    Dipanggil dari script.js lewat showConfirmModal(message).
-    Dipakai saat guru mau mengedit absensi yang sudah tersimpan
-    di tanggal yang sama (supaya tidak tidak sengaja menimpa).
     ========================================================= -->
     <div id="confirmModal" class="modal-overlay" role="dialog" aria-modal="true">
         <div class="modal-box">
@@ -337,23 +446,12 @@
             <h3 class="modal-title">Konfirmasi</h3>
             <p id="confirmMessage" class="modal-message">Pesan di sini</p>
             <div class="modal-btn-group">
-                <button id="confirmBtnNo" class="modal-btn modal-btn-secondary">Tidak</button>
-                <button id="confirmBtnYes" class="modal-btn">Ya, Lanjutkan</button>
+                <button id="confirmBtnNo" class="modal-btn btn-secondary">Tidak</button>
+                <button id="confirmBtnYes" class="modal-btn btn-primary">Ya, Lanjutkan</button>
             </div>
         </div>
     </div>
 
-    <!-- =========================================================
-    SCRIPT UTAMA APLIKASI
-    ---------------------------------------------------------
-    PENTING: selalu tambahkan ?v=YYYYMMDD di akhir URL setiap
-    kali push update ke GitHub, supaya browser tidak pakai
-    versi lama dari cache. Lihat catatan di bagian <head>.
-
-    Angka versi di sini HARUS SAMA dengan versi di style.css
-    supaya tidak ada kasus CSS versi baru tapi JS versi lama.
-    ========================================================= -->
-    <script src="script.js?v=20260722"></script>
-
+    <script src="script.js?v=20260723"></script>
 </body>
 </html>
