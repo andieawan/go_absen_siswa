@@ -155,7 +155,7 @@ async function fetchStudents(kelas) {
     loading.classList.remove('hidden');
 
     try {
-        const response = await fetch(`${GAS_URL}?action=getStudents&kelas=${kelas}`);
+        const response = await fetch(`${GAS_URL}?action=getStudents&kelas=${encodeURIComponent(kelas)}`);
         const resData = await response.json();
 
         loading.classList.add('hidden');
@@ -206,7 +206,7 @@ async function checkExistingAttendance() {
     btnSubmit.innerText = "Mengecek status...";
 
     try {
-        const response = await fetch(`${GAS_URL}?action=getExistingAttendance&guru=${guru}&mapel=${mapel}&kelas=${kelas}&tanggal=${tanggal}`);
+        const response = await fetch(`${GAS_URL}?action=getExistingAttendance&guru=${encodeURIComponent(guru)}&mapel=${encodeURIComponent(mapel)}&kelas=${encodeURIComponent(kelas)}&tanggal=${encodeURIComponent(tanggal)}`);
         const resData = await response.json();
 
         // PENTING (Prioritas #1): data tersimpan sekarang berisi NIS,
@@ -401,7 +401,7 @@ async function fetchRiwayat() {
     loading.classList.remove('hidden');
 
     try {
-        const response = await fetch(`${GAS_URL}?action=getRiwayatAbsensi&mapel=${mapel}&kelas=${kelas}`);
+        const response = await fetch(`${GAS_URL}?action=getRiwayatAbsensi&mapel=${encodeURIComponent(mapel)}&kelas=${encodeURIComponent(kelas)}`);
         const resData = await response.json();
         loading.classList.add('hidden');
 
@@ -560,7 +560,7 @@ async function fetchStudentsWali(kelas) {
     loading.classList.remove('hidden');
 
     try {
-        const response = await fetch(`${GAS_URL}?action=getStudents&kelas=${kelas}`);
+        const response = await fetch(`${GAS_URL}?action=getStudents&kelas=${encodeURIComponent(kelas)}`);
         const resData = await response.json();
 
         loading.classList.add('hidden');
@@ -606,7 +606,7 @@ async function checkExistingAbsenWali() {
     btnSubmit.innerText = "Mengecek status...";
 
     try {
-        const response = await fetch(`${GAS_URL}?action=getAbsenWaliExisting&kelas=${kelas}&tanggal=${tanggal}`);
+        const response = await fetch(`${GAS_URL}?action=getAbsenWaliExisting&kelas=${encodeURIComponent(kelas)}&tanggal=${encodeURIComponent(tanggal)}`);
         const resData = await response.json();
 
         if (resData.success && resData.data) {
