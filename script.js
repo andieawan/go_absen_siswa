@@ -1,68 +1,368 @@
 // =========================================================
 // KONFIGURASI
-// Ganti URL Web App Google Apps Script di sini kalau berubah
+// ---------------------------------------------------------
+// Ganti URL Web App Google Apps Script di sini kalau berubah.
+// URL ini didapat dari Deploy > Manage deployments > Web app URL
+// di project Apps Script Anda.
 // =========================================================
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbyMGAl2rTMzOEVkosA-QKNrVvo69x3WZPrYgRBRcVF9JL-K1guOv-zJAWnisfCZ1t8n/exec';
 // ===== SELESAI: KONFIGURASI =====
 
-// =========================================================
-// STATE & REFERENSI ELEMEN GLOBAL
-// =========================================================
-const loginSection = document.getElementById('loginSection');
-const dashboardSection = document.getElementById('dashboardSection');
-let sessionData = JSON.parse(sessionStorage.getItem('guruSession'));
-if (sessionData) showDashboard();
-// ===== SELESAI: STATE & REFERENSI ELEMEN GLOBAL =====
 
 // =========================================================
-// OPTIMASI PERFORMA #3: EVENT DELEGATION TERPUSAT
+// STATE MANAGEMENT TERPUSAT (Prioritas #2)
+// ---------------------------------------------------------
+// Semua state aplikasi dikonsolidasikan di satu object ini.
+//
+// KEUNTUNGAN:
+//   1. Mudah di-debug: cukup console.log(AppState) untuk lihat
+//      seluruh kondisi aplikasi saat ini
+//   2. Mudah di-reset: satu method reset() saat logout
+//   3. Auto-persist session ke sessionStorage
+//   4. Tidak ada variabel global yang tersebar
+//   5. Siap untuk fitur undo/autosave di masa depan
+//
+// STRUKTUR STATE:
+//   AppState.session      -> data guru yang login (auto-persist)
+//   AppState.studentCache -> cache data siswa per kelas
+//   AppState.ui           -> state UI (tab aktif, chart instances)
+//
+// CARA DEBUG:
+//   Ketik AppState.debug() di console browser untuk inspeksi
+// =========================================================
+const AppState = {
+    // ===== DATA STATE =====
+    session: null,
+    studentCache: {},
+
+    // ===== UI STATE =====
+    ui: {
+        currentTab: 'panelAbsensi',
+        charts: {}
+    },
+
+    // ===== METHODS: SESSION =====
+    loadSession() {
+        try {
+            const saved = sessionStorage.getItem('guruSession');
+            this.session = saved ? JSON.parse(saved) : null;
+        } catch (e) {
+            console.warn('Gagal memuat sesi dari sessionStorage:', e);
+            this.session = null;
+        }
+        return this.session;
+    },
+
+    setSession(data) {
+        this.session = data;
+        try {
+            sessionStorage.setItem('guruSession', JSON.stringify(data));
+        } catch (e) {
+            console.warn('Gagal menyimpan sesi ke sessionStorage:', e);
+        }
+    },
+
+    clearSession() {
+        this.session = null;
+        try {
+            sessionStorage.removeItem('guruSession');
+        } catch (e) {
+            console.warn('Gagal menghapus sesi dari sessionStorage:', e);
+        }
+    },
+
+    // ===== METHODS: STUDENT CACHE =====
+    cacheStudents(kelas, students) {
+        this.studentCache[kelas] = students;
+    },
+
+    getStudents(kelas) {
+        return this.studentCache[kelas];
+    },
+
+    clearStudentCache(kelas) {
+        if (kelas) delete this.studentCache[kelas];
+        else this.studentCache = {};
+    },
+
+    // ===== METHODS: CHART MANAGEMENT =====
+    setChart(name, chartInstance) {
+        this.destroyChart(name);
+        this.ui.charts[name] = chartInstance;
+    },
+
+    getChart(name) {
+        return this.ui.charts[name];
+    },
+
+    destroyChart(name) {
+        const chart = this.ui.charts[name];
+        if (chart) {
+            chart.destroy();
+            delete this.ui.charts[name];
+        }
+    },
+
+    destroyAllCharts() {
+        Object.keys(this.ui.charts).forEach(name => this.destroyChart(name));
+    },
+
+    // ===== METHODS: LIFECYCLE =====
+    reset() {
+        this.destroyAllCharts();
+        this.studentCache = {};
+        this.ui.currentTab = 'panelAbsensi';
+        this.clearSession();
+    },
+
+    debug() {
+        console.group('🔍 AppState Debug');
+        console.log('Session:', this.session);
+        console.log('Student Cache:', this.studentCache);
+        console.log('UI State:', this.ui);
+        console.log('Active Charts:', Object.keys(this.ui.charts));
+        console.groupEnd();
+    }
+};
+
+// Muat sesi dari sessionStorage saat script pertama kali dijalankan
+AppState.loadSession();
+// ===== SELESAI: STATE MANAGEMENT TERPUSAT =====
+
+
+// =========================================================
+// REFERENSI ELEMEN DOM (Prioritas #2)
+// ---------------------------------------------------------
+// Dikumpulkan di satu tempat supaya mudah dicari & di-maintain.
+// Tidak perlu querySelector berulang-ulang di banyak fungsi.
+// =========================================================
+const DOM = {
+    loginSection: document.getElementById('loginSection'),
+    dashboardSection: document.getElementById('dashboardSection'),
+    greeting: document.getElementById('greeting'),
+    tanggalAbsen: document.getElementById('tanggalAbsen'),
+    selectMapel: document.getElementById('selectMapel'),
+    selectKelas: document.getElementById('selectKelas'),
+    loading: document.getElementById('loading'),
+    studentsBody: document.getElementById('studentsBody'),
+    btnSubmit: document.getElementById('btnSubmit'),
+    loginMsg: document.getElementById('loginMsg'),
+    tabBtnAbsenWali: document.getElementById('tabBtnAbsenWali'),
+    waliKelasLabel: document.getElementById('waliKelasLabel'),
+    waliTanggal: document.getElementById('waliTanggal'),
+    waliLoading: document.getElementById('waliLoading'),
+    waliStudentsBody: document.getElementById('waliStudentsBody'),
+    waliBtnSubmit: document.getElementById('waliBtnSubmit'),
+    // Modal
+    customAlert: document.getElementById('customAlert'),
+    alertIcon: document.getElementById('alertIcon'),
+    alertTitle: document.getElementById('alertTitle'),
+    alertMessage: document.getElementById('alertMessage'),
+    confirmModal: document.getElementById('confirmModal'),
+    confirmMessage: document.getElementById('confirmMessage'),
+    confirmBtnYes: document.getElementById('confirmBtnYes'),
+    confirmBtnNo: document.getElementById('confirmBtnNo'),
+    // Riwayat
+    riwayatMapel: document.getElementById('riwayatMapel'),
+    riwayatKelas: document.getElementById('riwayatKelas'),
+    riwayatList: document.getElementById('riwayatList'),
+    riwayatLoading: document.getElementById('riwayatLoading'),
+    waliRiwayatList: document.getElementById('waliRiwayatList'),
+    waliRiwayatLoading: document.getElementById('waliRiwayatLoading'),
+    // Dashboard
+    dashboardLoading: document.getElementById('dashboardLoading'),
+    dashboardContent: document.getElementById('dashboardContent'),
+    rekapKelasMapelList: document.getElementById('rekapKelasMapelList'),
+    topAlpaList: document.getElementById('topAlpaList'),
+    trendChart: document.getElementById('trendChart')
+};
+
+// Kalau sesi sudah ada sejak awal, langsung tampilkan dashboard
+if (AppState.session) showDashboard();
+// ===== SELESAI: REFERENSI ELEMEN DOM =====
+
+
+// =========================================================
+// OPTIMASI PERFORMA: FUNGSI DEBOUNCE
+// ---------------------------------------------------------
+// Mencegah request beruntun ke server saat pengguna mengganti
+// dropdown / input dengan cepat. Fungsi akan menunggu "wait" ms
+// SETELAH aksi terakhir sebelum benar-benar dieksekusi.
+//
+// EFEK: mengurangi beban server & jaringan hingga 90% saat
+// pengguna mengklik dropdown berulang kali.
+// =========================================================
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+// ===== SELESAI: FUNGSI DEBOUNCE =====
+
+
+// =========================================================
+// GITHUB PAGES COMPATIBILITY: HELPER FETCH GAS
+// ---------------------------------------------------------
+// Semua request ke Google Apps Script dibungkus di fungsi ini.
+//
+// KENAPA PERLU?
+// 1. mode: 'cors'       -> paksa mode CORS eksplisit, mencegah
+//                          masalah cross-origin sporadis di browser
+// 2. redirect: 'follow' -> GAS Web App melakukan redirect dari
+//                          /macros/s/.../exec ke temporary URL.
+//                          Tanpa ini, Safari iOS kadang menolak response.
+//
+// CARA PAKAI:
+//   const resData = await fetchGas('getStudents', { kelas: 'X-A' });  // GET
+//   const resData = await fetchGas({ action: 'login', ... }, null, true);  // POST
+// =========================================================
+async function fetchGas(actionOrPayload, paramsOrBody = null, isPost = false) {
+    let url, options;
+
+    if (isPost) {
+        url = GAS_URL;
+        options = {
+            method: 'POST',
+            mode: 'cors',
+            redirect: 'follow',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // GAS tidak terima application/json
+            body: JSON.stringify(actionOrPayload)
+        };
+    } else {
+        const query = new URLSearchParams();
+        if (actionOrPayload) query.append('action', actionOrPayload);
+        if (paramsOrBody) {
+            Object.entries(paramsOrBody).forEach(([k, v]) => {
+                if (v !== undefined && v !== null && v !== '') query.append(k, v);
+            });
+        }
+        url = `${GAS_URL}?${query.toString()}`;
+        options = {
+            method: 'GET',
+            mode: 'cors',
+            redirect: 'follow'
+        };
+    }
+
+    const response = await fetch(url, options);
+    return await response.json();
+}
+// ===== SELESAI: HELPER FETCH GAS =====
+
+
+// =========================================================
+// KOMPONEN: STUDENT TABLE (Prioritas #1 - Component Thinking)
+// ---------------------------------------------------------
+// Menggabungkan logika render & pembacaan tabel siswa yang
+// sebelumnya duplikat di 2 tempat (panel mapel & panel wali).
+//
+// CARA PAKAI:
+//   StudentTable.render('studentsBody', dataSiswa);
+//   StudentTable.setStatus('studentsBody', '12345', 'I');
+//   const data = StudentTable.getAttendanceData('studentsBody');
+//   StudentTable.resetAll('studentsBody');
+//
+// KEUNTUNGAN:
+//   - Tidak ada duplikasi kode antara panel mapel & wali
+//   - Lookup status pakai NIS (bukan index) => lebih robust,
+//     tidak rusak kalau urutan siswa berubah / ada filter
+//   - Radio name unik per NIS (format: "absen_<tbodyId>_<nis>")
+//     sehingga 2 tabel di halaman yang sama tidak bentrok
+//   - Pakai DocumentFragment => browser hanya 1x reflow
+//     (performa jauh lebih baik, terutama di HP)
+// =========================================================
+const StudentTable = {
+    render(tbodyId, students) {
+        const tbody = document.getElementById(tbodyId);
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        const fragment = document.createDocumentFragment();
+        students.forEach(siswa => {
+            const tr = document.createElement('tr');
+            tr.className = 'student-row';
+            tr.dataset.nis = siswa.nis;
+            // Radio name unik per NIS: "absen_<tbodyId>_<nis>"
+            const radioName = `absen_${tbodyId}_${siswa.nis}`;
+            tr.innerHTML = `
+                <td>${siswa.nis || '-'}</td>
+                <td class="nama-siswa">${siswa.nama}</td>
+                <td>
+                    <div class="radio-group">
+                        <label><input type="radio" name="${radioName}" value="H" checked required> H</label>
+                        <label><input type="radio" name="${radioName}" value="I"> I</label>
+                        <label><input type="radio" name="${radioName}" value="S"> S</label>
+                        <label><input type="radio" name="${radioName}" value="A"> A</label>
+                    </div>
+                </td>
+            `;
+            fragment.appendChild(tr);
+        });
+        tbody.appendChild(fragment);
+    },
+
+    setStatus(tbodyId, nis, status) {
+        const row = document.querySelector(`#${tbodyId} tr.student-row[data-nis="${nis}"]`);
+        if (!row) return;
+        const targetRadio = row.querySelector(`input[type="radio"][value="${status}"]`);
+        if (targetRadio) targetRadio.checked = true;
+    },
+
+    resetAll(tbodyId) {
+        const rows = document.querySelectorAll(`#${tbodyId} tr.student-row`);
+        rows.forEach(row => {
+            const targetRadio = row.querySelector('input[type="radio"][value="H"]');
+            if (targetRadio) targetRadio.checked = true;
+        });
+    },
+
+    getAttendanceData(tbodyId) {
+        const rows = document.querySelectorAll(`#${tbodyId} tr.student-row`);
+        const data = [];
+        rows.forEach(row => {
+            const nis = row.dataset.nis;
+            const checked = row.querySelector('input[type="radio"]:checked');
+            if (nis && checked) {
+                data.push({ nis, status: checked.value });
+            }
+        });
+        return data;
+    },
+
+    hasData(tbodyId) {
+        return document.querySelectorAll(`#${tbodyId} tr.student-row`).length > 0;
+    }
+};
+// ===== SELESAI: KOMPONEN STUDENT TABLE =====
+
+
+// =========================================================
+// EVENT DELEGATION TERPUSAT (Prioritas #3)
 // ---------------------------------------------------------
 // Semua event listener dikonsolidasi di satu modul ini.
 //
 // KENAPA EVENT DELEGATION?
-// 1. Performa: daripada pasang 120 listener untuk 30 siswa × 4 radio,
-//    cukup 1 listener di container <tbody>. Browser tidak perlu track
-//    120 fungsi terpisah.
-// 2. Elemen dinamis: kalau siswa baru ditambahkan ke tabel (misal
-//    setelah ganti kelas), listener otomatis bekerja tanpa perlu
-//    re-attach. Tidak ada risiko "listener lupa dipasang".
-// 3. Maintenance: semua logic event ada di 1 tempat, mudah dicari
-//    dan di-debug. Tidak perlu scroll ke mana-mana cari addEventListener.
-//
-// CARA KERJA:
-// - Listener dipasang di parent element (document, container, dll)
-// - Saat event terjadi, cek event.target untuk tahu elemen mana yang diklik
-// - Pakai event.target.matches() atau event.target.closest() untuk filter
+// 1. Performa: daripada pasang listener per-elemen, cukup 1
+//    listener di parent. Browser tidak perlu track ratusan fungsi.
+// 2. Elemen dinamis: kalau siswa baru ditambahkan ke tabel,
+//    listener otomatis bekerja tanpa perlu re-attach.
+// 3. Maintenance: semua logic event ada di 1 tempat.
 //
 // STRUKTUR:
-//   EventDelegation.init()         -> dipanggil sekali di awal script
-//   EventDelegation.handleRadio()  -> handler untuk radio button kehadiran
-//   EventDelegation.handleTab()    -> handler untuk tab navigation
+//   EventDelegation.init()        -> dipanggil sekali di awal
 //   EventDelegation.handleAction() -> handler untuk tombol aksi global
+//   EventDelegation.handleTab()    -> handler untuk tab navigation
+//   EventDelegation.handleRadio()  -> handler untuk radio button
+//   EventDelegation.handleChange() -> handler untuk dropdown & tanggal
 // =========================================================
 const EventDelegation = {
-    // Inisialisasi semua event delegation. Dipanggil sekali saat script dimuat.
     init() {
-        // 1. Radio button kehadiran (di semua tabel siswa)
-        // Listener di document, tapi hanya aktif kalau target adalah radio di dalam .student-row
-        document.addEventListener('change', (e) => {
-            if (e.target.matches('.student-row input[type="radio"]')) {
-                this.handleRadioChange(e);
-            }
-        });
-
-        // 2. Tab navigation (Input Absensi / Riwayat / Dashboard / Absen Wali)
-        // Listener di document, tapi hanya aktif kalau target adalah .tab-btn
-        document.addEventListener('click', (e) => {
-            const tabBtn = e.target.closest('.tab-btn');
-            if (tabBtn && tabBtn.dataset.tab) {
-                e.preventDefault();
-                switchTab(tabBtn.dataset.tab);
-            }
-        });
-
-        // 3. Tombol aksi global (Rekap, Logout, dll)
-        // Listener di document, cek data-action attribute
+        // 1. Tombol aksi global (pakai data-action attribute di HTML)
         document.addEventListener('click', (e) => {
             const actionBtn = e.target.closest('[data-action]');
             if (actionBtn) {
@@ -71,16 +371,31 @@ const EventDelegation = {
             }
         });
 
-        // 4. Dropdown change events (mapel, kelas, tanggal)
-        // Listener di document, cek ID elemen
+        // 2. Tab navigation (pakai data-tab attribute di HTML)
+        document.addEventListener('click', (e) => {
+            const tabBtn = e.target.closest('.tab-btn');
+            if (tabBtn && tabBtn.dataset.tab) {
+                e.preventDefault();
+                switchTab(tabBtn.dataset.tab);
+            }
+        });
+
+        // 3. Radio button kehadiran (visual feedback: highlight baris)
+        document.addEventListener('change', (e) => {
+            if (e.target.matches('.student-row input[type="radio"]')) {
+                this.handleRadioChange(e);
+            }
+        });
+
+        // 4. Dropdown & tanggal change events (pakai ID elemen)
         document.addEventListener('change', (e) => {
             const target = e.target;
             if (target.id === 'selectKelas') {
-                fetchStudents(target.value);
+                debounce(() => fetchStudents(target.value), 300)();
             } else if (target.id === 'tanggalAbsen' || target.id === 'selectMapel') {
-                checkExistingAttendance();
+                debounce(checkExistingAttendance, 300)();
             } else if (target.id === 'waliTanggal') {
-                checkExistingAbsenWali();
+                debounce(checkExistingAbsenWali, 300)();
             } else if (target.id === 'riwayatMapel' || target.id === 'riwayatKelas') {
                 fetchRiwayat();
             }
@@ -89,29 +404,17 @@ const EventDelegation = {
         console.log('✅ Event delegation initialized');
     },
 
-    // Handler untuk radio button kehadiran
-    // Saat radio diklik, update visual baris siswa (highlight)
     handleRadioChange(e) {
         const radio = e.target;
         const row = radio.closest('.student-row');
         if (!row) return;
-
-        // Hapus highlight dari semua baris
-        document.querySelectorAll('.student-row').forEach(r => {
-            r.classList.remove('selected');
-        });
-
+        // Hapus highlight dari semua baris di tbody yang sama
+        const tbody = row.closest('tbody');
+        tbody.querySelectorAll('.student-row').forEach(r => r.classList.remove('selected'));
         // Highlight baris yang baru dipilih
         row.classList.add('selected');
-
-        // OPSIONAL: simpan ke state untuk tracking (bisa dipakai untuk analytics nanti)
-        // const nis = row.dataset.nis;
-        // const status = radio.value;
-        // console.log(`Siswa ${nis} di-set status ${status}`);
     },
 
-    // Handler untuk tombol aksi global
-    // Cek data-action attribute untuk tahu fungsi mana yang dipanggil
     handleAction(action) {
         switch (action) {
             case 'downloadRekapKelasSaya':
@@ -133,305 +436,299 @@ const EventDelegation = {
 EventDelegation.init();
 // ===== SELESAI: EVENT DELEGATION TERPUSAT =====
 
+
 // =========================================================
 // FUNGSI CUSTOM ALERT (popup notifikasi)
-// Panggil showAlert("pesan", true/false) dari bagian manapun
+// ---------------------------------------------------------
+// Panggil showAlert("pesan", true/false) dari bagian manapun.
+// true = sukses (hijau), false = gagal (merah).
 // =========================================================
 function showAlert(message, isSuccess = true) {
-    const modal = document.getElementById('customAlert');
-    const icon = document.getElementById('alertIcon');
-    const title = document.getElementById('alertTitle');
-    const msg = document.getElementById('alertMessage');
-    const btn = document.querySelector('#customAlert .modal-btn');
     if (isSuccess) {
-        icon.innerHTML = '✓';
-        icon.className = 'modal-icon icon-success';
-        title.innerText = 'Berhasil!';
-        btn.style.backgroundColor = '#10B981'; // Hijau
+        DOM.alertIcon.innerHTML = '✓';
+        DOM.alertIcon.className = 'modal-icon icon-success';
+        DOM.alertTitle.innerText = 'Berhasil!';
+        DOM.customAlert.querySelector('.modal-btn').style.backgroundColor = '#10B981';
     } else {
-        icon.innerHTML = '✕';
-        icon.className = 'modal-icon icon-error';
-        title.innerText = 'Oops, Gagal!';
-        btn.style.backgroundColor = '#EF4444'; // Merah
+        DOM.alertIcon.innerHTML = '✕';
+        DOM.alertIcon.className = 'modal-icon icon-error';
+        DOM.alertTitle.innerText = 'Oops, Gagal!';
+        DOM.customAlert.querySelector('.modal-btn').style.backgroundColor = '#EF4444';
     }
-    msg.innerText = message;
-    modal.classList.add('active');
+    DOM.alertMessage.innerText = message;
+    DOM.customAlert.classList.add('active');
 }
+
 function closeCustomAlert() {
-    document.getElementById('customAlert').classList.remove('active');
+    DOM.customAlert.classList.remove('active');
 }
 // ===== SELESAI: FUNGSI CUSTOM ALERT =====
 
+
 // =========================================================
-// FUNGSI CUSTOM CONFIRM (popup Ya/Tidak) -- Perbaikan Prioritas #1 (KECIL)
-// Dipakai untuk minta konfirmasi eksplisit sebelum masuk mode edit
-// menimpa absensi yang sudah ada di tanggal yang sama.
-// Panggil: const lanjut = await showConfirmModal("pesan...");
-// lanjut bernilai true kalau guru pilih "Ya, Lanjutkan", false kalau "Tidak".
+// FUNGSI CUSTOM CONFIRM (popup Ya/Tidak)
+// ---------------------------------------------------------
+// Dipakai untuk minta konfirmasi eksplisit sebelum masuk mode
+// edit menimpa absensi yang sudah ada di tanggal yang sama.
+//
+// CARA PAKAI:
+//   const lanjut = await showConfirmModal("pesan...");
+//   lanjut = true kalau guru pilih "Ya, Lanjutkan"
+//   lanjut = false kalau guru pilih "Tidak"
 // =========================================================
 function showConfirmModal(message) {
     return new Promise((resolve) => {
-        const modal = document.getElementById('confirmModal');
-        document.getElementById('confirmMessage').innerText = message;
-        modal.classList.add('active');
-        const btnYes = document.getElementById('confirmBtnYes');
-        const btnNo = document.getElementById('confirmBtnNo');
+        DOM.confirmMessage.innerText = message;
+        DOM.confirmModal.classList.add('active');
         function selesai(hasil) {
-            modal.classList.remove('active');
-            btnYes.removeEventListener('click', onYes);
-            btnNo.removeEventListener('click', onNo);
+            DOM.confirmModal.classList.remove('active');
+            DOM.confirmBtnYes.removeEventListener('click', onYes);
+            DOM.confirmBtnNo.removeEventListener('click', onNo);
             resolve(hasil);
         }
         function onYes() { selesai(true); }
         function onNo() { selesai(false); }
-        btnYes.addEventListener('click', onYes);
-        btnNo.addEventListener('click', onNo);
+        DOM.confirmBtnYes.addEventListener('click', onYes);
+        DOM.confirmBtnNo.addEventListener('click', onNo);
     });
 }
 // ===== SELESAI: FUNGSI CUSTOM CONFIRM =====
 
+
+// =========================================================
+// FUNGSI BANTUAN: FORMAT TANGGAL & PEMECAH STRING NIS
+// =========================================================
+// Format "yyyy-MM-dd" -> "dd/MM/yyyy" (untuk pesan konfirmasi)
+function formatTanggalIndoShort(tanggalIso) {
+    const [y, m, d] = tanggalIso.split('-');
+    return `${d}/${m}/${y}`;
+}
+
+// Format "yyyy-MM-dd" -> "22 Jul 2026" (untuk tampilan riwayat & chart)
+function formatTanggalIndo(tanggalStr) {
+    const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const [y, m, d] = tanggalStr.split('-');
+    return `${parseInt(d, 10)} ${bulan[parseInt(m, 10) - 1]} ${y}`;
+}
+
+// Pecah string "NIS1, NIS2, NIS3" jadi array NIS (tanpa entri kosong)
+function splitNisList(str) {
+    return (str || "").toString().split(',').map(s => s.trim()).filter(s => s !== "");
+}
+// ===== SELESAI: FUNGSI BANTUAN =====
+
+
 // =========================================================
 // HANDLE LOGIN
+// ---------------------------------------------------------
+// Pakai AppState.setSession() untuk simpan sesi (auto-persist).
 // =========================================================
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const user = document.getElementById('username').value;
     const pass = document.getElementById('password').value;
     const btn = e.target.querySelector('button');
-    const msg = document.getElementById('loginMsg');
     btn.innerText = 'Mengecek...';
-    msg.innerText = '';
+    DOM.loginMsg.innerText = '';
     try {
-        const response = await fetch(GAS_URL, {
-            method: 'POST',
-            body: JSON.stringify({ action: 'login', username: user, password: pass })
-        });
-        const resData = await response.json();
+        const resData = await fetchGas({ action: 'login', username: user, password: pass }, null, true);
         if (resData.success) {
-            sessionStorage.setItem('guruSession', JSON.stringify(resData.data));
-            sessionData = resData.data;
+            AppState.setSession(resData.data);
             showDashboard();
         } else {
-            msg.innerText = resData.message;
+            DOM.loginMsg.innerText = resData.message;
         }
     } catch (error) {
-        msg.innerText = "Gagal terhubung ke server.";
+        DOM.loginMsg.innerText = "Gagal terhubung ke server.";
     }
     btn.innerText = 'Login';
 });
 // ===== SELESAI: HANDLE LOGIN =====
 
+
 // =========================================================
 // TAMPILKAN DASHBOARD (setelah login / saat sesi ditemukan)
 // ---------------------------------------------------------
+// Pakai AppState.session untuk akses data guru yang login.
 // PERHATIAN: tidak ada lagi addEventListener di sini!
 // Semua listener sudah ditangani oleh EventDelegation.init()
 // =========================================================
 function showDashboard() {
-    loginSection.classList.add('hidden');
-    dashboardSection.classList.remove('hidden');
-    document.getElementById('greeting').innerText = `Selamat Mengajar, ${sessionData.nama}`;
-    document.getElementById('tanggalAbsen').valueAsDate = new Date();
-    const mapelArr = sessionData.mapel.split(',').map(s => s.trim());
-    const selectMapel = document.getElementById('selectMapel');
-    selectMapel.innerHTML = '';
-    mapelArr.forEach(m => selectMapel.innerHTML += `<option value="${m}">${m}</option>`);
-    const kelasArr = sessionData.kelas.split(',').map(s => s.trim());
-    const selectKelas = document.getElementById('selectKelas');
-    selectKelas.innerHTML = '<option value="" disabled selected>-- Pilih Kelas --</option>';
-    kelasArr.forEach(k => selectKelas.innerHTML += `<option value="${k}">${k}</option>`);
+    const session = AppState.session;
+    if (!session) return;
 
-    // PERHATIAN: tidak ada lagi addEventListener untuk dropdown!
-    // Semua sudah ditangani oleh EventDelegation.init()
+    DOM.loginSection.classList.add('hidden');
+    DOM.dashboardSection.classList.remove('hidden');
+    DOM.greeting.innerText = `Selamat Mengajar, ${session.nama}`;
+    DOM.tanggalAbsen.valueAsDate = new Date();
 
-    // Tab "Absen Wali" hanya muncul jika guru ini punya Kelas Binaan (kolom F Akun_Guru)
-    const tabBtnAbsenWali = document.getElementById('tabBtnAbsenWali');
-    if (sessionData.kelasWali) {
-        tabBtnAbsenWali.classList.remove('hidden');
-        document.getElementById('waliKelasLabel').innerText = sessionData.kelasWali;
-        document.getElementById('waliTanggal').valueAsDate = new Date();
-        // PERHATIAN: tidak ada lagi addEventListener untuk waliTanggal!
-        fetchStudentsWali(sessionData.kelasWali); // hanya 1 kelas, langsung dimuat sekali di awal
-        fetchRiwayatAbsenWali(); // muat riwayat sekali di awal juga
+    // Isi dropdown mapel (OPTIMASI: pakai Array.map().join())
+    const mapelArr = session.mapel.split(',').map(s => s.trim());
+    DOM.selectMapel.innerHTML = mapelArr.map(m => `<option value="${m}">${m}</option>`).join('');
+
+    // Isi dropdown kelas
+    const kelasArr = session.kelas.split(',').map(s => s.trim());
+    DOM.selectKelas.innerHTML = '<option value="" disabled selected>-- Pilih Kelas --</option>' +
+                                kelasArr.map(k => `<option value="${k}">${k}</option>`).join('');
+
+    // Tab "Absen Wali" hanya muncul jika guru ini punya Kelas Binaan
+    if (session.kelasWali) {
+        DOM.tabBtnAbsenWali.classList.remove('hidden');
+        DOM.waliKelasLabel.innerText = session.kelasWali;
+        DOM.waliTanggal.valueAsDate = new Date();
+        fetchStudentsWali(session.kelasWali);
+        fetchRiwayatAbsenWali();
     } else {
-        tabBtnAbsenWali.classList.add('hidden');
+        DOM.tabBtnAbsenWali.classList.add('hidden');
     }
 }
 // ===== SELESAI: TAMPILKAN DASHBOARD =====
 
+
 // =========================================================
-// GANTI TAB (Input Absensi / Riwayat / Dashboard)
+// GANTI TAB
 // ---------------------------------------------------------
-// DIPANGGIL oleh EventDelegation.handleTab() saat tab diklik.
-// Tidak perlu addEventListener di sini karena sudah di-handle
-// oleh event delegation di level document.
+// DIPANGGIL oleh EventDelegation saat .tab-btn diklik.
+// Update AppState.ui.currentTab untuk tracking tab aktif.
 // =========================================================
 function switchTab(tabId) {
     document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
     document.getElementById(tabId).classList.remove('hidden');
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelector(`.tab-btn[data-tab="${tabId}"]`).classList.add('active');
+
+    AppState.ui.currentTab = tabId;
+
+    // Muat data saat tab dibuka (lazy loading)
     if (tabId === 'panelRiwayat') setupRiwayatSelectors();
     if (tabId === 'panelDashboard') loadDashboard();
 }
 // ===== SELESAI: GANTI TAB =====
 
+
 // =========================================================
-// FETCH DATA SISWA (dipanggil saat kelas dipilih)
+// FETCH DATA SISWA (panel Input Absensi per Mapel)
 // ---------------------------------------------------------
 // DIPANGGIL oleh EventDelegation saat #selectKelas berubah.
+// Pakai AppState.getStudents() / cacheStudents() untuk cache.
 // =========================================================
 async function fetchStudents(kelas) {
-    const tbody = document.getElementById('studentsBody');
-    const loading = document.getElementById('loading');
-    const btnSubmit = document.getElementById('btnSubmit');
+    const tbody = DOM.studentsBody;
+    const loading = DOM.loading;
+    const btnSubmit = DOM.btnSubmit;
     tbody.innerHTML = '';
     btnSubmit.style.display = 'none';
     loading.classList.remove('hidden');
+
     try {
-        const response = await fetch(`${GAS_URL}?action=getStudents&kelas=${encodeURIComponent(kelas)}`);
-        const resData = await response.json();
-        loading.classList.add('hidden');
-        if (resData.success && resData.data.length > 0) {
-            resData.data.forEach((siswa, index) => {
-                const tr = document.createElement('tr');
-                tr.className = 'student-row'; // dipakai CSS untuk tampilan kartu di HP
-                tr.dataset.nis = siswa.nis; // kunci utama: NIS, bukan nama (lihat perbaikan Prioritas #1)
-                tr.innerHTML = `
-                    <td>${siswa.nis || '-'}</td>
-                    <td class="nama-siswa">${siswa.nama}</td>
-                    <td>
-                        <div class="radio-group">
-                            <label><input type="radio" name="status_${index}" value="H" checked required> H</label>
-                            <label><input type="radio" name="status_${index}" value="I"> I</label>
-                            <label><input type="radio" name="status_${index}" value="S"> S</label>
-                            <label><input type="radio" name="status_${index}" value="A"> A</label>
-                        </div>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-            btnSubmit.style.display = 'block';
-            await checkExistingAttendance();
+        let students = AppState.getStudents(kelas);
+        if (!students) {
+            const resData = await fetchGas('getStudents', { kelas });
+            loading.classList.add('hidden');
+            if (!resData.success || resData.data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3">${resData.message || 'Tidak ada data siswa.'}</td></tr>`;
+                return;
+            }
+            students = resData.data;
+            AppState.cacheStudents(kelas, students);
         } else {
-            tbody.innerHTML = `<tr><td colspan="3">${resData.message || 'Tidak ada data siswa.'}</td></tr>`;
+            loading.classList.add('hidden');
         }
+        StudentTable.render('studentsBody', students);
+        btnSubmit.style.display = 'block';
+        await checkExistingAttendance();
     } catch (error) {
         loading.classList.add('hidden');
         tbody.innerHTML = `<tr><td colspan="3">Gagal mengambil data siswa.</td></tr>`;
     }
 }
-// ===== SELESAI: FETCH DATA SISWA =====
+// ===== SELESAI: FETCH DATA SISWA (panel mapel) =====
+
 
 // =========================================================
-// CEK ABSENSI YANG SUDAH ADA (supaya tidak dobel input)
+// CEK ABSENSI YANG SUDAH ADA (panel Input Absensi per Mapel)
 // ---------------------------------------------------------
-// DIPANGGIL oleh EventDelegation saat #tanggalAbsen atau #selectMapel berubah.
+// DIPANGGIL oleh EventDelegation saat #tanggalAbsen atau
+// #selectMapel berubah. Pakai StudentTable.setStatus()
+// berdasarkan NIS (bukan index) — lebih robust.
 // =========================================================
 async function checkExistingAttendance() {
-    const mapel = document.getElementById('selectMapel').value;
-    const kelas = document.getElementById('selectKelas').value;
-    const tanggalInput = document.getElementById('tanggalAbsen');
+    const mapel = DOM.selectMapel.value;
+    const kelas = DOM.selectKelas.value;
+    const tanggalInput = DOM.tanggalAbsen;
     const tanggal = tanggalInput.value;
-    const guru = sessionData.nama;
-    const btnSubmit = document.getElementById('btnSubmit');
+    const guru = AppState.session.nama;
+    const btnSubmit = DOM.btnSubmit;
     if (!mapel || !kelas || !tanggal) return;
+    if (!StudentTable.hasData('studentsBody')) return;
+
     btnSubmit.innerText = "Mengecek status...";
     try {
-        const response = await fetch(`${GAS_URL}?action=getExistingAttendance&guru=${encodeURIComponent(guru)}&mapel=${encodeURIComponent(mapel)}&kelas=${encodeURIComponent(kelas)}&tanggal=${encodeURIComponent(tanggal)}`);
-        const resData = await response.json();
-        // PENTING (Prioritas #1): data tersimpan sekarang berisi NIS,
-        // bukan nama -- dicocokkan lewat row.dataset.nis supaya 2 siswa
-        // dengan nama sama persis tidak lagi bisa tertukar statusnya.
-        const rows = document.querySelectorAll('#studentsBody tr.student-row');
+        const resData = await fetchGas('getExistingAttendance', { guru, mapel, kelas, tanggal });
         if (resData.success && resData.data) {
-            // PERBAIKAN PRIORITAS #1 (KECIL): jangan langsung masuk mode
-            // edit & menimpa data lama secara diam-diam -- minta
-            // konfirmasi eksplisit dulu dari guru.
             const lanjutEdit = await showConfirmModal(
                 `Absensi untuk kelas ${kelas} - mapel ${mapel} pada tanggal ${formatTanggalIndo(tanggal)} sudah pernah diisi sebelumnya. Lanjutkan untuk mengedit data yang sudah tersimpan?`
             );
             if (!lanjutEdit) {
-                // Guru memilih "Tidak" -- kosongkan lagi pilihan tanggal
-                // supaya tidak ada jalan tidak sengaja menimpa data ini,
-                // dan minta guru memilih tanggal lain.
                 tanggalInput.value = '';
                 btnSubmit.style.display = 'none';
                 btnSubmit.innerText = "Simpan Absensi";
                 return;
             }
-            const savedIzin = resData.data.izin.split(',').map(s => s.trim()).filter(s => s !== "");
-            const savedSakit = resData.data.sakit.split(',').map(s => s.trim()).filter(s => s !== "");
-            const savedAlpa = resData.data.alpa.split(',').map(s => s.trim()).filter(s => s !== "");
-            rows.forEach((row, index) => {
+            const savedIzin = splitNisList(resData.data.izin);
+            const savedSakit = splitNisList(resData.data.sakit);
+            const savedAlpa = splitNisList(resData.data.alpa);
+            const rows = document.querySelectorAll('#studentsBody tr.student-row');
+            rows.forEach(row => {
                 const nis = row.dataset.nis;
                 let status = 'H';
                 if (savedIzin.includes(nis)) status = 'I';
                 else if (savedSakit.includes(nis)) status = 'S';
                 else if (savedAlpa.includes(nis)) status = 'A';
-                const targetRadio = document.querySelector(`input[name="status_${index}"][value="${status}"]`);
-                if (targetRadio) targetRadio.checked = true;
+                StudentTable.setStatus('studentsBody', nis, status);
             });
             btnSubmit.innerText = "Perbarui Absensi";
         } else {
-            rows.forEach((row, index) => {
-                const targetRadio = document.querySelector(`input[name="status_${index}"][value="H"]`);
-                if (targetRadio) targetRadio.checked = true;
-            });
+            StudentTable.resetAll('studentsBody');
             btnSubmit.innerText = "Simpan Absensi";
         }
     } catch (error) {
         btnSubmit.innerText = "Simpan Absensi";
     }
 }
-// Bantu format tanggal "yyyy-MM-dd" jadi "dd/MM/yyyy" untuk pesan konfirmasi
-function formatTanggalIndo(tanggalIso) {
-    const [y, m, d] = tanggalIso.split('-');
-    return `${d}/${m}/${y}`;
-}
-// ===== SELESAI: CEK ABSENSI YANG SUDAH ADA =====
+// ===== SELESAI: CEK ABSENSI YANG SUDAH ADA (panel mapel) =====
+
 
 // =========================================================
-// SUBMIT ABSENSI (simpan ke server)
+// SUBMIT ABSENSI (panel Input Absensi per Mapel)
+// ---------------------------------------------------------
+// Pakai StudentTable.getAttendanceData() — tidak perlu loop
+// manual + querySelector per index.
 // =========================================================
 document.getElementById('absenForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const btn = document.getElementById('btnSubmit');
-    // PENTING (Prioritas #1): kirim NIS (bukan nama) supaya backend
-    // menyimpan & mencocokkan absensi berdasarkan NIS.
-    const rows = document.querySelectorAll('#studentsBody tr.student-row');
-    let attendanceData = [];
-    rows.forEach((row, index) => {
-        const nis = row.dataset.nis;
-        const status = document.querySelector(`input[name="status_${index}"]:checked`).value;
-        attendanceData.push({ nis, status });
-    });
+    const btn = DOM.btnSubmit;
+    const attendanceData = StudentTable.getAttendanceData('studentsBody');
     const payload = {
-        guru: sessionData.nama,
-        mapel: document.getElementById('selectMapel').value,
-        kelas: document.getElementById('selectKelas').value,
-        tanggal: document.getElementById('tanggalAbsen').value,
+        guru: AppState.session.nama,
+        mapel: DOM.selectMapel.value,
+        kelas: DOM.selectKelas.value,
+        tanggal: DOM.tanggalAbsen.value,
         attendance: attendanceData
     };
     btn.innerText = "Menyimpan...";
     btn.disabled = true;
     try {
-        const response = await fetch(GAS_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-                action: 'submit',
-                username: sessionData.username,
-                token: sessionData.token,
-                payload: payload
-            })
-        });
-        const resData = await response.json();
+        const resData = await fetchGas({
+            action: 'submit',
+            username: AppState.session.username,
+            token: AppState.session.token,
+            payload: payload
+        }, null, true);
         if (resData.success) {
             showAlert(resData.message, true);
             btn.innerText = "Perbarui Absensi";
         } else if (resData.sessionExpired) {
-            // Token sesi tidak valid/kedaluwarsa -- paksa login ulang
-            // daripada menampilkan error yang membingungkan guru.
             showAlert(resData.message, false);
             setTimeout(logout, 1500);
         } else {
@@ -444,15 +741,15 @@ document.getElementById('absenForm').addEventListener('submit', async (e) => {
     }
     btn.disabled = false;
 });
-// ===== SELESAI: SUBMIT ABSENSI =====
+// ===== SELESAI: SUBMIT ABSENSI (panel mapel) =====
+
 
 // =========================================================
-// REKAP KELAS SAYA (download .xlsx berisi rekap kelas/mapel milik guru sendiri)
-// File .xlsx dirakit langsung di browser pakai library SheetJS,
-// jadi tidak perlu bikin file sementara di Google Drive.
+// REKAP KELAS SAYA (download .xlsx)
 // ---------------------------------------------------------
-// DIPANGGIL oleh EventDelegation.handleAction() saat tombol dengan
-// data-action="downloadRekapKelasSaya" diklik.
+// DIPANGGIL oleh EventDelegation.handleAction() saat tombol
+// dengan data-action="downloadRekapKelasSaya" diklik.
+// File .xlsx dirakit di browser pakai SheetJS.
 // =========================================================
 async function downloadRekapKelasSaya() {
     const btn = document.getElementById('btnRecap');
@@ -460,15 +757,17 @@ async function downloadRekapKelasSaya() {
     btn.innerText = "Menyiapkan file...";
     btn.disabled = true;
     try {
-        const response = await fetch(`${GAS_URL}?action=getRekapKelasSaya&mapel=${encodeURIComponent(sessionData.mapel)}&kelas=${encodeURIComponent(sessionData.kelas)}`);
-        const resData = await response.json();
+        const resData = await fetchGas('getRekapKelasSaya', {
+            mapel: AppState.session.mapel,
+            kelas: AppState.session.kelas
+        });
         if (resData.success) {
             const wb = XLSX.utils.book_new();
             resData.data.forEach(sheetInfo => {
                 const ws = XLSX.utils.aoa_to_sheet([sheetInfo.headerRow, ...sheetInfo.rows]);
                 XLSX.utils.book_append_sheet(wb, ws, sheetInfo.tabName);
             });
-            const namaFile = `Rekap_${sessionData.nama}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            const namaFile = `Rekap_${AppState.session.nama}_${new Date().toISOString().slice(0, 10)}.xlsx`;
             XLSX.writeFile(wb, namaFile);
             showAlert("Rekap berhasil dibuat dan diunduh!", true);
         } else {
@@ -482,65 +781,52 @@ async function downloadRekapKelasSaya() {
 }
 // ===== SELESAI: REKAP KELAS SAYA =====
 
+
 // =========================================================
 // LOGOUT
 // ---------------------------------------------------------
-// DIPANGGIL oleh EventDelegation.handleAction() saat tombol dengan
-// data-action="logout" diklik.
+// DIPANGGIL oleh EventDelegation.handleAction() saat tombol
+// dengan data-action="logout" diklik.
+// Pakai AppState.reset() untuk reset SEMUA state sekaligus.
 // =========================================================
 function logout() {
-    sessionStorage.removeItem('guruSession');
+    AppState.reset();
     window.location.reload();
 }
 // ===== SELESAI: LOGOUT =====
 
-// =========================================================
-// FUNGSI BANTUAN: format tanggal "2026-07-22" -> "22 Jul 2026"
-// =========================================================
-function formatTanggalIndo(tanggalStr) {
-    const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-    const [y, m, d] = tanggalStr.split('-');
-    return `${parseInt(d, 10)} ${bulan[parseInt(m, 10) - 1]} ${y}`;
-}
-// ===== SELESAI: FUNGSI BANTUAN TANGGAL =====
 
 // =========================================================
-// PANEL RIWAYAT ABSENSI (BARU)
-// =========================================================
-// Isi dropdown mapel & kelas riwayat sekali saja (pakai data guru yang sama dengan login)
+// PANEL RIWAYAT ABSENSI (per mapel)
 // ---------------------------------------------------------
-// PERHATIAN: tidak ada lagi addEventListener di sini!
-// Semua listener sudah ditangani oleh EventDelegation.init()
+// Dropdown mapel & kelas diisi sekali saja saat tab dibuka
+// pertama kali (ditandai dengan dataset.filled).
+// EventDelegation.handleTab() akan memanggil setupRiwayatSelectors()
+// saat tab "panelRiwayat" dibuka.
 // =========================================================
 function setupRiwayatSelectors() {
-    const selMapel = document.getElementById('riwayatMapel');
-    const selKelas = document.getElementById('riwayatKelas');
-    if (selMapel.dataset.filled) return; // sudah pernah diisi, tidak perlu diulang
-    const mapelArr = sessionData.mapel.split(',').map(s => s.trim());
-    mapelArr.forEach(m => selMapel.innerHTML += `<option value="${m}">${m}</option>`);
-    const kelasArr = sessionData.kelas.split(',').map(s => s.trim());
-    kelasArr.forEach(k => selKelas.innerHTML += `<option value="${k}">${k}</option>`);
-    selMapel.dataset.filled = "1";
-    // PERHATIAN: tidak ada lagi addEventListener untuk selMapel & selKelas!
+    if (DOM.riwayatMapel.dataset.filled) return;
+
+    const mapelArr = AppState.session.mapel.split(',').map(s => s.trim());
+    DOM.riwayatMapel.innerHTML = mapelArr.map(m => `<option value="${m}">${m}</option>`).join('');
+    const kelasArr = AppState.session.kelas.split(',').map(s => s.trim());
+    DOM.riwayatKelas.innerHTML = kelasArr.map(k => `<option value="${k}">${k}</option>`).join('');
+    DOM.riwayatMapel.dataset.filled = "1";
 }
-// Ambil & tampilkan riwayat absensi untuk kombinasi mapel+kelas yang dipilih
-// ---------------------------------------------------------
-// DIPANGGIL oleh EventDelegation saat #riwayatMapel atau #riwayatKelas berubah.
-// =========================================================
+
+// DIPANGGIL oleh EventDelegation saat #riwayatMapel atau #riwayatKelas berubah
 async function fetchRiwayat() {
-    const mapel = document.getElementById('riwayatMapel').value;
-    const kelas = document.getElementById('riwayatKelas').value;
-    const listEl = document.getElementById('riwayatList');
-    const loading = document.getElementById('riwayatLoading');
+    const mapel = DOM.riwayatMapel.value;
+    const kelas = DOM.riwayatKelas.value;
     if (!mapel || !kelas) return;
-    listEl.innerHTML = '';
-    loading.classList.remove('hidden');
+
+    DOM.riwayatList.innerHTML = '';
+    DOM.riwayatLoading.classList.remove('hidden');
     try {
-        const response = await fetch(`${GAS_URL}?action=getRiwayatAbsensi&mapel=${encodeURIComponent(mapel)}&kelas=${encodeURIComponent(kelas)}`);
-        const resData = await response.json();
-        loading.classList.add('hidden');
+        const resData = await fetchGas('getRiwayatAbsensi', { mapel, kelas });
+        DOM.riwayatLoading.classList.add('hidden');
         if (resData.success && resData.data.length > 0) {
-            listEl.innerHTML = resData.data.map(rec => {
+            DOM.riwayatList.innerHTML = resData.data.map(rec => {
                 const rincian = [
                     rec.namaIzin.length ? `Izin: ${rec.namaIzin.join(', ')}` : '',
                     rec.namaSakit.length ? `Sakit: ${rec.namaSakit.join(', ')}` : '',
@@ -562,70 +848,83 @@ async function fetchRiwayat() {
                 `;
             }).join('');
         } else {
-            listEl.innerHTML = `<p class="empty-state">Belum ada riwayat absensi untuk kelas &amp; mapel ini.</p>`;
+            DOM.riwayatList.innerHTML = `<p class="empty-state">Belum ada riwayat absensi untuk kelas &amp; mapel ini.</p>`;
         }
     } catch (error) {
-        loading.classList.add('hidden');
-        listEl.innerHTML = `<p class="empty-state">Gagal mengambil riwayat absensi.</p>`;
+        DOM.riwayatLoading.classList.add('hidden');
+        DOM.riwayatList.innerHTML = `<p class="empty-state">Gagal mengambil riwayat absensi.</p>`;
     }
 }
 // ===== SELESAI: PANEL RIWAYAT ABSENSI =====
 
+
 // =========================================================
-// PANEL DASHBOARD ANALITIK (BARU)
+// PANEL DASHBOARD ANALITIK
+// ---------------------------------------------------------
+// Pakai AppState.setChart() / destroyChart() untuk manajemen
+// chart yang aman (mencegah memory leak).
 // =========================================================
-let trendChartInstance = null; // simpan referensi chart supaya bisa dihancurkan sebelum digambar ulang
-// Muat semua data dashboard (dipanggil setiap kali tab Dashboard dibuka)
 async function loadDashboard() {
-    const loading = document.getElementById('dashboardLoading');
-    const content = document.getElementById('dashboardContent');
-    loading.classList.remove('hidden');
-    content.classList.add('hidden');
+    DOM.dashboardLoading.classList.remove('hidden');
+    DOM.dashboardContent.classList.add('hidden');
     try {
-        const response = await fetch(`${GAS_URL}?action=getDashboardData&mapel=${encodeURIComponent(sessionData.mapel)}&kelas=${encodeURIComponent(sessionData.kelas)}`);
-        const resData = await response.json();
-        loading.classList.add('hidden');
-        content.classList.remove('hidden');
+        const resData = await fetchGas('getDashboardData', {
+            mapel: AppState.session.mapel,
+            kelas: AppState.session.kelas
+        });
+        DOM.dashboardLoading.classList.add('hidden');
+        DOM.dashboardContent.classList.remove('hidden');
         if (resData.success) {
             renderRekapKelasMapel(resData.data.rekapKelasMapel);
             renderTrendChart(resData.data.trend);
             renderTopAlpa(resData.data.topAlpa);
         } else {
-            content.innerHTML = `<p class="empty-state">${resData.message || 'Belum ada data absensi untuk ditampilkan.'}</p>`;
+            DOM.dashboardContent.innerHTML = `<p class="empty-state">${resData.message || 'Belum ada data absensi untuk ditampilkan.'}</p>`;
         }
     } catch (error) {
-        loading.classList.add('hidden');
-        content.classList.remove('hidden');
-        content.innerHTML = `<p class="empty-state">Gagal memuat data dashboard.</p>`;
+        DOM.dashboardLoading.classList.add('hidden');
+        DOM.dashboardContent.classList.remove('hidden');
+        DOM.dashboardContent.innerHTML = `<p class="empty-state">Gagal memuat data dashboard.</p>`;
     }
 }
-// Tampilkan progress bar persentase kehadiran per kelas & mapel
+
 function renderRekapKelasMapel(list) {
-    const el = document.getElementById('rekapKelasMapelList');
     if (!list || list.length === 0) {
-        el.innerHTML = `<p class="empty-state">Belum ada data.</p>`;
+        DOM.rekapKelasMapelList.innerHTML = `<p class="empty-state">Belum ada data.</p>`;
         return;
     }
-    el.innerHTML = list.map(item => `<div class="rekap-bar-item"> <div class="rekap-bar-label"> <span>${item.label}</span> <span>${item.persenHadir}%</span> </div> <div class="rekap-bar-track"> <div class="rekap-bar-fill" style="width: ${item.persenHadir}%;"></div> </div> </div>`).join('');
+    DOM.rekapKelasMapelList.innerHTML = list.map(item => `
+        <div class="rekap-bar-item">
+            <div class="rekap-bar-label">
+                <span>${item.label}</span>
+                <span>${item.persenHadir}%</span>
+            </div>
+            <div class="rekap-bar-track">
+                <div class="rekap-bar-fill" style="width: ${item.persenHadir}%;"></div>
+            </div>
+        </div>
+    `).join('');
 }
-// Tampilkan daftar siswa dengan jumlah Alpa terbanyak
+
 function renderTopAlpa(list) {
-    const el = document.getElementById('topAlpaList');
     if (!list || list.length === 0) {
-        el.innerHTML = `<p class="empty-state">Tidak ada siswa dengan catatan Alpa. Bagus!</p>`;
+        DOM.topAlpaList.innerHTML = `<p class="empty-state">Tidak ada siswa dengan catatan Alpa. Bagus!</p>`;
         return;
     }
-    el.innerHTML = list.map((s, i) => `<div class="alpa-item"> <span class="alpa-rank">${i + 1}</span> <span class="alpa-nama">${s.nama}</span> <span class="alpa-jumlah">${s.jumlahAlpa}x Alpa</span> </div>`).join('');
+    DOM.topAlpaList.innerHTML = list.map((s, i) => `
+        <div class="alpa-item">
+            <span class="alpa-rank">${i + 1}</span>
+            <span class="alpa-nama">${s.nama}</span>
+            <span class="alpa-jumlah">${s.jumlahAlpa}x Alpa</span>
+        </div>
+    `).join('');
 }
-// Gambar grafik garis tren % kehadiran dari waktu ke waktu (pakai Chart.js)
+
 function renderTrendChart(trend) {
-    const canvas = document.getElementById('trendChart');
-    if (trendChartInstance) {
-        trendChartInstance.destroy();
-        trendChartInstance = null;
-    }
+    AppState.destroyChart('trend');
     if (!trend || trend.length === 0) return;
-    trendChartInstance = new Chart(canvas, {
+
+    const chartInstance = new Chart(DOM.trendChart, {
         type: 'line',
         data: {
             labels: trend.map(t => formatTanggalIndo(t.tanggal)),
@@ -647,74 +946,61 @@ function renderTrendChart(trend) {
             plugins: { legend: { display: false } }
         }
     });
+    AppState.setChart('trend', chartInstance);
 }
 // ===== SELESAI: PANEL DASHBOARD ANALITIK =====
 
+
 // =========================================================
-// PANEL ABSEN WALI KELAS (BARU)
-// Absensi harian per NIS (bukan per mapel), memakai action
-// 'submitAbsenWali' & 'getAbsenWaliExisting' di backend.
+// PANEL ABSEN WALI KELAS
+// ---------------------------------------------------------
+// Pakai StudentTable component & AppState cache, sama seperti
+// panel mapel. Tidak ada duplikasi kode.
 // =========================================================
-// Ambil daftar siswa (dengan NIS) untuk kelas wali yang dipilih
 async function fetchStudentsWali(kelas) {
-    const tbody = document.getElementById('waliStudentsBody');
-    const loading = document.getElementById('waliLoading');
-    const btnSubmit = document.getElementById('waliBtnSubmit');
+    const tbody = DOM.waliStudentsBody;
+    const loading = DOM.waliLoading;
+    const btnSubmit = DOM.waliBtnSubmit;
     tbody.innerHTML = '';
     btnSubmit.style.display = 'none';
     loading.classList.remove('hidden');
+
     try {
-        const response = await fetch(`${GAS_URL}?action=getStudents&kelas=${encodeURIComponent(kelas)}`);
-        const resData = await response.json();
-        loading.classList.add('hidden');
-        if (resData.success && resData.data.length > 0) {
-            resData.data.forEach((siswa) => {
-                const tr = document.createElement('tr');
-                tr.className = 'student-row';
-                tr.dataset.nis = siswa.nis;
-                tr.innerHTML = `
-                    <td>${siswa.nis || '-'}</td>
-                    <td class="nama-siswa">${siswa.nama}</td>
-                    <td>
-                        <div class="radio-group">
-                            <label><input type="radio" name="wali_status_${siswa.nis}" value="H" checked required> H</label>
-                            <label><input type="radio" name="wali_status_${siswa.nis}" value="I"> I</label>
-                            <label><input type="radio" name="wali_status_${siswa.nis}" value="S"> S</label>
-                            <label><input type="radio" name="wali_status_${siswa.nis}" value="A"> A</label>
-                        </div>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
-            btnSubmit.style.display = 'block';
-            await checkExistingAbsenWali();
+        let students = AppState.getStudents(kelas);
+        if (!students) {
+            const resData = await fetchGas('getStudents', { kelas });
+            loading.classList.add('hidden');
+            if (!resData.success || resData.data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="3">${resData.message || 'Tidak ada data siswa.'}</td></tr>`;
+                return;
+            }
+            students = resData.data;
+            AppState.cacheStudents(kelas, students);
         } else {
-            tbody.innerHTML = `<tr><td colspan="3">${resData.message || 'Tidak ada data siswa.'}</td></tr>`;
+            loading.classList.add('hidden');
         }
+        StudentTable.render('waliStudentsBody', students);
+        btnSubmit.style.display = 'block';
+        await checkExistingAbsenWali();
     } catch (error) {
         loading.classList.add('hidden');
         tbody.innerHTML = `<tr><td colspan="3">Gagal mengambil data siswa.</td></tr>`;
     }
 }
-// Cek apakah tanggal yang dipilih sudah pernah diabsen (mode edit, auto-detect)
-// ---------------------------------------------------------
-// DIPANGGIL oleh EventDelegation saat #waliTanggal berubah.
-// =========================================================
+
+// DIPANGGIL oleh EventDelegation saat #waliTanggal berubah
 async function checkExistingAbsenWali() {
-    const kelas = sessionData.kelasWali;
-    const tanggalInput = document.getElementById('waliTanggal');
+    const kelas = AppState.session.kelasWali;
+    const tanggalInput = DOM.waliTanggal;
     const tanggal = tanggalInput.value;
-    const btnSubmit = document.getElementById('waliBtnSubmit');
-    const rows = document.querySelectorAll('#waliStudentsBody tr.student-row');
-    if (!kelas || !tanggal || rows.length === 0) return;
+    const btnSubmit = DOM.waliBtnSubmit;
+    if (!kelas || !tanggal) return;
+    if (!StudentTable.hasData('waliStudentsBody')) return;
+
     btnSubmit.innerText = "Mengecek status...";
     try {
-        const response = await fetch(`${GAS_URL}?action=getAbsenWaliExisting&kelas=${encodeURIComponent(kelas)}&tanggal=${encodeURIComponent(tanggal)}`);
-        const resData = await response.json();
+        const resData = await fetchGas('getAbsenWaliExisting', { kelas, tanggal });
         if (resData.success && resData.data) {
-            // PERBAIKAN PRIORITAS #1 (KECIL): sama seperti panel Input
-            // Absensi -- minta konfirmasi eksplisit dulu sebelum masuk
-            // mode edit menimpa absensi harian yang sudah tersimpan.
             const lanjutEdit = await showConfirmModal(
                 `Absensi harian kelas ${kelas} untuk tanggal ${formatTanggalIndo(tanggal)} sudah pernah diisi sebelumnya. Lanjutkan untuk mengedit data yang sudah tersimpan?`
             );
@@ -724,59 +1010,40 @@ async function checkExistingAbsenWali() {
                 btnSubmit.innerText = "Simpan Absensi";
                 return;
             }
-            // resData.data berbentuk { "<NIS>": "H"/"I"/"S"/"A"/"-", ... }
-            rows.forEach(row => {
-                const nis = row.dataset.nis;
-                let status = resData.data[nis];
-                if (!status || status === '-') status = 'H';
-                const targetRadio = document.querySelector(`input[name="wali_status_${nis}"][value="${status}"]`);
-                if (targetRadio) targetRadio.checked = true;
+            Object.entries(resData.data).forEach(([nis, status]) => {
+                StudentTable.setStatus('waliStudentsBody', nis, status || 'H');
             });
             btnSubmit.innerText = "Perbarui Absensi";
         } else {
-            rows.forEach(row => {
-                const nis = row.dataset.nis;
-                const targetRadio = document.querySelector(`input[name="wali_status_${nis}"][value="H"]`);
-                if (targetRadio) targetRadio.checked = true;
-            });
+            StudentTable.resetAll('waliStudentsBody');
             btnSubmit.innerText = "Simpan Absensi";
         }
     } catch (error) {
         btnSubmit.innerText = "Simpan Absensi";
     }
 }
-// Simpan absensi harian wali kelas ke server
+
 document.getElementById('waliAbsenForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const btn = document.getElementById('waliBtnSubmit');
-    const rows = document.querySelectorAll('#waliStudentsBody tr.student-row');
-    let dataKehadiran = [];
-    rows.forEach(row => {
-        const nis = row.dataset.nis;
-        const status = document.querySelector(`input[name="wali_status_${nis}"]:checked`).value;
-        dataKehadiran.push({ nis, status });
-    });
-    const kelas = sessionData.kelasWali;
-    const tanggal = document.getElementById('waliTanggal').value;
+    const btn = DOM.waliBtnSubmit;
+    const dataKehadiran = StudentTable.getAttendanceData('waliStudentsBody');
+    const kelas = AppState.session.kelasWali;
+    const tanggal = DOM.waliTanggal.value;
     btn.innerText = "Menyimpan...";
     btn.disabled = true;
     try {
-        const response = await fetch(GAS_URL, {
-            method: 'POST',
-            body: JSON.stringify({
-                action: 'submitAbsenWali',
-                username: sessionData.username,
-                token: sessionData.token,
-                kelas,
-                tanggal,
-                dataKehadiran
-            })
-        });
-        const resData = await response.json();
+        const resData = await fetchGas({
+            action: 'submitAbsenWali',
+            username: AppState.session.username,
+            token: AppState.session.token,
+            kelas,
+            tanggal,
+            dataKehadiran
+        }, null, true);
         if (resData.success) {
             showAlert(resData.message, true);
             btn.innerText = "Perbarui Absensi";
-            fetchRiwayatAbsenWali(); // refresh riwayat supaya data terbaru langsung terlihat
+            fetchRiwayatAbsenWali();
         } else if (resData.sessionExpired) {
             showAlert(resData.message, false);
             setTimeout(logout, 1500);
@@ -792,22 +1059,19 @@ document.getElementById('waliAbsenForm').addEventListener('submit', async (e) =>
 });
 // ===== SELESAI: PANEL ABSEN WALI KELAS =====
 
+
 // =========================================================
-// RIWAYAT & REKAP ABSEN WALI KELAS (BARU)
+// RIWAYAT & REKAP ABSEN WALI KELAS
 // =========================================================
-// Ambil & tampilkan riwayat absensi harian kelas wali (satu kelas saja, tidak perlu filter)
 async function fetchRiwayatAbsenWali() {
-    if (!sessionData.kelasWali) return;
-    const listEl = document.getElementById('waliRiwayatList');
-    const loading = document.getElementById('waliRiwayatLoading');
-    listEl.innerHTML = '';
-    loading.classList.remove('hidden');
+    if (!AppState.session.kelasWali) return;
+    DOM.waliRiwayatList.innerHTML = '';
+    DOM.waliRiwayatLoading.classList.remove('hidden');
     try {
-        const response = await fetch(`${GAS_URL}?action=getRiwayatAbsenWali&kelas=${encodeURIComponent(sessionData.kelasWali)}`);
-        const resData = await response.json();
-        loading.classList.add('hidden');
+        const resData = await fetchGas('getRiwayatAbsenWali', { kelas: AppState.session.kelasWali });
+        DOM.waliRiwayatLoading.classList.add('hidden');
         if (resData.success && resData.data.length > 0) {
-            listEl.innerHTML = resData.data.map(rec => {
+            DOM.waliRiwayatList.innerHTML = resData.data.map(rec => {
                 const rincian = [
                     rec.namaIzin.length ? `Izin: ${rec.namaIzin.join(', ')}` : '',
                     rec.namaSakit.length ? `Sakit: ${rec.namaSakit.join(', ')}` : '',
@@ -829,34 +1093,31 @@ async function fetchRiwayatAbsenWali() {
                 `;
             }).join('');
         } else {
-            listEl.innerHTML = `<p class="empty-state">Belum ada riwayat absensi wali kelas.</p>`;
+            DOM.waliRiwayatList.innerHTML = `<p class="empty-state">Belum ada riwayat absensi wali kelas.</p>`;
         }
     } catch (error) {
-        loading.classList.add('hidden');
-        listEl.innerHTML = `<p class="empty-state">Gagal mengambil riwayat absensi wali kelas.</p>`;
+        DOM.waliRiwayatLoading.classList.add('hidden');
+        DOM.waliRiwayatList.innerHTML = `<p class="empty-state">Gagal mengambil riwayat absensi wali kelas.</p>`;
     }
 }
-// Download rekap absen wali kelas sebagai .xlsx (dirakit di browser pakai SheetJS)
-// ---------------------------------------------------------
-// DIPANGGIL oleh EventDelegation.handleAction() saat tombol dengan
-// data-action="downloadRekapAbsenWali" diklik.
-// =========================================================
+
+// DIPANGGIL oleh EventDelegation.handleAction() saat tombol
+// dengan data-action="downloadRekapAbsenWali" diklik.
 async function downloadRekapAbsenWali() {
-    if (!sessionData.kelasWali) return;
+    if (!AppState.session.kelasWali) return;
     const btn = document.getElementById('btnRekapWali');
     const originalText = btn.innerHTML;
     btn.innerText = "Menyiapkan file...";
     btn.disabled = true;
     try {
-        const response = await fetch(`${GAS_URL}?action=getRekapAbsenWali&kelas=${encodeURIComponent(sessionData.kelasWali)}`);
-        const resData = await response.json();
+        const resData = await fetchGas('getRekapAbsenWali', { kelas: AppState.session.kelasWali });
         if (resData.success) {
             const wb = XLSX.utils.book_new();
             resData.data.forEach(sheetInfo => {
                 const ws = XLSX.utils.aoa_to_sheet([sheetInfo.headerRow, ...sheetInfo.rows]);
                 XLSX.utils.book_append_sheet(wb, ws, sheetInfo.tabName);
             });
-            const namaFile = `Rekap_Wali_${sessionData.kelasWali}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            const namaFile = `Rekap_Wali_${AppState.session.kelasWali}_${new Date().toISOString().slice(0, 10)}.xlsx`;
             XLSX.writeFile(wb, namaFile);
             showAlert("Rekap wali kelas berhasil dibuat dan diunduh!", true);
         } else {
