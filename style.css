@@ -232,4 +232,13 @@ th { background-color: #F9FAFB; }
     /* Dashboard: beri sedikit ruang lebih di kanan-kiri chart */
     .chart-wrapper { padding: 8px; }
 }
-/* ===== SELESAI: TAMPILAN KHUSUS MOBILE ===== */
+/* ===== SELESAI: TAMPILAN KHUSUS MOBILE ===== *//* =========================================================
+
+VISUAL FEEDBACK: Highlight baris siswa saat radio diklik
+(Ditambahkan untuk Event Delegation - Prioritas #3)
+========================================================= */
+.student-row.selected {
+    background-color: #E0E7FF;
+    transition: background-color 0.2s ease;
+}
+/* ===== SELESAI: VISUAL FEEDBACK ===== */
