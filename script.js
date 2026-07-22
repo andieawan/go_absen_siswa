@@ -117,6 +117,7 @@ function showDashboard() {
         document.getElementById('waliTanggal').valueAsDate = new Date();
         document.getElementById('waliTanggal').addEventListener('change', checkExistingAbsenWali);
         fetchStudentsWali(sessionData.kelasWali); // hanya 1 kelas, langsung dimuat sekali di awal
+        fetchRiwayatAbsenWali(); // muat riwayat sekali di awal juga
     } else {
         tabBtnAbsenWali.classList.add('hidden');
     }
@@ -643,6 +644,7 @@ document.getElementById('waliAbsenForm').addEventListener('submit', async (e) =>
         if (resData.success) {
             showAlert(resData.message, true);
             btn.innerText = "Perbarui Absensi";
+            fetchRiwayatAbsenWali(); // refresh riwayat supaya data terbaru langsung terlihat
         } else {
             showAlert(resData.message, false);
             btn.innerText = "Simpan Absensi";
@@ -655,3 +657,91 @@ document.getElementById('waliAbsenForm').addEventListener('submit', async (e) =>
     btn.disabled = false;
 });
 // ===== SELESAI: PANEL ABSEN WALI KELAS =====
+
+
+// =========================================================
+// RIWAYAT & REKAP ABSEN WALI KELAS (BARU)
+// =========================================================
+
+// Ambil & tampilkan riwayat absensi harian kelas wali (satu kelas saja, tidak perlu filter)
+async function fetchRiwayatAbsenWali() {
+    if (!sessionData.kelasWali) return;
+
+    const listEl = document.getElementById('waliRiwayatList');
+    const loading = document.getElementById('waliRiwayatLoading');
+
+    listEl.innerHTML = '';
+    loading.classList.remove('hidden');
+
+    try {
+        const response = await fetch(`${GAS_URL}?action=getRiwayatAbsenWali&kelas=${encodeURIComponent(sessionData.kelasWali)}`);
+        const resData = await response.json();
+        loading.classList.add('hidden');
+
+        if (resData.success && resData.data.length > 0) {
+            listEl.innerHTML = resData.data.map(rec => {
+                const rincian = [
+                    rec.namaIzin.length ? `Izin: ${rec.namaIzin.join(', ')}` : '',
+                    rec.namaSakit.length ? `Sakit: ${rec.namaSakit.join(', ')}` : '',
+                    rec.namaAlpa.length ? `Alpa: ${rec.namaAlpa.join(', ')}` : ''
+                ].filter(Boolean).join(' &middot; ');
+
+                return `
+                    <div class="riwayat-card">
+                        <div class="riwayat-header">
+                            <span class="riwayat-tanggal">${formatTanggalIndo(rec.tanggal)}</span>
+                            <span class="riwayat-badge">${rec.jumlahHadir} Hadir</span>
+                        </div>
+                        <div class="riwayat-stats">
+                            <span>Izin: ${rec.jumlahIzin}</span>
+                            <span>Sakit: ${rec.jumlahSakit}</span>
+                            <span>Alpa: ${rec.jumlahAlpa}</span>
+                        </div>
+                        ${rincian ? `<div class="riwayat-detail">${rincian}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        } else {
+            listEl.innerHTML = `<p class="empty-state">Belum ada riwayat absensi wali kelas.</p>`;
+        }
+    } catch (error) {
+        loading.classList.add('hidden');
+        listEl.innerHTML = `<p class="empty-state">Gagal mengambil riwayat absensi wali kelas.</p>`;
+    }
+}
+
+// Download rekap absen wali kelas sebagai .xlsx (dirakit di browser pakai SheetJS)
+async function downloadRekapAbsenWali() {
+    if (!sessionData.kelasWali) return;
+
+    const btn = document.getElementById('btnRekapWali');
+    const originalText = btn.innerHTML;
+
+    btn.innerText = "Menyiapkan file...";
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(`${GAS_URL}?action=getRekapAbsenWali&kelas=${encodeURIComponent(sessionData.kelasWali)}`);
+        const resData = await response.json();
+
+        if (resData.success) {
+            const wb = XLSX.utils.book_new();
+            resData.data.forEach(sheetInfo => {
+                const ws = XLSX.utils.aoa_to_sheet([sheetInfo.headerRow, ...sheetInfo.rows]);
+                XLSX.utils.book_append_sheet(wb, ws, sheetInfo.tabName);
+            });
+
+            const namaFile = `Rekap_Wali_${sessionData.kelasWali}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            XLSX.writeFile(wb, namaFile);
+            showAlert("Rekap wali kelas berhasil dibuat dan diunduh!", true);
+        } else {
+            showAlert(resData.message, false);
+        }
+    } catch (error) {
+        showAlert("Terjadi kesalahan saat menyiapkan file rekap wali kelas.", false);
+    }
+
+    btn.innerHTML = originalText;
+    btn.disabled = false;
+}
+// ===== SELESAI: RIWAYAT & REKAP ABSEN WALI KELAS =====
