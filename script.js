@@ -2,8 +2,6 @@
 // KONFIGURASI
 // =========================================================
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbyMGAl2rTMzOEVkosA-QKNrVvo69x3WZPrYgRBRcVF9JL-K1guOv-zJAWnisfCZ1t8n/exec';
-// ===== SELESAI: KONFIGURASI =====
-
 
 // =========================================================
 // STATE MANAGEMENT TERPUSAT
@@ -13,6 +11,7 @@ const AppState = {
     studentCache: {},
     ui: {
         currentTab: 'panelAbsensi',
+        currentSubTab: 'subtabMapel',
         charts: {},
         fabOpen: false
     },
@@ -75,6 +74,7 @@ const AppState = {
         this.destroyAllCharts();
         this.studentCache = {};
         this.ui.currentTab = 'panelAbsensi';
+        this.ui.currentSubTab = 'subtabMapel';
         this.ui.fabOpen = false;
         this.clearSession();
     },
@@ -89,8 +89,6 @@ const AppState = {
 };
 
 AppState.loadSession();
-// ===== SELESAI: STATE MANAGEMENT =====
-
 
 // =========================================================
 // REFERENSI DOM
@@ -100,7 +98,6 @@ const DOM = {
     dashboardSection: document.getElementById('dashboardSection'),
     greeting: document.getElementById('greeting'),
     headerDate: document.getElementById('headerDate'),
-    headerAvatar: document.getElementById('headerAvatar'),
     tanggalAbsen: document.getElementById('tanggalAbsen'),
     selectMapel: document.getElementById('selectMapel'),
     selectKelas: document.getElementById('selectKelas'),
@@ -126,6 +123,26 @@ const DOM = {
     riwayatKelas: document.getElementById('riwayatKelas'),
     riwayatList: document.getElementById('riwayatList'),
     riwayatLoading: document.getElementById('riwayatLoading'),
+    // BARU: sub-tab wali di panel Riwayat
+    subtabBtnWali: document.getElementById('subtabBtnWali'),
+    riwayatWaliKelasLabel: document.getElementById('riwayatWaliKelasLabel'),
+    riwayatWaliList: document.getElementById('riwayatWaliList'),
+    riwayatWaliLoading: document.getElementById('riwayatWaliLoading'),
+    // BARU: dashboard wali
+    dashboardWaliSection: document.getElementById('dashboardWaliSection'),
+    waliStatPertemuan: document.getElementById('waliStatPertemuan'),
+    waliStatSiswa: document.getElementById('waliStatSiswa'),
+    waliStatRataHadir: document.getElementById('waliStatRataHadir'),
+    waliStatRataAlpa: document.getElementById('waliStatRataAlpa'),
+    waliDistribusiList: document.getElementById('waliDistribusiList'),
+    waliTopAlpaList: document.getElementById('waliTopAlpaList'),
+    trendChartWali: document.getElementById('trendChartWali'),
+    // BARU: panel rekap
+    rekapMapelJumlahMapel: document.getElementById('rekapMapelJumlahMapel'),
+    rekapMapelJumlahKelas: document.getElementById('rekapMapelJumlahKelas'),
+    rekapWaliCard: document.getElementById('rekapWaliCard'),
+    rekapWaliKelasLabel: document.getElementById('rekapWaliKelasLabel'),
+    // Lainnya
     waliRiwayatList: document.getElementById('waliRiwayatList'),
     waliRiwayatLoading: document.getElementById('waliRiwayatLoading'),
     dashboardLoading: document.getElementById('dashboardLoading'),
@@ -140,38 +157,16 @@ const DOM = {
 };
 
 if (AppState.session) showDashboard();
-// ===== SELESAI: REFERENSI DOM =====
-
 
 // =========================================================
-// TOAST NOTIFICATION (Fitur Baru)
-// ---------------------------------------------------------
-// Pengganti modal untuk notifikasi sukses/info yang tidak
-// mengganggu. Auto-dismiss setelah 3 detik.
-//
-// CARA PAKAI:
-//   showToast("Pesan sukses", "success");
-//   showToast("Pesan error", "error");
-//   showToast("Pesan warning", "warning");
-//   showToast("Pesan info", "info");
+// TOAST NOTIFICATION
 // =========================================================
 function showToast(message, type = 'info', duration = 3000) {
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
     
-    const icons = {
-        success: '✅',
-        error: '❌',
-        warning: '⚠️',
-        info: 'ℹ️'
-    };
-    
-    const titles = {
-        success: 'Berhasil',
-        error: 'Gagal',
-        warning: 'Peringatan',
-        info: 'Informasi'
-    };
+    const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+    const titles = { success: 'Berhasil', error: 'Gagal', warning: 'Peringatan', info: 'Informasi' };
     
     toast.innerHTML = `
         <div class="toast-icon">${icons[type]}</div>
@@ -183,39 +178,25 @@ function showToast(message, type = 'info', duration = 3000) {
     
     DOM.toastContainer.appendChild(toast);
     
-    // Auto-dismiss
     setTimeout(() => {
         toast.classList.add('toast-exit');
         setTimeout(() => toast.remove(), 300);
     }, duration);
 }
-// ===== SELESAI: TOAST NOTIFICATION =====
-
 
 // =========================================================
-// SKELETON LOADER (Fitur Baru)
-// ---------------------------------------------------------
-// Tampilkan/sembunyikan skeleton loader saat fetch data.
-// Memberikan feedback visual yang lebih baik dari spinner.
+// SKELETON & PROGRESS
 // =========================================================
-function showSkeleton(skeletonId) {
-    const skeleton = document.getElementById(skeletonId);
-    if (skeleton) skeleton.classList.remove('hidden');
+function showSkeleton(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('hidden');
 }
 
-function hideSkeleton(skeletonId) {
-    const skeleton = document.getElementById(skeletonId);
-    if (skeleton) skeleton.classList.add('hidden');
+function hideSkeleton(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
 }
-// ===== SELESAI: SKELETON LOADER =====
 
-
-// =========================================================
-// PROGRESS INDICATOR DI TOMBOL (Fitur Baru)
-// ---------------------------------------------------------
-// Tampilkan progress bar di tombol submit saat menyimpan.
-// Memberikan feedback visual bahwa proses sedang berjalan.
-// =========================================================
 function showButtonProgress(btn) {
     const text = btn.querySelector('.btn-text');
     const loader = btn.querySelector('.btn-loader');
@@ -233,13 +214,9 @@ function hideButtonProgress(btn) {
     if (loader) loader.classList.add('hidden');
     if (progress) progress.classList.add('hidden');
 }
-// ===== SELESAI: PROGRESS INDICATOR =====
-
 
 // =========================================================
-// FLOATING ACTION BUTTON (FAB) - Quick Actions (Fitur Baru)
-// ---------------------------------------------------------
-// Tombol melayang untuk aksi cepat. Klik untuk expand menu.
+// FAB
 // =========================================================
 function toggleFab() {
     AppState.ui.fabOpen = !AppState.ui.fabOpen;
@@ -253,13 +230,10 @@ function closeFab() {
     DOM.fabMenu.classList.remove('active');
 }
 
-// Quick actions handlers
 function quickAbsenHariIni() {
     closeFab();
     switchTab('panelAbsensi');
-    // Set tanggal ke hari ini
     DOM.tanggalAbsen.valueAsDate = new Date();
-    // Fokus ke dropdown kelas
     setTimeout(() => DOM.selectKelas.focus(), 300);
     showToast('Siap untuk absen hari ini!', 'info');
 }
@@ -269,12 +243,11 @@ function quickLihatRiwayat() {
     switchTab('panelRiwayat');
 }
 
-function quickDownloadRekap() {
+// BARU: quick action untuk buka tab Rekap
+function quickBukaRekap() {
     closeFab();
-    downloadRekapKelasSaya();
+    switchTab('panelRekap');
 }
-// ===== SELESAI: FAB =====
-
 
 // =========================================================
 // FUNGSI BANTUAN
@@ -328,11 +301,9 @@ function formatTanggalPanjang(date) {
 function splitNisList(str) {
     return (str || "").toString().split(',').map(s => s.trim()).filter(s => s !== "");
 }
-// ===== SELESAI: FUNGSI BANTUAN =====
-
 
 // =========================================================
-// KOMPONEN: STUDENT TABLE
+// STUDENT TABLE COMPONENT
 // =========================================================
 const StudentTable = {
     render(tbodyId, students) {
@@ -391,9 +362,7 @@ const StudentTable = {
         rows.forEach(row => {
             const nis = row.dataset.nis;
             const checked = row.querySelector('input[type="radio"]:checked');
-            if (nis && checked) {
-                data.push({ nis, status: checked.value });
-            }
+            if (nis && checked) data.push({ nis, status: checked.value });
         });
         return data;
     },
@@ -402,8 +371,6 @@ const StudentTable = {
         return document.querySelectorAll(`#${tbodyId} tr.student-row`).length > 0;
     }
 };
-// ===== SELESAI: STUDENT TABLE =====
-
 
 // =========================================================
 // FORM VALIDATOR
@@ -429,12 +396,8 @@ const FormValidator = {
         const errors = [];
         const warnings = [];
 
-        if (!DOM.selectMapel.value) {
-            errors.push({ field: 'selectMapel', message: 'Mata pelajaran harus dipilih' });
-        }
-        if (!DOM.selectKelas.value) {
-            errors.push({ field: 'selectKelas', message: 'Kelas harus dipilih' });
-        }
+        if (!DOM.selectMapel.value) errors.push({ field: 'selectMapel', message: 'Mata pelajaran harus dipilih' });
+        if (!DOM.selectKelas.value) errors.push({ field: 'selectKelas', message: 'Kelas harus dipilih' });
 
         const tanggal = DOM.tanggalAbsen.value;
         if (!tanggal) {
@@ -564,15 +527,13 @@ const FormValidator = {
 };
 
 FormValidator.init();
-// ===== SELESAI: FORM VALIDATOR =====
-
 
 // =========================================================
 // EVENT DELEGATION
 // =========================================================
 const EventDelegation = {
     init() {
-        // Tombol aksi global (data-action)
+        // Tombol aksi global
         document.addEventListener('click', (e) => {
             const actionBtn = e.target.closest('[data-action]');
             if (actionBtn) {
@@ -590,11 +551,18 @@ const EventDelegation = {
             }
         });
 
-        // FAB main button
+        // BARU: Sub-tab navigation (untuk panel Riwayat)
         document.addEventListener('click', (e) => {
-            if (e.target.closest('#fabMain')) {
-                toggleFab();
+            const subTabBtn = e.target.closest('.sub-tab-btn');
+            if (subTabBtn && subTabBtn.dataset.subtab) {
+                e.preventDefault();
+                switchSubTab(subTabBtn.dataset.subtab);
             }
+        });
+
+        // FAB
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('#fabMain')) toggleFab();
         });
 
         // Quick status buttons
@@ -656,11 +624,11 @@ const EventDelegation = {
             case 'downloadRekapKelasSaya':
                 downloadRekapKelasSaya();
                 break;
-            case 'logout':
-                logout();
-                break;
             case 'downloadRekapAbsenWali':
                 downloadRekapAbsenWali();
+                break;
+            case 'logout':
+                logout();
                 break;
             case 'quickAbsenHariIni':
                 quickAbsenHariIni();
@@ -668,8 +636,8 @@ const EventDelegation = {
             case 'quickLihatRiwayat':
                 quickLihatRiwayat();
                 break;
-            case 'quickDownloadRekap':
-                quickDownloadRekap();
+            case 'quickBukaRekap':
+                quickBukaRekap();
                 break;
             default:
                 console.warn(`Action tidak dikenal: ${action}`);
@@ -678,11 +646,9 @@ const EventDelegation = {
 };
 
 EventDelegation.init();
-// ===== SELESAI: EVENT DELEGATION =====
-
 
 // =========================================================
-// MODAL (Alert & Confirm)
+// MODAL
 // =========================================================
 function showAlert(message, isSuccess = true) {
     if (isSuccess) {
@@ -718,8 +684,6 @@ function showConfirmModal(message) {
         DOM.confirmBtnNo.addEventListener('click', onNo);
     });
 }
-// ===== SELESAI: MODAL =====
-
 
 // =========================================================
 // LOGIN
@@ -729,7 +693,6 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     const user = document.getElementById('username').value;
     const pass = document.getElementById('password').value;
     const btn = e.target.querySelector('button');
-    const originalText = btn.querySelector('.btn-text').innerText;
     
     btn.querySelector('.btn-text').classList.add('hidden');
     btn.querySelector('.btn-loader').classList.remove('hidden');
@@ -753,8 +716,6 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     btn.querySelector('.btn-loader').classList.add('hidden');
     btn.disabled = false;
 });
-// ===== SELESAI: LOGIN =====
-
 
 // =========================================================
 // DASHBOARD
@@ -779,14 +740,33 @@ function showDashboard() {
     // Tampilkan FAB
     DOM.fabContainer.classList.remove('hidden');
 
+    // BARU: Update info di panel Rekap
+    DOM.rekapMapelJumlahMapel.innerText = `📚 ${mapelArr.length} Mata Pelajaran`;
+    DOM.rekapMapelJumlahKelas.innerText = `🏫 ${kelasArr.length} Kelas`;
+
     if (session.kelasWali) {
         DOM.tabBtnAbsenWali.classList.remove('hidden');
         DOM.waliKelasLabel.innerText = session.kelasWali;
         DOM.waliTanggal.valueAsDate = new Date();
+        
+        // BARU: tampilkan sub-tab wali di panel Riwayat
+        DOM.subtabBtnWali.classList.remove('hidden');
+        DOM.riwayatWaliKelasLabel.innerText = session.kelasWali;
+        
+        // BARU: tampilkan card rekap wali
+        DOM.rekapWaliCard.classList.remove('hidden');
+        DOM.rekapWaliKelasLabel.innerText = `👪 Kelas: ${session.kelasWali}`;
+        
+        // BARU: tampilkan section dashboard wali
+        DOM.dashboardWaliSection.classList.remove('hidden');
+        
         fetchStudentsWali(session.kelasWali);
         fetchRiwayatAbsenWali();
     } else {
         DOM.tabBtnAbsenWali.classList.add('hidden');
+        DOM.subtabBtnWali.classList.add('hidden');
+        DOM.rekapWaliCard.classList.add('hidden');
+        DOM.dashboardWaliSection.classList.add('hidden');
     }
 }
 
@@ -799,11 +779,30 @@ function switchTab(tabId) {
     AppState.ui.currentTab = tabId;
     FormValidator.clearAll();
 
-    if (tabId === 'panelRiwayat') setupRiwayatSelectors();
+    if (tabId === 'panelRiwayat') {
+        setupRiwayatSelectors();
+        // Kalau sub-tab aktif adalah wali, load data wali
+        if (AppState.ui.currentSubTab === 'subtabWali' && AppState.session.kelasWali) {
+            fetchRiwayatWaliDiPanelRiwayat();
+        }
+    }
     if (tabId === 'panelDashboard') loadDashboard();
 }
-// ===== SELESAI: DASHBOARD =====
 
+// BARU: switch sub-tab di panel Riwayat
+function switchSubTab(subtabId) {
+    document.querySelectorAll('.sub-tab-panel').forEach(panel => panel.classList.add('hidden'));
+    document.getElementById(subtabId).classList.remove('hidden');
+    document.querySelectorAll('.sub-tab-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelector(`.sub-tab-btn[data-subtab="${subtabId}"]`).classList.add('active');
+    
+    AppState.ui.currentSubTab = subtabId;
+    
+    // Load data saat sub-tab dibuka
+    if (subtabId === 'subtabWali' && AppState.session.kelasWali) {
+        fetchRiwayatWaliDiPanelRiwayat();
+    }
+}
 
 // =========================================================
 // FETCH DATA SISWA
@@ -814,7 +813,6 @@ async function fetchStudents(kelas) {
     tbody.innerHTML = '';
     btnSubmit.classList.add('hidden');
     
-    // Tampilkan skeleton loader
     showSkeleton('skeletonLoader');
 
     try {
@@ -823,7 +821,7 @@ async function fetchStudents(kelas) {
             const resData = await fetchGas('getStudents', { kelas });
             hideSkeleton('skeletonLoader');
             if (!resData.success || resData.data.length === 0) {
-                tbody.innerHTML = `<tr class="empty-row"><td colspan="3"><div class="empty-state-illustration"><svg viewBox="0 0 200 150"><circle cx="100" cy="75" r="50" fill="#E0E7FF"/></svg><p>${resData.message || 'Tidak ada data siswa.'}</p></div></td></tr>`;
+                tbody.innerHTML = `<tr class="empty-row"><td colspan="3"><div class="empty-state-illustration"><p>${resData.message || 'Tidak ada data siswa.'}</p></div></td></tr>`;
                 return;
             }
             students = resData.data;
@@ -854,7 +852,7 @@ async function checkExistingAttendance() {
         const resData = await fetchGas('getExistingAttendance', { guru, mapel, kelas, tanggal });
         if (resData.success && resData.data) {
             const lanjutEdit = await showConfirmModal(
-                `Absensi untuk ${kelas} - ${mapel} pada ${formatTanggalIndo(tanggal)} sudah ada. Edit data yang tersimpan?`
+                `Absensi untuk ${kelas} - ${mapel} pada ${formatTanggalIndo(tanggal)} sudah ada. Edit data?`
             );
             if (!lanjutEdit) {
                 tanggalInput.value = '';
@@ -882,8 +880,6 @@ async function checkExistingAttendance() {
         btnSubmit.querySelector('.btn-text').innerText = '💾 Simpan Absensi';
     }
 }
-// ===== SELESAI: FETCH DATA SISWA =====
-
 
 // =========================================================
 // SUBMIT ABSENSI
@@ -935,11 +931,9 @@ document.getElementById('absenForm').addEventListener('submit', async (e) => {
     btn.disabled = false;
     hideButtonProgress(btn);
 });
-// ===== SELESAI: SUBMIT ABSENSI =====
-
 
 // =========================================================
-// REKAP & LOGOUT
+// REKAP
 // =========================================================
 async function downloadRekapKelasSaya() {
     showToast('Menyiapkan file rekap...', 'info');
@@ -965,15 +959,35 @@ async function downloadRekapKelasSaya() {
     }
 }
 
+async function downloadRekapAbsenWali() {
+    if (!AppState.session.kelasWali) return;
+    showToast('Menyiapkan file rekap wali...', 'info');
+    try {
+        const resData = await fetchGas('getRekapAbsenWali', { kelas: AppState.session.kelasWali });
+        if (resData.success) {
+            const wb = XLSX.utils.book_new();
+            resData.data.forEach(sheetInfo => {
+                const ws = XLSX.utils.aoa_to_sheet([sheetInfo.headerRow, ...sheetInfo.rows]);
+                XLSX.utils.book_append_sheet(wb, ws, sheetInfo.tabName);
+            });
+            const namaFile = `Rekap_Wali_${AppState.session.kelasWali}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            XLSX.writeFile(wb, namaFile);
+            showToast("Rekap wali berhasil diunduh!", 'success');
+        } else {
+            showToast(resData.message, 'error');
+        }
+    } catch (error) {
+        showToast("Gagal menyiapkan file rekap wali", 'error');
+    }
+}
+
 function logout() {
     AppState.reset();
     window.location.reload();
 }
-// ===== SELESAI: REKAP & LOGOUT =====
-
 
 // =========================================================
-// RIWAYAT
+// RIWAYAT (Per Mapel)
 // =========================================================
 function setupRiwayatSelectors() {
     if (DOM.riwayatMapel.dataset.filled) return;
@@ -1026,11 +1040,50 @@ async function fetchRiwayat() {
         DOM.riwayatList.innerHTML = `<div class="empty-state-illustration"><p>Gagal mengambil riwayat</p></div>`;
     }
 }
-// ===== SELESAI: RIWAYAT =====
 
+// BARU: Riwayat Wali di Panel Riwayat (sub-tab "Per Kelas (Wali)")
+async function fetchRiwayatWaliDiPanelRiwayat() {
+    if (!AppState.session.kelasWali) return;
+    
+    DOM.riwayatWaliList.innerHTML = '';
+    showSkeleton('riwayatWaliLoading');
+    
+    try {
+        const resData = await fetchGas('getRiwayatAbsenWali', { kelas: AppState.session.kelasWali });
+        hideSkeleton('riwayatWaliLoading');
+        if (resData.success && resData.data.length > 0) {
+            DOM.riwayatWaliList.innerHTML = resData.data.map(rec => {
+                const rincian = [
+                    rec.namaIzin.length ? `📝 Izin: ${rec.namaIzin.join(', ')}` : '',
+                    rec.namaSakit.length ? `🤒 Sakit: ${rec.namaSakit.join(', ')}` : '',
+                    rec.namaAlpa.length ? `❌ Alpa: ${rec.namaAlpa.join(', ')}` : ''
+                ].filter(Boolean).join(' · ');
+                return `
+                    <div class="riwayat-card">
+                        <div class="riwayat-header">
+                            <span class="riwayat-tanggal">📅 ${formatTanggalIndo(rec.tanggal)}</span>
+                            <span class="riwayat-badge">✓ ${rec.jumlahHadir} Hadir</span>
+                        </div>
+                        <div class="riwayat-stats">
+                            <span>📝 ${rec.jumlahIzin}</span>
+                            <span>🤒 ${rec.jumlahSakit}</span>
+                            <span>❌ ${rec.jumlahAlpa}</span>
+                        </div>
+                        ${rincian ? `<div class="riwayat-detail">${rincian}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        } else {
+            DOM.riwayatWaliList.innerHTML = `<div class="empty-state-illustration large"><svg viewBox="0 0 200 150"><circle cx="100" cy="75" r="50" fill="#E0E7FF"/><text x="100" y="85" text-anchor="middle" font-size="40">👨‍👩‍👧</text></svg><p>Belum ada riwayat absensi wali kelas</p></div>`;
+        }
+    } catch (error) {
+        hideSkeleton('riwayatWaliLoading');
+        DOM.riwayatWaliList.innerHTML = `<div class="empty-state-illustration"><p>Gagal mengambil riwayat</p></div>`;
+    }
+}
 
 // =========================================================
-// DASHBOARD ANALITIK
+// DASHBOARD ANALITIK (UMUM + WALI)
 // =========================================================
 async function loadDashboard() {
     showSkeleton('dashboardLoading');
@@ -1049,6 +1102,11 @@ async function loadDashboard() {
             renderTopAlpa(resData.data.topAlpa);
         } else {
             DOM.dashboardContent.innerHTML = `<div class="empty-state-illustration large"><p>${resData.message || 'Belum ada data'}</p></div>`;
+        }
+        
+        // BARU: load dashboard wali kalau guru adalah wali kelas
+        if (AppState.session.kelasWali) {
+            loadDashboardWali();
         }
     } catch (error) {
         hideSkeleton('dashboardLoading');
@@ -1122,8 +1180,139 @@ function renderTrendChart(trend) {
     });
     AppState.setChart('trend', chartInstance);
 }
-// ===== SELESAI: DASHBOARD ANALITIK =====
 
+// =========================================================
+// BARU: DASHBOARD WALI KELAS
+// ---------------------------------------------------------
+// Memuat data dari endpoint getDashboardDataWali dan render:
+// - Stats cards (pertemuan, siswa, rata-rata hadir, rata-rata alpa)
+// - Distribusi status (bar chart H/I/S/A)
+// - Tren kehadiran harian (line chart)
+// - Top alpa di kelas wali
+// =========================================================
+async function loadDashboardWali() {
+    const kelas = AppState.session.kelasWali;
+    if (!kelas) return;
+    
+    try {
+        const resData = await fetchGas('getDashboardDataWali', { kelas });
+        if (!resData.success) {
+            // Kalau belum ada data, tampilkan pesan di section wali
+            DOM.waliStatPertemuan.innerText = '0';
+            DOM.waliStatSiswa.innerText = '0';
+            DOM.waliStatRataHadir.innerText = '0%';
+            DOM.waliStatRataAlpa.innerText = '0%';
+            DOM.waliDistribusiList.innerHTML = `<div class="empty-state-illustration"><p>${resData.message}</p></div>`;
+            DOM.waliTopAlpaList.innerHTML = '';
+            AppState.destroyChart('trendWali');
+            return;
+        }
+        
+        const data = resData.data;
+        
+        // Stats cards
+        DOM.waliStatPertemuan.innerText = data.totalPertemuan;
+        DOM.waliStatSiswa.innerText = data.totalSiswa;
+        DOM.waliStatRataHadir.innerText = data.rataRata.hadir + '%';
+        DOM.waliStatRataAlpa.innerText = data.rataRata.alpa + '%';
+        
+        // Distribusi status
+        renderDistribusiStatus(data.rataRata);
+        
+        // Tren kehadiran harian
+        renderTrendChartWali(data.statistikHarian);
+        
+        // Top alpa
+        renderTopAlpaWali(data.topAlpa);
+        
+    } catch (error) {
+        console.error('Gagal memuat dashboard wali:', error);
+        DOM.waliDistribusiList.innerHTML = `<div class="empty-state-illustration"><p>Gagal memuat data dashboard wali</p></div>`;
+    }
+}
+
+// Render distribusi status (H/I/S/A) sebagai bar chart horizontal
+function renderDistribusiStatus(rataRata) {
+    const items = [
+        { label: 'Hadir', icon: '✓', value: rataRata.hadir, class: 'hadir' },
+        { label: 'Izin', icon: '📝', value: rataRata.izin, class: 'izin' },
+        { label: 'Sakit', icon: '🤒', value: rataRata.sakit, class: 'sakit' },
+        { label: 'Alpa', icon: '❌', value: rataRata.alpa, class: 'alpa' }
+    ];
+    
+    DOM.waliDistribusiList.innerHTML = items.map(item => `
+        <div class="distribusi-item">
+            <div class="distribusi-label">
+                <span class="distribusi-label-status">
+                    <span>${item.icon}</span>
+                    <span>${item.label}</span>
+                </span>
+                <span>${item.value}%</span>
+            </div>
+            <div class="distribusi-track">
+                <div class="distribusi-fill ${item.class}" style="width: ${item.value}%;"></div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Render tren kehadiran harian kelas wali (line chart)
+function renderTrendChartWali(statistikHarian) {
+    AppState.destroyChart('trendWali');
+    if (!statistikHarian || statistikHarian.length === 0) return;
+    
+    const chartInstance = new Chart(DOM.trendChartWali, {
+        type: 'line',
+        data: {
+            labels: statistikHarian.map(s => formatTanggalIndo(s.tanggal)),
+            datasets: [{
+                label: '% Kehadiran Harian',
+                data: statistikHarian.map(s => s.persenHadir),
+                borderColor: '#10B981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 4,
+                pointBackgroundColor: '#10B981',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+                y: { min: 0, max: 100, ticks: { callback: v => v + '%' } }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => `Kehadiran: ${ctx.parsed.y}%`
+                    }
+                }
+            }
+        }
+    });
+    AppState.setChart('trendWali', chartInstance);
+}
+
+// Render top alpa di kelas wali
+function renderTopAlpaWali(list) {
+    if (!list || list.length === 0) {
+        DOM.waliTopAlpaList.innerHTML = `<div class="empty-state-illustration"><p>🎉 Tidak ada siswa dengan catatan Alpa di kelas wali</p></div>`;
+        return;
+    }
+    DOM.waliTopAlpaList.innerHTML = list.map((s, i) => `
+        <div class="alpa-item">
+            <span class="alpa-rank">${i + 1}</span>
+            <span class="alpa-nama">${s.nama}</span>
+            <span class="alpa-jumlah">${s.jumlahAlpa}x</span>
+        </div>
+    `).join('');
+}
+// ===== SELESAI: DASHBOARD WALI KELAS =====
 
 // =========================================================
 // ABSEN WALI
@@ -1275,26 +1464,3 @@ async function fetchRiwayatAbsenWali() {
         DOM.waliRiwayatList.innerHTML = `<div class="empty-state-illustration"><p>Gagal mengambil riwayat</p></div>`;
     }
 }
-
-async function downloadRekapAbsenWali() {
-    if (!AppState.session.kelasWali) return;
-    showToast('Menyiapkan file rekap wali...', 'info');
-    try {
-        const resData = await fetchGas('getRekapAbsenWali', { kelas: AppState.session.kelasWali });
-        if (resData.success) {
-            const wb = XLSX.utils.book_new();
-            resData.data.forEach(sheetInfo => {
-                const ws = XLSX.utils.aoa_to_sheet([sheetInfo.headerRow, ...sheetInfo.rows]);
-                XLSX.utils.book_append_sheet(wb, ws, sheetInfo.tabName);
-            });
-            const namaFile = `Rekap_Wali_${AppState.session.kelasWali}_${new Date().toISOString().slice(0, 10)}.xlsx`;
-            XLSX.writeFile(wb, namaFile);
-            showToast("Rekap wali berhasil diunduh!", 'success');
-        } else {
-            showToast(resData.message, 'error');
-        }
-    } catch (error) {
-        showToast("Gagal menyiapkan file rekap wali", 'error');
-    }
-}
-// ===== SELESAI: ABSEN WALI =====
