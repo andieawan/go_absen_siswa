@@ -223,6 +223,26 @@
 </div>
 <!-- ===== SELESAI: MODAL ALERT ===== -->
 
+<!-- ============================================
+     MODAL KONFIRMASI (Ya/Tidak)
+     Dipakai untuk Perbaikan Prioritas #1 (KECIL): minta konfirmasi
+     eksplisit sebelum guru masuk ke mode edit menimpa absensi yang
+     sudah ada di tanggal yang sama. Dikendalikan lewat showConfirmModal()
+     di script.js -- jangan hapus id-id di bawah ini.
+     ============================================ -->
+<div class="modal-overlay" id="confirmModal">
+    <div class="modal-box">
+        <div class="modal-icon icon-warning" id="confirmIcon">❓</div>
+        <div class="modal-title" id="confirmTitle">Konfirmasi</div>
+        <div class="modal-message" id="confirmMessage">Pesan di sini</div>
+        <div class="modal-btn-group">
+            <button class="modal-btn modal-btn-secondary" id="confirmBtnNo">Tidak</button>
+            <button class="modal-btn" id="confirmBtnYes">Ya, Lanjutkan</button>
+        </div>
+    </div>
+</div>
+<!-- ===== SELESAI: MODAL KONFIRMASI ===== -->
+
 <!-- Semua logika JavaScript sekarang ada di script.js -->
 <script src="script.js"></script>
 </body>
