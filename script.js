@@ -108,6 +108,18 @@ function showDashboard() {
     selectKelas.addEventListener('change', (e) => fetchStudents(e.target.value));
     document.getElementById('tanggalAbsen').addEventListener('change', checkExistingAttendance);
     document.getElementById('selectMapel').addEventListener('change', checkExistingAttendance);
+
+    // Tab "Absen Wali" hanya muncul jika guru ini punya Kelas Binaan (kolom F Akun_Guru)
+    const tabBtnAbsenWali = document.getElementById('tabBtnAbsenWali');
+    if (sessionData.kelasWali) {
+        tabBtnAbsenWali.classList.remove('hidden');
+        document.getElementById('waliKelasLabel').innerText = sessionData.kelasWali;
+        document.getElementById('waliTanggal').valueAsDate = new Date();
+        document.getElementById('waliTanggal').addEventListener('change', checkExistingAbsenWali);
+        fetchStudentsWali(sessionData.kelasWali); // hanya 1 kelas, langsung dimuat sekali di awal
+    } else {
+        tabBtnAbsenWali.classList.add('hidden');
+    }
 }
 // ===== SELESAI: TAMPILKAN DASHBOARD =====
 
@@ -511,3 +523,135 @@ function renderTrendChart(trend) {
     });
 }
 // ===== SELESAI: PANEL DASHBOARD ANALITIK =====
+
+
+// =========================================================
+// PANEL ABSEN WALI KELAS (BARU)
+// Absensi harian per NIS (bukan per mapel), memakai action
+// 'submitAbsenWali' & 'getAbsenWaliExisting' di backend.
+// =========================================================
+
+// Ambil daftar siswa (dengan NIS) untuk kelas wali yang dipilih
+async function fetchStudentsWali(kelas) {
+    const tbody = document.getElementById('waliStudentsBody');
+    const loading = document.getElementById('waliLoading');
+    const btnSubmit = document.getElementById('waliBtnSubmit');
+
+    tbody.innerHTML = '';
+    btnSubmit.style.display = 'none';
+    loading.classList.remove('hidden');
+
+    try {
+        const response = await fetch(`${GAS_URL}?action=getStudents&kelas=${kelas}`);
+        const resData = await response.json();
+
+        loading.classList.add('hidden');
+
+        if (resData.success && resData.data.length > 0) {
+            resData.data.forEach((siswa) => {
+                const tr = document.createElement('tr');
+                tr.className = 'student-row';
+                tr.dataset.nis = siswa.nis;
+                tr.innerHTML = `
+                    <td>${siswa.nis || '-'}</td>
+                    <td class="nama-siswa">${siswa.nama}</td>
+                    <td>
+                        <div class="radio-group">
+                            <label><input type="radio" name="wali_status_${siswa.nis}" value="H" checked required> H</label>
+                            <label><input type="radio" name="wali_status_${siswa.nis}" value="I"> I</label>
+                            <label><input type="radio" name="wali_status_${siswa.nis}" value="S"> S</label>
+                            <label><input type="radio" name="wali_status_${siswa.nis}" value="A"> A</label>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            btnSubmit.style.display = 'block';
+            await checkExistingAbsenWali();
+        } else {
+            tbody.innerHTML = `<tr><td colspan="3">${resData.message || 'Tidak ada data siswa.'}</td></tr>`;
+        }
+    } catch (error) {
+        loading.classList.add('hidden');
+        tbody.innerHTML = `<tr><td colspan="3">Gagal mengambil data siswa.</td></tr>`;
+    }
+}
+
+// Cek apakah tanggal yang dipilih sudah pernah diabsen (mode edit, auto-detect)
+async function checkExistingAbsenWali() {
+    const kelas = sessionData.kelasWali;
+    const tanggal = document.getElementById('waliTanggal').value;
+    const btnSubmit = document.getElementById('waliBtnSubmit');
+    const rows = document.querySelectorAll('#waliStudentsBody tr.student-row');
+
+    if (!kelas || !tanggal || rows.length === 0) return;
+    btnSubmit.innerText = "Mengecek status...";
+
+    try {
+        const response = await fetch(`${GAS_URL}?action=getAbsenWaliExisting&kelas=${kelas}&tanggal=${tanggal}`);
+        const resData = await response.json();
+
+        if (resData.success && resData.data) {
+            // resData.data berbentuk { "<NIS>": "H"/"I"/"S"/"A"/"-", ... }
+            rows.forEach(row => {
+                const nis = row.dataset.nis;
+                let status = resData.data[nis];
+                if (!status || status === '-') status = 'H';
+                const targetRadio = document.querySelector(`input[name="wali_status_${nis}"][value="${status}"]`);
+                if (targetRadio) targetRadio.checked = true;
+            });
+            btnSubmit.innerText = "Perbarui Absensi";
+        } else {
+            rows.forEach(row => {
+                const nis = row.dataset.nis;
+                const targetRadio = document.querySelector(`input[name="wali_status_${nis}"][value="H"]`);
+                if (targetRadio) targetRadio.checked = true;
+            });
+            btnSubmit.innerText = "Simpan Absensi";
+        }
+    } catch (error) {
+        btnSubmit.innerText = "Simpan Absensi";
+    }
+}
+
+// Simpan absensi harian wali kelas ke server
+document.getElementById('waliAbsenForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('waliBtnSubmit');
+    const rows = document.querySelectorAll('#waliStudentsBody tr.student-row');
+    let dataKehadiran = [];
+
+    rows.forEach(row => {
+        const nis = row.dataset.nis;
+        const status = document.querySelector(`input[name="wali_status_${nis}"]:checked`).value;
+        dataKehadiran.push({ nis, status });
+    });
+
+    const kelas = sessionData.kelasWali;
+    const tanggal = document.getElementById('waliTanggal').value;
+
+    btn.innerText = "Menyimpan...";
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(GAS_URL, {
+            method: 'POST',
+            body: JSON.stringify({ action: 'submitAbsenWali', kelas, tanggal, dataKehadiran })
+        });
+        const resData = await response.json();
+
+        if (resData.success) {
+            showAlert(resData.message, true);
+            btn.innerText = "Perbarui Absensi";
+        } else {
+            showAlert(resData.message, false);
+            btn.innerText = "Simpan Absensi";
+        }
+    } catch (error) {
+        showAlert("Terjadi kesalahan jaringan saat menyimpan data.", false);
+        btn.innerText = "Simpan Absensi";
+    }
+
+    btn.disabled = false;
+});
+// ===== SELESAI: PANEL ABSEN WALI KELAS =====
