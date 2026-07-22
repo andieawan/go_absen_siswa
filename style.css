@@ -1,244 +1,805 @@
 /* =========================================================
-   VARIABEL WARNA & RESET DASAR
-   Ubah warna utama aplikasi di sini (--primary, --bg, --text)
-   ========================================================= */
-:root { --primary: #4F46E5; --bg: #F3F4F6; --text: #1F2937; }
-* { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-body { background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+VARIABEL WARNA & RESET DASAR
+---------------------------------------------------------
+Ubah warna utama aplikasi di sini:
+- --primary : warna utama (tombol, tab aktif, progress bar)
+- --bg      : warna latar belakang halaman
+- --text    : warna teks utama
+
+Kalau mau ganti tema warna, cukup ubah 3 variabel di atas.
+========================================================= */
+:root {
+    --primary: #4F46E5;
+    --bg: #F3F4F6;
+    --text: #1F2937;
+}
+
+/* Reset box-sizing supaya padding tidak merusak lebar elemen */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 20px;
+    line-height: 1.5;
+}
 /* ===== SELESAI: VARIABEL & RESET ===== */
 
 
 /* =========================================================
-   LAYOUT UTAMA (kotak putih pembungkus semua konten)
-   ========================================================= */
-.container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-h2 { text-align: center; margin-bottom: 20px; }
+LAYOUT UTAMA (kotak putih pembungkus semua konten)
+---------------------------------------------------------
+Maksimum lebar 800px supaya tetap rapi di layar besar,
+dan otomatis full-width di HP.
+========================================================= */
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: white;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+h2 {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+h3 {
+    margin-top: 20px;
+    margin-bottom: 10px;
+}
+
+h4 {
+    margin-bottom: 10px;
+}
 /* ===== SELESAI: LAYOUT UTAMA ===== */
 
 
 /* =========================================================
-   STYLE FORM (input, label, select)
-   ========================================================= */
-.form-group { margin-bottom: 15px; }
-.form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-.form-group input, .form-group select {
-    width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px;
-    font-size: 16px; /* wajib >=16px, kalau tidak Safari iOS auto-zoom saat fokus input */
+STYLE FORM (input, label, select)
+---------------------------------------------------------
+PENTING: font-size minimal 16px supaya Safari iOS tidak
+auto-zoom saat input difokuskan. min-height 44px adalah
+ukuran target sentuh minimal yang nyaman di HP (Apple HIG).
+========================================================= */
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px; /* wajib >=16px, kalau tidak Safari iOS auto-zoom */
     min-height: 44px; /* target sentuh minimal yang nyaman di HP */
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
 }
 /* ===== SELESAI: STYLE FORM ===== */
 
 
 /* =========================================================
-   STYLE TOMBOL
-   ========================================================= */
-button { padding: 10px; background-color: var(--primary); color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 100%; min-height: 44px; font-size: 1rem; }
-button:hover { background-color: #4338CA; }
-button:disabled { background-color: #9CA3AF; cursor: not-allowed; }
+STYLE TOMBOL
+---------------------------------------------------------
+Semua tombol default pakai warna primary. Tombol dengan
+warna khusus (misal Logout merah, Rekap hijau) diatur lewat
+inline style di HTML atau class khusus.
+========================================================= */
+button {
+    padding: 10px;
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.1s ease;
+    width: 100%;
+    min-height: 44px;
+    font-size: 1rem;
+}
+
+button:hover {
+    background-color: #4338CA;
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+button:disabled {
+    background-color: #9CA3AF;
+    cursor: not-allowed;
+    transform: none;
+}
 /* ===== SELESAI: STYLE TOMBOL ===== */
 
 
 /* =========================================================
-   STYLE TABEL DAFTAR SISWA
-   ========================================================= */
-.table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 20px; }
-table { width: 100%; border-collapse: collapse; margin-top: 0; }
-th, td { border: 1px solid #E5E7EB; padding: 12px; text-align: left; }
-th { background-color: #F9FAFB; }
+STYLE TABEL DAFTAR SISWA
+---------------------------------------------------------
+Wrapper .table-wrapper memungkinkan scroll horizontal di
+layar kecil supaya tabel tidak rusak.
+========================================================= */
+.table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    margin-top: 20px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0;
+}
+
+th, td {
+    border: 1px solid #E5E7EB;
+    padding: 12px;
+    text-align: left;
+}
+
+th {
+    background-color: #F9FAFB;
+    font-weight: bold;
+}
 /* ===== SELESAI: STYLE TABEL ===== */
 
 
 /* =========================================================
-   RADIO BUTTON KEHADIRAN (H/I/S/A)
-   Label dibuat seperti "pil" supaya area sentuhnya besar di HP
-   ========================================================= */
-.radio-group { display: flex; flex-wrap: wrap; gap: 10px; }
-.radio-group label {
-    cursor: pointer; display: flex; align-items: center; gap: 5px;
-    padding: 8px 12px; border: 1px solid #E5E7EB; border-radius: 6px;
-    min-height: 36px;
+RADIO BUTTON KEHADIRAN (H/I/S/A)
+---------------------------------------------------------
+Label dibuat seperti "pil" supaya area sentuhnya besar di HP.
+Saat radio dipilih, label-nya berubah warna sesuai status
+(H = hijau, I = biru, S = kuning, A = merah).
+========================================================= */
+.radio-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
 }
-.radio-group input[type="radio"] { width: 18px; height: 18px; }
+
+.radio-group label {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 8px 12px;
+    border: 1px solid #E5E7EB;
+    border-radius: 6px;
+    min-height: 36px;
+    transition: all 0.2s ease;
+    background-color: #fff;
+}
+
+.radio-group label:hover {
+    background-color: #F9FAFB;
+}
+
+.radio-group input[type="radio"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--primary);
+}
+
+/* Warna label saat radio dipilih (visual feedback per status) */
+.radio-group input[type="radio"][value="H"]:checked + label,
+.radio-group label:has(input[type="radio"][value="H"]:checked) {
+    background-color: #D9EAD3;
+    border-color: #1F7A3D;
+    color: #1F7A3D;
+    font-weight: bold;
+}
+
+.radio-group input[type="radio"][value="I"]:checked + label,
+.radio-group label:has(input[type="radio"][value="I"]:checked) {
+    background-color: #C9DAF8;
+    border-color: #1E40AF;
+    color: #1E40AF;
+    font-weight: bold;
+}
+
+.radio-group input[type="radio"][value="S"]:checked + label,
+.radio-group label:has(input[type="radio"][value="S"]:checked) {
+    background-color: #FFF2CC;
+    border-color: #B45309;
+    color: #B45309;
+    font-weight: bold;
+}
+
+.radio-group input[type="radio"][value="A"]:checked + label,
+.radio-group label:has(input[type="radio"][value="A"]:checked) {
+    background-color: #F4CCCC;
+    border-color: #DC2626;
+    color: #DC2626;
+    font-weight: bold;
+}
 /* ===== SELESAI: RADIO BUTTON ===== */
 
 
 /* =========================================================
-   UTILITAS / ELEMEN LAIN-LAIN
-   Tambahkan class utilitas baru (misal .hidden) di sini
-   ========================================================= */
-.hidden { display: none; }
-.header-info { background: #E0E7FF; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-#loading { text-align: center; font-weight: bold; margin-top: 15px; color: var(--primary); }
-.action-buttons { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 20px; }
-.empty-state { text-align: center; color: #6B7280; padding: 20px 0; }
-/* ===== SELESAI: UTILITAS ===== */
-
-
-/* =========================================================
-   TAB NAVIGASI (Input Absensi / Riwayat / Dashboard)
-   Tambah tab baru? tambahkan aturan lebar/warna di sini kalau perlu
-   ========================================================= */
-.tab-nav {
-    display: flex; gap: 4px; margin-bottom: 20px;
-    border-bottom: 2px solid #E5E7EB;
-    overflow-x: auto; -webkit-overflow-scrolling: touch;
-}
-.tab-btn {
-    background: none; border: none; width: auto;
-    padding: 10px 16px; font-weight: bold; color: #6B7280;
-    cursor: pointer; white-space: nowrap;
-    border-bottom: 3px solid transparent;
-    border-radius: 0;
-}
-.tab-btn:hover { background: none; color: var(--primary); }
-.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
-/* ===== SELESAI: TAB NAVIGASI ===== */
-
-
-/* =========================================================
-   PANEL RIWAYAT ABSENSI
-   ========================================================= */
-.riwayat-card { border: 1px solid #E5E7EB; border-radius: 8px; padding: 14px; margin-bottom: 10px; background: #fff; }
-.riwayat-header { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
-.riwayat-tanggal { font-weight: bold; }
-.riwayat-badge { background: #D9EAD3; color: #1F7A3D; padding: 4px 10px; border-radius: 12px; font-size: 0.8rem; font-weight: bold; white-space: nowrap; }
-.riwayat-stats { display: flex; gap: 15px; font-size: 0.85rem; color: #4B5563; flex-wrap: wrap; }
-.riwayat-detail { margin-top: 8px; font-size: 0.8rem; color: #6B7280; border-top: 1px dashed #E5E7EB; padding-top: 8px; }
-/* ===== SELESAI: PANEL RIWAYAT ABSENSI ===== */
-
-
-/* =========================================================
-   PANEL DASHBOARD ANALITIK
-   ========================================================= */
-.rekap-bar-item { margin-bottom: 14px; }
-.rekap-bar-label { display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: bold; margin-bottom: 4px; }
-.rekap-bar-track { background: #F3F4F6; border-radius: 6px; height: 10px; overflow: hidden; }
-.rekap-bar-fill { background: var(--primary); height: 100%; border-radius: 6px; transition: width 0.4s ease; }
-
-.chart-wrapper { background: #fff; border: 1px solid #E5E7EB; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
-
-.alpa-item { display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid #F3F4F6; }
-.alpa-item:last-child { border-bottom: none; }
-.alpa-rank {
-    background: #FEE2E2; color: #DC2626; width: 24px; height: 24px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.75rem; font-weight: bold; flex-shrink: 0;
-}
-.alpa-nama { flex: 1; font-weight: bold; }
-.alpa-jumlah { color: #DC2626; font-size: 0.85rem; font-weight: bold; white-space: nowrap; }
-/* ===== SELESAI: PANEL DASHBOARD ANALITIK ===== */
-
-
-/* =========================================================
-   MODAL ALERT (popup notifikasi sukses/gagal)
-   ========================================================= */
-.modal-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    display: flex; justify-content: center; align-items: center;
-    z-index: 1000;
-    opacity: 0; visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
-}
-.modal-overlay.active { opacity: 1; visibility: visible; }
-
-.modal-box {
-    background: white; padding: 30px; border-radius: 12px;
-    width: 90%; max-width: 380px; text-align: center;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-    transform: translateY(-20px);
-    transition: transform 0.3s ease;
-}
-.modal-overlay.active .modal-box { transform: translateY(0); }
-
-.modal-icon {
-    width: 60px; height: 60px; margin: 0 auto 15px auto;
-    border-radius: 50%; display: flex; justify-content: center; align-items: center;
-    font-size: 30px; font-weight: bold; color: white;
-}
-.icon-success { background-color: #10B981; }
-.icon-error { background-color: #EF4444; }
-.icon-warning { background-color: #F59E0B; }
-
-.modal-title { font-size: 1.25rem; font-weight: bold; margin-bottom: 10px; color: #1F2937; }
-.modal-message { color: #4B5563; margin-bottom: 25px; line-height: 1.5; font-size: 0.95rem; }
-
-.modal-btn {
-    background-color: var(--primary);
-    width: 100%; padding: 12px; border-radius: 8px; font-size: 1rem;
-}
-/* ===== SELESAI: MODAL ALERT ===== */
-
-
-/* =========================================================
-   MODAL KONFIRMASI (Ya/Tidak) -- Perbaikan Prioritas #1 (KECIL)
-   Menumpang struktur .modal-box yang sama dengan modal alert,
-   hanya beda: 2 tombol berdampingan (Tidak / Ya, Lanjutkan)
-   ========================================================= */
-.modal-btn-group { display: flex; gap: 10px; }
-.modal-btn-group .modal-btn { width: auto; flex: 1; }
-.modal-btn-secondary { background-color: #9CA3AF; }
-.modal-btn-secondary:hover { background-color: #6B7280; }
-/* ===== SELESAI: MODAL KONFIRMASI ===== */
-
-
-/* =========================================================
-   TAMPILAN KHUSUS MOBILE (layar <= 640px)
-   Ubah angka 640px kalau mau ganti titik patahnya (breakpoint).
-   Tambah aturan baru untuk mobile? taruh di dalam blok ini.
-   ========================================================= */
-@media (max-width: 640px) {
-    body { padding: 10px; }
-    .container { padding: 16px; border-radius: 8px; }
-    h2 { font-size: 1.25rem; }
-    h3 { font-size: 1.05rem; }
-
-    /* Tombol Rekap & Logout ditumpuk vertikal, full-width, biar mudah dipencet */
-    .action-buttons { flex-direction: column; }
-    .action-buttons button { width: 100%; }
-
-    .header-info { padding: 15px; }
-    .modal-box { padding: 20px; }
-
-    /* --- Ubah tabel siswa jadi kartu, bukan tabel sempit --- */
-    #studentsTable thead { display: none; } /* judul kolom disembunyikan, diganti label per kartu */
-    #studentsTable, #studentsTable tbody, #studentsTable tr, #studentsTable td {
-        display: block; width: 100%;
-    }
-
-    /* Baris placeholder ("Silakan pilih kelas...") tetap tampil biasa */
-    #studentsBody tr.student-row {
-        border: 1px solid #E5E7EB; border-radius: 8px;
-        padding: 12px; margin-bottom: 10px; background: #fff;
-    }
-    #studentsBody tr.student-row td { border: none; padding: 4px 0; }
-
-    /* Label kecil "NIS:" muncul otomatis di depan nomor induk siswa */
-    #studentsBody tr.student-row td:nth-child(1) { font-size: 0.8rem; color: #6B7280; }
-    #studentsBody tr.student-row td:nth-child(1)::before { content: "NIS: "; font-weight: bold; }
-
-    /* Nama siswa dibuat lebih besar & tebal sebagai judul kartu */
-    #studentsBody tr.student-row td:nth-child(2) { font-size: 1.05rem; font-weight: bold; }
-
-    /* Grup radio kehadiran diberi jarak lebih di atas */
-    #studentsBody tr.student-row td:nth-child(3) { padding-top: 8px; }
-
-    /* Tab navigasi: teks lebih kecil, tetap bisa digeser kalau tidak muat */
-    .tab-btn { padding: 8px 12px; font-size: 0.85rem; }
-
-    /* Riwayat: badge & tanggal ditumpuk supaya tidak sempit */
-    .riwayat-stats { gap: 10px; font-size: 0.8rem; }
-
-    /* Dashboard: beri sedikit ruang lebih di kanan-kiri chart */
-    .chart-wrapper { padding: 8px; }
-}
-/* ===== SELESAI: TAMPILAN KHUSUS MOBILE ===== *//* =========================================================
-
 VISUAL FEEDBACK: Highlight baris siswa saat radio diklik
-(Ditambahkan untuk Event Delegation - Prioritas #3)
+---------------------------------------------------------
+Ditambahkan untuk Event Delegation (Prioritas #3).
+Class .selected ditambahkan oleh EventDelegation.handleRadioChange()
+saat guru mengklik radio button di baris siswa manapun.
 ========================================================= */
 .student-row.selected {
     background-color: #E0E7FF;
     transition: background-color 0.2s ease;
 }
+
+.student-row.selected td:first-child {
+    border-left: 3px solid var(--primary);
+}
 /* ===== SELESAI: VISUAL FEEDBACK ===== */
+
+
+/* =========================================================
+UTILITAS / ELEMEN LAIN-LAIN
+---------------------------------------------------------
+Tambahkan class utilitas baru (misal .hidden) di sini supaya
+mudah dicari & tidak tercecer di banyak tempat.
+========================================================= */
+.hidden {
+    display: none !important;
+}
+
+.header-info {
+    background: #E0E7FF;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.header-info h2 {
+    margin: 0 0 15px 0;
+    text-align: left;
+}
+
+#loading,
+#waliLoading,
+#riwayatLoading,
+#waliRiwayatLoading,
+#dashboardLoading {
+    text-align: center;
+    font-weight: bold;
+    margin-top: 15px;
+    color: var(--primary);
+}
+
+.action-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.action-buttons button {
+    width: auto;
+    padding: 10px 20px;
+}
+
+.empty-state {
+    text-align: center;
+    color: #6B7280;
+    padding: 20px 0;
+    font-style: italic;
+}
+/* ===== SELESAI: UTILITAS ===== */
+
+
+/* =========================================================
+TAB NAVIGASI (Input Absensi / Riwayat / Dashboard / Absen Wali)
+---------------------------------------------------------
+Tambah tab baru? Tidak perlu ubah CSS ini selama masih pakai
+class .tab-btn & .tab-panel. Lebar otomatis menyesuaikan.
+========================================================= */
+.tab-nav {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #E5E7EB;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    width: auto;
+    padding: 10px 16px;
+    font-weight: bold;
+    color: #6B7280;
+    cursor: pointer;
+    white-space: nowrap;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
+    transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.tab-btn:hover {
+    background: none;
+    color: var(--primary);
+}
+
+.tab-btn.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+}
+/* ===== SELESAI: TAB NAVIGASI ===== */
+
+
+/* =========================================================
+PANEL RIWAYAT ABSENSI
+---------------------------------------------------------
+Tiap entri riwayat ditampilkan sebagai kartu dengan:
+- Header (tanggal + badge jumlah hadir)
+- Stats (jumlah Izin/Sakit/Alpa)
+- Detail (nama siswa per status, dipisah tanda ·)
+========================================================= */
+.riwayat-card {
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 10px;
+    background: #fff;
+    transition: box-shadow 0.2s ease;
+}
+
+.riwayat-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.riwayat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+}
+
+.riwayat-tanggal {
+    font-weight: bold;
+}
+
+.riwayat-badge {
+    background: #D9EAD3;
+    color: #1F7A3D;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.riwayat-stats {
+    display: flex;
+    gap: 15px;
+    font-size: 0.85rem;
+    color: #4B5563;
+    flex-wrap: wrap;
+}
+
+.riwayat-detail {
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: #6B7280;
+    border-top: 1px dashed #E5E7EB;
+    padding-top: 8px;
+    line-height: 1.6;
+}
+/* ===== SELESAI: PANEL RIWAYAT ABSENSI ===== */
+
+
+/* =========================================================
+PANEL DASHBOARD ANALITIK
+---------------------------------------------------------
+Berisi 3 visualisasi:
+1. Progress bar persentase kehadiran per kelas & mapel
+2. Chart garis tren kehadiran (pakai Chart.js)
+3. Daftar siswa dengan jumlah Alpa terbanyak
+========================================================= */
+.rekap-bar-item {
+    margin-bottom: 14px;
+}
+
+.rekap-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.9rem;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.rekap-bar-track {
+    background: #F3F4F6;
+    border-radius: 6px;
+    height: 10px;
+    overflow: hidden;
+}
+
+.rekap-bar-fill {
+    background: var(--primary);
+    height: 100%;
+    border-radius: 6px;
+    transition: width 0.4s ease;
+}
+
+.chart-wrapper {
+    background: #fff;
+    border: 1px solid #E5E7EB;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+}
+
+.alpa-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 4px;
+    border-bottom: 1px solid #F3F4F6;
+}
+
+.alpa-item:last-child {
+    border-bottom: none;
+}
+
+.alpa-rank {
+    background: #FEE2E2;
+    color: #DC2626;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: bold;
+    flex-shrink: 0;
+}
+
+.alpa-nama {
+    flex: 1;
+    font-weight: bold;
+}
+
+.alpa-jumlah {
+    color: #DC2626;
+    font-size: 0.85rem;
+    font-weight: bold;
+    white-space: nowrap;
+}
+/* ===== SELESAI: PANEL DASHBOARD ANALITIK ===== */
+
+
+/* =========================================================
+MODAL ALERT (popup notifikasi sukses/gagal)
+---------------------------------------------------------
+Struktur: .modal-overlay (latar gelap) > .modal-box (kotak putih)
+Panggil dari script.js lewat showAlert(message, isSuccess).
+========================================================= */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-box {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 380px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    transform: translateY(-20px);
+    transition: transform 0.3s ease;
+}
+
+.modal-overlay.active .modal-box {
+    transform: translateY(0);
+}
+
+.modal-icon {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 15px auto;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 30px;
+    font-weight: bold;
+    color: white;
+}
+
+.icon-success {
+    background-color: #10B981;
+}
+
+.icon-error {
+    background-color: #EF4444;
+}
+
+.icon-warning {
+    background-color: #F59E0B;
+}
+
+.modal-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #1F2937;
+}
+
+.modal-message {
+    color: #4B5563;
+    margin-bottom: 25px;
+    line-height: 1.5;
+    font-size: 0.95rem;
+}
+
+.modal-btn {
+    background-color: var(--primary);
+    color: white;
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 1rem;
+}
+
+.modal-btn:hover {
+    background-color: #4338CA;
+}
+/* ===== SELESAI: MODAL ALERT ===== */
+
+
+/* =========================================================
+MODAL KONFIRMASI (Ya/Tidak)
+---------------------------------------------------------
+Menumpang struktur .modal-box yang sama dengan modal alert,
+hanya beda: 2 tombol berdampingan (Tidak / Ya, Lanjutkan).
+Dipakai saat guru mau mengedit absensi yang sudah tersimpan.
+========================================================= */
+.modal-btn-group {
+    display: flex;
+    gap: 10px;
+}
+
+.modal-btn-group .modal-btn {
+    width: auto;
+    flex: 1;
+}
+
+.modal-btn-secondary {
+    background-color: #9CA3AF;
+}
+
+.modal-btn-secondary:hover {
+    background-color: #6B7280;
+}
+/* ===== SELESAI: MODAL KONFIRMASI ===== */
+
+
+/* =========================================================
+TAMPILAN KHUSUS MOBILE (layar <= 640px)
+---------------------------------------------------------
+Ubah angka 640px kalau mau ganti titik patahnya (breakpoint).
+Tambah aturan baru untuk mobile? taruh di dalam blok ini.
+
+FITUR UTAMA:
+- Tabel siswa diubah jadi "kartu" supaya tidak sempit di HP
+- Tombol aksi ditumpuk vertikal, full-width
+- Tab navigasi tetap bisa digeser horizontal kalau tidak muat
+========================================================= */
+@media (max-width: 640px) {
+    body {
+        padding: 10px;
+    }
+
+    .container {
+        padding: 16px;
+        border-radius: 8px;
+    }
+
+    h2 {
+        font-size: 1.25rem;
+    }
+
+    h3 {
+        font-size: 1.05rem;
+    }
+
+    /* Tombol Rekap & Logout ditumpuk vertikal, full-width */
+    .action-buttons {
+        flex-direction: column;
+    }
+
+    .action-buttons button {
+        width: 100%;
+    }
+
+    .header-info {
+        padding: 15px;
+    }
+
+    .header-info h2 {
+        font-size: 1.1rem;
+        text-align: center;
+    }
+
+    .modal-box {
+        padding: 20px;
+    }
+
+    /* --- Ubah tabel siswa (panel mapel) jadi kartu --- */
+    #studentsTable thead {
+        display: none; /* judul kolom disembunyikan, diganti label per kartu */
+    }
+
+    #studentsTable,
+    #studentsTable tbody,
+    #studentsTable tr,
+    #studentsTable td {
+        display: block;
+        width: 100%;
+    }
+
+    /* Baris placeholder ("Silakan pilih kelas...") tetap tampil biasa */
+    #studentsBody tr:not(.student-row) {
+        padding: 12px;
+        text-align: center;
+        color: #6B7280;
+        font-style: italic;
+    }
+
+    /* Kartu siswa (baris dengan class .student-row) */
+    #studentsBody tr.student-row {
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 10px;
+        background: #fff;
+    }
+
+    #studentsBody tr.student-row td {
+        border: none;
+        padding: 4px 0;
+    }
+
+    /* Label kecil "NIS:" muncul otomatis di depan nomor induk siswa */
+    #studentsBody tr.student-row td:nth-child(1) {
+        font-size: 0.8rem;
+        color: #6B7280;
+    }
+
+    #studentsBody tr.student-row td:nth-child(1)::before {
+        content: "NIS: ";
+        font-weight: bold;
+    }
+
+    /* Nama siswa dibuat lebih besar & tebal sebagai judul kartu */
+    #studentsBody tr.student-row td:nth-child(2) {
+        font-size: 1.05rem;
+        font-weight: bold;
+    }
+
+    /* Grup radio kehadiran diberi jarak lebih di atas */
+    #studentsBody tr.student-row td:nth-child(3) {
+        padding-top: 8px;
+    }
+
+    /* --- Ubah tabel wali kelas jadi kartu juga --- */
+    #waliStudentsTable thead {
+        display: none;
+    }
+
+    #waliStudentsTable,
+    #waliStudentsTable tbody,
+    #waliStudentsTable tr,
+    #waliStudentsTable td {
+        display: block;
+        width: 100%;
+    }
+
+    #waliStudentsBody tr:not(.student-row) {
+        padding: 12px;
+        text-align: center;
+        color: #6B7280;
+        font-style: italic;
+    }
+
+    #waliStudentsBody tr.student-row {
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 10px;
+        background: #fff;
+    }
+
+    #waliStudentsBody tr.student-row td {
+        border: none;
+        padding: 4px 0;
+    }
+
+    #waliStudentsBody tr.student-row td:nth-child(1) {
+        font-size: 0.8rem;
+        color: #6B7280;
+    }
+
+    #waliStudentsBody tr.student-row td:nth-child(1)::before {
+        content: "NIS: ";
+        font-weight: bold;
+    }
+
+    #waliStudentsBody tr.student-row td:nth-child(2) {
+        font-size: 1.05rem;
+        font-weight: bold;
+    }
+
+    #waliStudentsBody tr.student-row td:nth-child(3) {
+        padding-top: 8px;
+    }
+
+    /* Tab navigasi: teks lebih kecil, tetap bisa digeser */
+    .tab-btn {
+        padding: 8px 12px;
+        font-size: 0.85rem;
+    }
+
+    /* Riwayat: badge & tanggal ditumpuk supaya tidak sempit */
+    .riwayat-stats {
+        gap: 10px;
+        font-size: 0.8rem;
+    }
+
+    /* Dashboard: beri sedikit ruang lebih di kanan-kiri chart */
+    .chart-wrapper {
+        padding: 8px;
+    }
+
+    /* Radio button di mobile: padding lebih kecil supaya muat */
+    .radio-group label {
+        padding: 6px 10px;
+        font-size: 0.9rem;
+    }
+}
+/* ===== SELESAI: TAMPILAN KHUSUS MOBILE ===== */
