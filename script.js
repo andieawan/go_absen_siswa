@@ -20,28 +20,18 @@ const GAS_URL = 'https://script.google.com/macros/s/AKfycbyMGAl2rTMzOEVkosA-QKNr
 //   2. Mudah di-reset: satu method reset() saat logout
 //   3. Auto-persist session ke sessionStorage
 //   4. Tidak ada variabel global yang tersebar
-//   5. Siap untuk fitur undo/autosave di masa depan
-//
-// STRUKTUR STATE:
-//   AppState.session      -> data guru yang login (auto-persist)
-//   AppState.studentCache -> cache data siswa per kelas
-//   AppState.ui           -> state UI (tab aktif, chart instances)
 //
 // CARA DEBUG:
 //   Ketik AppState.debug() di console browser untuk inspeksi
 // =========================================================
 const AppState = {
-    // ===== DATA STATE =====
     session: null,
     studentCache: {},
-
-    // ===== UI STATE =====
     ui: {
         currentTab: 'panelAbsensi',
         charts: {}
     },
 
-    // ===== METHODS: SESSION =====
     loadSession() {
         try {
             const saved = sessionStorage.getItem('guruSession');
@@ -71,7 +61,6 @@ const AppState = {
         }
     },
 
-    // ===== METHODS: STUDENT CACHE =====
     cacheStudents(kelas, students) {
         this.studentCache[kelas] = students;
     },
@@ -85,7 +74,6 @@ const AppState = {
         else this.studentCache = {};
     },
 
-    // ===== METHODS: CHART MANAGEMENT =====
     setChart(name, chartInstance) {
         this.destroyChart(name);
         this.ui.charts[name] = chartInstance;
@@ -107,7 +95,6 @@ const AppState = {
         Object.keys(this.ui.charts).forEach(name => this.destroyChart(name));
     },
 
-    // ===== METHODS: LIFECYCLE =====
     reset() {
         this.destroyAllCharts();
         this.studentCache = {};
@@ -125,7 +112,6 @@ const AppState = {
     }
 };
 
-// Muat sesi dari sessionStorage saat script pertama kali dijalankan
 AppState.loadSession();
 // ===== SELESAI: STATE MANAGEMENT TERPUSAT =====
 
@@ -153,7 +139,6 @@ const DOM = {
     waliLoading: document.getElementById('waliLoading'),
     waliStudentsBody: document.getElementById('waliStudentsBody'),
     waliBtnSubmit: document.getElementById('waliBtnSubmit'),
-    // Modal
     customAlert: document.getElementById('customAlert'),
     alertIcon: document.getElementById('alertIcon'),
     alertTitle: document.getElementById('alertTitle'),
@@ -162,14 +147,12 @@ const DOM = {
     confirmMessage: document.getElementById('confirmMessage'),
     confirmBtnYes: document.getElementById('confirmBtnYes'),
     confirmBtnNo: document.getElementById('confirmBtnNo'),
-    // Riwayat
     riwayatMapel: document.getElementById('riwayatMapel'),
     riwayatKelas: document.getElementById('riwayatKelas'),
     riwayatList: document.getElementById('riwayatList'),
     riwayatLoading: document.getElementById('riwayatLoading'),
     waliRiwayatList: document.getElementById('waliRiwayatList'),
     waliRiwayatLoading: document.getElementById('waliRiwayatLoading'),
-    // Dashboard
     dashboardLoading: document.getElementById('dashboardLoading'),
     dashboardContent: document.getElementById('dashboardContent'),
     rekapKelasMapelList: document.getElementById('rekapKelasMapelList'),
@@ -177,7 +160,6 @@ const DOM = {
     trendChart: document.getElementById('trendChart')
 };
 
-// Kalau sesi sudah ada sejak awal, langsung tampilkan dashboard
 if (AppState.session) showDashboard();
 // ===== SELESAI: REFERENSI ELEMEN DOM =====
 
@@ -186,11 +168,7 @@ if (AppState.session) showDashboard();
 // OPTIMASI PERFORMA: FUNGSI DEBOUNCE
 // ---------------------------------------------------------
 // Mencegah request beruntun ke server saat pengguna mengganti
-// dropdown / input dengan cepat. Fungsi akan menunggu "wait" ms
-// SETELAH aksi terakhir sebelum benar-benar dieksekusi.
-//
-// EFEK: mengurangi beban server & jaringan hingga 90% saat
-// pengguna mengklik dropdown berulang kali.
+// dropdown / input dengan cepat.
 // =========================================================
 function debounce(func, wait) {
     let timeout;
@@ -210,17 +188,6 @@ function debounce(func, wait) {
 // GITHUB PAGES COMPATIBILITY: HELPER FETCH GAS
 // ---------------------------------------------------------
 // Semua request ke Google Apps Script dibungkus di fungsi ini.
-//
-// KENAPA PERLU?
-// 1. mode: 'cors'       -> paksa mode CORS eksplisit, mencegah
-//                          masalah cross-origin sporadis di browser
-// 2. redirect: 'follow' -> GAS Web App melakukan redirect dari
-//                          /macros/s/.../exec ke temporary URL.
-//                          Tanpa ini, Safari iOS kadang menolak response.
-//
-// CARA PAKAI:
-//   const resData = await fetchGas('getStudents', { kelas: 'X-A' });  // GET
-//   const resData = await fetchGas({ action: 'login', ... }, null, true);  // POST
 // =========================================================
 async function fetchGas(actionOrPayload, paramsOrBody = null, isPost = false) {
     let url, options;
@@ -231,7 +198,7 @@ async function fetchGas(actionOrPayload, paramsOrBody = null, isPost = false) {
             method: 'POST',
             mode: 'cors',
             redirect: 'follow',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // GAS tidak terima application/json
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
             body: JSON.stringify(actionOrPayload)
         };
     } else {
@@ -261,21 +228,6 @@ async function fetchGas(actionOrPayload, paramsOrBody = null, isPost = false) {
 // ---------------------------------------------------------
 // Menggabungkan logika render & pembacaan tabel siswa yang
 // sebelumnya duplikat di 2 tempat (panel mapel & panel wali).
-//
-// CARA PAKAI:
-//   StudentTable.render('studentsBody', dataSiswa);
-//   StudentTable.setStatus('studentsBody', '12345', 'I');
-//   const data = StudentTable.getAttendanceData('studentsBody');
-//   StudentTable.resetAll('studentsBody');
-//
-// KEUNTUNGAN:
-//   - Tidak ada duplikasi kode antara panel mapel & wali
-//   - Lookup status pakai NIS (bukan index) => lebih robust,
-//     tidak rusak kalau urutan siswa berubah / ada filter
-//   - Radio name unik per NIS (format: "absen_<tbodyId>_<nis>")
-//     sehingga 2 tabel di halaman yang sama tidak bentrok
-//   - Pakai DocumentFragment => browser hanya 1x reflow
-//     (performa jauh lebih baik, terutama di HP)
 // =========================================================
 const StudentTable = {
     render(tbodyId, students) {
@@ -287,7 +239,6 @@ const StudentTable = {
             const tr = document.createElement('tr');
             tr.className = 'student-row';
             tr.dataset.nis = siswa.nis;
-            // Radio name unik per NIS: "absen_<tbodyId>_<nis>"
             const radioName = `absen_${tbodyId}_${siswa.nis}`;
             tr.innerHTML = `
                 <td>${siswa.nis || '-'}</td>
@@ -342,23 +293,262 @@ const StudentTable = {
 
 
 // =========================================================
+// KOMPONEN: FORM VALIDATOR (Prioritas #5 - Form Validation Visual)
+// ---------------------------------------------------------
+// Memberikan feedback visual yang jelas saat form tidak valid.
+//
+// FITUR:
+//   1. Validasi tanggal masa depan (error)
+//   2. Warning tanggal terlalu lama (> 60 hari)
+//   3. Inline error message di bawah field yang bermasalah
+//   4. Real-time validation saat tanggal berubah
+//   5. Auto-scroll ke field error saat submit gagal
+//
+// CARA PAKAI:
+//   const result = FormValidator.validateAbsenForm();
+//   if (!FormValidator.applyValidation(result)) {
+//       showAlert('Mohon perbaiki field yang ditandai merah.', false);
+//       return;
+//   }
+//   // ... lanjut submit
+//
+// CATATAN ZONA WAKTU:
+//   Aplikasi ini ditujukan untuk pengguna di Indonesia (GMT+7).
+//   Validasi tanggal memakai zona waktu lokal browser. Kalau
+//   developer testing dari luar negeri, hasil validasi mungkin
+//   berbeda 1 hari. Untuk produksi di Indonesia, ini tidak masalah.
+// =========================================================
+const FormValidator = {
+    // Batas warning: tanggal lebih dari N hari yang lalu
+    WARNING_DAYS_THRESHOLD: 60,
+
+    // Inisialisasi listener untuk real-time validation.
+    // Dipanggil sekali saat script dimuat.
+    init() {
+        // Real-time validation saat tanggal berubah
+        // (berjalan berdampingan dengan EventDelegation, tidak konflik)
+        document.addEventListener('change', (e) => {
+            if (e.target.id === 'tanggalAbsen' || e.target.id === 'waliTanggal') {
+                this.validateDateRealtime(e.target.id);
+            }
+        });
+
+        // Hapus error saat user mulai berinteraksi dengan field error
+        // (feedback positif: "oh, saya sudah perbaiki, error hilang")
+        document.addEventListener('input', (e) => {
+            if (e.target.classList.contains('field-error')) {
+                this.clearFieldError(e.target.id);
+            }
+        });
+        document.addEventListener('change', (e) => {
+            if (e.target.classList.contains('field-error')) {
+                this.clearFieldError(e.target.id);
+            }
+        });
+
+        console.log('✅ Form validator initialized');
+    },
+
+    // ===== METHOD VALIDASI =====
+
+    // Validasi form input absensi (panel mapel).
+    // Return: { errors: [...], warnings: [...] }
+    validateAbsenForm() {
+        const errors = [];
+        const warnings = [];
+
+        // Validasi mapel
+        if (!DOM.selectMapel.value) {
+            errors.push({ field: 'selectMapel', message: 'Mata pelajaran harus dipilih' });
+        }
+
+        // Validasi kelas
+        if (!DOM.selectKelas.value) {
+            errors.push({ field: 'selectKelas', message: 'Kelas harus dipilih' });
+        }
+
+        // Validasi tanggal
+        const tanggal = DOM.tanggalAbsen.value;
+        if (!tanggal) {
+            errors.push({ field: 'tanggalAbsen', message: 'Tanggal pertemuan harus diisi' });
+        } else {
+            if (this.isDateInFuture(tanggal)) {
+                errors.push({ field: 'tanggalAbsen', message: 'Tanggal tidak boleh di masa depan' });
+            } else if (this.isDateTooOld(tanggal, this.WARNING_DAYS_THRESHOLD)) {
+                warnings.push({
+                    field: 'tanggalAbsen',
+                    message: `Tanggal lebih dari ${this.WARNING_DAYS_THRESHOLD} hari yang lalu`
+                });
+            }
+        }
+
+        return { errors, warnings };
+    },
+
+    // Validasi form absen wali kelas.
+    // Return: { errors: [...], warnings: [...] }
+    validateWaliForm() {
+        const errors = [];
+        const warnings = [];
+
+        const tanggal = DOM.waliTanggal.value;
+        if (!tanggal) {
+            errors.push({ field: 'waliTanggal', message: 'Tanggal harus diisi' });
+        } else {
+            if (this.isDateInFuture(tanggal)) {
+                errors.push({ field: 'waliTanggal', message: 'Tanggal tidak boleh di masa depan' });
+            } else if (this.isDateTooOld(tanggal, this.WARNING_DAYS_THRESHOLD)) {
+                warnings.push({
+                    field: 'waliTanggal',
+                    message: `Tanggal lebih dari ${this.WARNING_DAYS_THRESHOLD} hari yang lalu`
+                });
+            }
+        }
+
+        return { errors, warnings };
+    },
+
+    // ===== METHOD BANTUAN TANGGAL =====
+
+    // Cek apakah tanggal di masa depan.
+    // dateStr format: "YYYY-MM-DD"
+    isDateInFuture(dateStr) {
+        const today = new Date();
+        today.setHours(23, 59, 59, 999); // end of today (local time)
+        const selectedDate = new Date(dateStr + 'T00:00:00');
+        return selectedDate > today;
+    },
+
+    // Cek apakah tanggal terlalu lama (lebih dari N hari yang lalu).
+    isDateTooOld(dateStr, days) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const selectedDate = new Date(dateStr + 'T00:00:00');
+        const diffDays = (today - selectedDate) / (1000 * 60 * 60 * 24);
+        return diffDays > days;
+    },
+
+    // ===== METHOD VISUAL FEEDBACK =====
+
+    // Validasi real-time saat tanggal berubah.
+    // Dipanggil otomatis oleh listener di init().
+    validateDateRealtime(fieldId) {
+        const field = document.getElementById(fieldId);
+        if (!field) return;
+        const tanggal = field.value;
+
+        // Bersihkan error & warning lama dulu
+        this.clearFieldError(fieldId);
+        this.clearFieldWarning(fieldId);
+
+        if (!tanggal) return;
+
+        if (this.isDateInFuture(tanggal)) {
+            this.showFieldError(fieldId, 'Tanggal tidak boleh di masa depan');
+        } else if (this.isDateTooOld(tanggal, this.WARNING_DAYS_THRESHOLD)) {
+            this.showFieldWarning(fieldId, `Tanggal lebih dari ${this.WARNING_DAYS_THRESHOLD} hari yang lalu`);
+        }
+    },
+
+    // Tampilkan error inline pada field tertentu.
+    // Field akan berubah merah, dan pesan error muncul di bawahnya.
+    showFieldError(fieldId, message) {
+        this.clearFieldError(fieldId);
+        const field = document.getElementById(fieldId);
+        if (!field) return;
+
+        field.classList.add('field-error');
+
+        const errorEl = document.createElement('div');
+        errorEl.className = 'field-error-message';
+        errorEl.setAttribute('role', 'alert'); // aksesibilitas: screen reader akan baca ini
+        errorEl.innerText = '⚠ ' + message;
+        field.parentElement.appendChild(errorEl);
+    },
+
+    // Tampilkan warning inline pada field tertentu.
+    // Field akan berubah kuning, dan pesan warning muncul di bawahnya.
+    showFieldWarning(fieldId, message) {
+        this.clearFieldWarning(fieldId);
+        const field = document.getElementById(fieldId);
+        if (!field) return;
+
+        field.classList.add('field-warning');
+
+        const warningEl = document.createElement('div');
+        warningEl.className = 'field-warning-message';
+        warningEl.innerText = 'ℹ ' + message;
+        field.parentElement.appendChild(warningEl);
+    },
+
+    // Hapus error dari field tertentu.
+    clearFieldError(fieldId) {
+        const field = document.getElementById(fieldId);
+        if (!field) return;
+        field.classList.remove('field-error');
+        const existing = field.parentElement.querySelector('.field-error-message');
+        if (existing) existing.remove();
+    },
+
+    // Hapus warning dari field tertentu.
+    clearFieldWarning(fieldId) {
+        const field = document.getElementById(fieldId);
+        if (!field) return;
+        field.classList.remove('field-warning');
+        const existing = field.parentElement.querySelector('.field-warning-message');
+        if (existing) existing.remove();
+    },
+
+    // Hapus SEMUA error & warning di seluruh form.
+    // Dipanggil di awal submit handler supaya tidak ada error "hantu"
+    // dari validasi sebelumnya.
+    clearAll() {
+        document.querySelectorAll('.field-error').forEach(el => el.classList.remove('field-error'));
+        document.querySelectorAll('.field-error-message').forEach(el => el.remove());
+        document.querySelectorAll('.field-warning').forEach(el => el.classList.remove('field-warning'));
+        document.querySelectorAll('.field-warning-message').forEach(el => el.remove());
+    },
+
+    // Terapkan hasil validasi ke UI:
+    // - Tampilkan semua error & warning
+    // - Scroll ke field error pertama
+    // - Return true kalau valid (tidak ada error), false kalau ada error
+    //
+    // CATATAN: warning TIDAK menghalangi submit, hanya memberi informasi.
+    // Hanya error yang menghalangi submit.
+    applyValidation(result) {
+        this.clearAll();
+
+        // Tampilkan semua error
+        result.errors.forEach(err => this.showFieldError(err.field, err.message));
+
+        // Tampilkan semua warning
+        result.warnings.forEach(warn => this.showFieldWarning(warn.field, warn.message));
+
+        // Kalau ada error, scroll ke field error pertama & fokuskan
+        if (result.errors.length > 0) {
+            const firstErrorField = document.getElementById(result.errors[0].field);
+            if (firstErrorField) {
+                firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Delay fokus supaya scroll selesai dulu
+                setTimeout(() => firstErrorField.focus(), 400);
+            }
+            return false;
+        }
+
+        return true;
+    }
+};
+
+// Inisialisasi form validator sekali saat script dimuat
+FormValidator.init();
+// ===== SELESAI: KOMPONEN FORM VALIDATOR =====
+
+
+// =========================================================
 // EVENT DELEGATION TERPUSAT (Prioritas #3)
 // ---------------------------------------------------------
 // Semua event listener dikonsolidasi di satu modul ini.
-//
-// KENAPA EVENT DELEGATION?
-// 1. Performa: daripada pasang listener per-elemen, cukup 1
-//    listener di parent. Browser tidak perlu track ratusan fungsi.
-// 2. Elemen dinamis: kalau siswa baru ditambahkan ke tabel,
-//    listener otomatis bekerja tanpa perlu re-attach.
-// 3. Maintenance: semua logic event ada di 1 tempat.
-//
-// STRUKTUR:
-//   EventDelegation.init()        -> dipanggil sekali di awal
-//   EventDelegation.handleAction() -> handler untuk tombol aksi global
-//   EventDelegation.handleTab()    -> handler untuk tab navigation
-//   EventDelegation.handleRadio()  -> handler untuk radio button
-//   EventDelegation.handleChange() -> handler untuk dropdown & tanggal
 // =========================================================
 const EventDelegation = {
     init() {
@@ -388,6 +578,8 @@ const EventDelegation = {
         });
 
         // 4. Dropdown & tanggal change events (pakai ID elemen)
+        // CATATAN: validasi visual tanggal di-handle oleh FormValidator.init()
+        // secara terpisah. Di sini hanya handle logic bisnis.
         document.addEventListener('change', (e) => {
             const target = e.target;
             if (target.id === 'selectKelas') {
@@ -408,10 +600,8 @@ const EventDelegation = {
         const radio = e.target;
         const row = radio.closest('.student-row');
         if (!row) return;
-        // Hapus highlight dari semua baris di tbody yang sama
         const tbody = row.closest('tbody');
         tbody.querySelectorAll('.student-row').forEach(r => r.classList.remove('selected'));
-        // Highlight baris yang baru dipilih
         row.classList.add('selected');
     },
 
@@ -432,16 +622,12 @@ const EventDelegation = {
     }
 };
 
-// Inisialisasi event delegation sekali saat script dimuat
 EventDelegation.init();
 // ===== SELESAI: EVENT DELEGATION TERPUSAT =====
 
 
 // =========================================================
 // FUNGSI CUSTOM ALERT (popup notifikasi)
-// ---------------------------------------------------------
-// Panggil showAlert("pesan", true/false) dari bagian manapun.
-// true = sukses (hijau), false = gagal (merah).
 // =========================================================
 function showAlert(message, isSuccess = true) {
     if (isSuccess) {
@@ -467,14 +653,6 @@ function closeCustomAlert() {
 
 // =========================================================
 // FUNGSI CUSTOM CONFIRM (popup Ya/Tidak)
-// ---------------------------------------------------------
-// Dipakai untuk minta konfirmasi eksplisit sebelum masuk mode
-// edit menimpa absensi yang sudah ada di tanggal yang sama.
-//
-// CARA PAKAI:
-//   const lanjut = await showConfirmModal("pesan...");
-//   lanjut = true kalau guru pilih "Ya, Lanjutkan"
-//   lanjut = false kalau guru pilih "Tidak"
 // =========================================================
 function showConfirmModal(message) {
     return new Promise((resolve) => {
@@ -498,20 +676,17 @@ function showConfirmModal(message) {
 // =========================================================
 // FUNGSI BANTUAN: FORMAT TANGGAL & PEMECAH STRING NIS
 // =========================================================
-// Format "yyyy-MM-dd" -> "dd/MM/yyyy" (untuk pesan konfirmasi)
 function formatTanggalIndoShort(tanggalIso) {
     const [y, m, d] = tanggalIso.split('-');
     return `${d}/${m}/${y}`;
 }
 
-// Format "yyyy-MM-dd" -> "22 Jul 2026" (untuk tampilan riwayat & chart)
 function formatTanggalIndo(tanggalStr) {
     const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
     const [y, m, d] = tanggalStr.split('-');
     return `${parseInt(d, 10)} ${bulan[parseInt(m, 10) - 1]} ${y}`;
 }
 
-// Pecah string "NIS1, NIS2, NIS3" jadi array NIS (tanpa entri kosong)
 function splitNisList(str) {
     return (str || "").toString().split(',').map(s => s.trim()).filter(s => s !== "");
 }
@@ -520,8 +695,6 @@ function splitNisList(str) {
 
 // =========================================================
 // HANDLE LOGIN
-// ---------------------------------------------------------
-// Pakai AppState.setSession() untuk simpan sesi (auto-persist).
 // =========================================================
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -548,10 +721,6 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 
 // =========================================================
 // TAMPILKAN DASHBOARD (setelah login / saat sesi ditemukan)
-// ---------------------------------------------------------
-// Pakai AppState.session untuk akses data guru yang login.
-// PERHATIAN: tidak ada lagi addEventListener di sini!
-// Semua listener sudah ditangani oleh EventDelegation.init()
 // =========================================================
 function showDashboard() {
     const session = AppState.session;
@@ -562,16 +731,13 @@ function showDashboard() {
     DOM.greeting.innerText = `Selamat Mengajar, ${session.nama}`;
     DOM.tanggalAbsen.valueAsDate = new Date();
 
-    // Isi dropdown mapel (OPTIMASI: pakai Array.map().join())
     const mapelArr = session.mapel.split(',').map(s => s.trim());
     DOM.selectMapel.innerHTML = mapelArr.map(m => `<option value="${m}">${m}</option>`).join('');
 
-    // Isi dropdown kelas
     const kelasArr = session.kelas.split(',').map(s => s.trim());
     DOM.selectKelas.innerHTML = '<option value="" disabled selected>-- Pilih Kelas --</option>' +
                                 kelasArr.map(k => `<option value="${k}">${k}</option>`).join('');
 
-    // Tab "Absen Wali" hanya muncul jika guru ini punya Kelas Binaan
     if (session.kelasWali) {
         DOM.tabBtnAbsenWali.classList.remove('hidden');
         DOM.waliKelasLabel.innerText = session.kelasWali;
@@ -587,9 +753,6 @@ function showDashboard() {
 
 // =========================================================
 // GANTI TAB
-// ---------------------------------------------------------
-// DIPANGGIL oleh EventDelegation saat .tab-btn diklik.
-// Update AppState.ui.currentTab untuk tracking tab aktif.
 // =========================================================
 function switchTab(tabId) {
     document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
@@ -599,7 +762,10 @@ function switchTab(tabId) {
 
     AppState.ui.currentTab = tabId;
 
-    // Muat data saat tab dibuka (lazy loading)
+    // Bersihkan error/warning form saat pindah tab
+    // (supaya tidak ada error "hantu" yang tertinggal)
+    FormValidator.clearAll();
+
     if (tabId === 'panelRiwayat') setupRiwayatSelectors();
     if (tabId === 'panelDashboard') loadDashboard();
 }
@@ -608,9 +774,6 @@ function switchTab(tabId) {
 
 // =========================================================
 // FETCH DATA SISWA (panel Input Absensi per Mapel)
-// ---------------------------------------------------------
-// DIPANGGIL oleh EventDelegation saat #selectKelas berubah.
-// Pakai AppState.getStudents() / cacheStudents() untuk cache.
 // =========================================================
 async function fetchStudents(kelas) {
     const tbody = DOM.studentsBody;
@@ -647,10 +810,6 @@ async function fetchStudents(kelas) {
 
 // =========================================================
 // CEK ABSENSI YANG SUDAH ADA (panel Input Absensi per Mapel)
-// ---------------------------------------------------------
-// DIPANGGIL oleh EventDelegation saat #tanggalAbsen atau
-// #selectMapel berubah. Pakai StudentTable.setStatus()
-// berdasarkan NIS (bukan index) — lebih robust.
 // =========================================================
 async function checkExistingAttendance() {
     const mapel = DOM.selectMapel.value;
@@ -702,12 +861,25 @@ async function checkExistingAttendance() {
 // =========================================================
 // SUBMIT ABSENSI (panel Input Absensi per Mapel)
 // ---------------------------------------------------------
-// Pakai StudentTable.getAttendanceData() — tidak perlu loop
-// manual + querySelector per index.
+// PERUBAHAN PRIORITAS #5:
+// Sebelum submit, panggil FormValidator.validateAbsenForm()
+// untuk cek semua field. Kalau ada error, tampilkan inline
+// & batal submit. Warning tidak menghalangi submit.
 // =========================================================
 document.getElementById('absenForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = DOM.btnSubmit;
+
+    // ===== VALIDASI FORM (Prioritas #5) =====
+    const validationResult = FormValidator.validateAbsenForm();
+    if (!FormValidator.applyValidation(validationResult)) {
+        // Ada error -- tampilkan alert & batal submit
+        showAlert('Mohon perbaiki field yang ditandai merah.', false);
+        return;
+    }
+    // Kalau ada warning (tapi tidak ada error), lanjut submit
+    // Warning hanya informasi, tidak menghalangi.
+
     const attendanceData = StudentTable.getAttendanceData('studentsBody');
     const payload = {
         guru: AppState.session.nama,
@@ -728,6 +900,8 @@ document.getElementById('absenForm').addEventListener('submit', async (e) => {
         if (resData.success) {
             showAlert(resData.message, true);
             btn.innerText = "Perbarui Absensi";
+            // Bersihkan error/warning setelah submit berhasil
+            FormValidator.clearAll();
         } else if (resData.sessionExpired) {
             showAlert(resData.message, false);
             setTimeout(logout, 1500);
@@ -746,10 +920,6 @@ document.getElementById('absenForm').addEventListener('submit', async (e) => {
 
 // =========================================================
 // REKAP KELAS SAYA (download .xlsx)
-// ---------------------------------------------------------
-// DIPANGGIL oleh EventDelegation.handleAction() saat tombol
-// dengan data-action="downloadRekapKelasSaya" diklik.
-// File .xlsx dirakit di browser pakai SheetJS.
 // =========================================================
 async function downloadRekapKelasSaya() {
     const btn = document.getElementById('btnRecap');
@@ -784,10 +954,6 @@ async function downloadRekapKelasSaya() {
 
 // =========================================================
 // LOGOUT
-// ---------------------------------------------------------
-// DIPANGGIL oleh EventDelegation.handleAction() saat tombol
-// dengan data-action="logout" diklik.
-// Pakai AppState.reset() untuk reset SEMUA state sekaligus.
 // =========================================================
 function logout() {
     AppState.reset();
@@ -798,11 +964,6 @@ function logout() {
 
 // =========================================================
 // PANEL RIWAYAT ABSENSI (per mapel)
-// ---------------------------------------------------------
-// Dropdown mapel & kelas diisi sekali saja saat tab dibuka
-// pertama kali (ditandai dengan dataset.filled).
-// EventDelegation.handleTab() akan memanggil setupRiwayatSelectors()
-// saat tab "panelRiwayat" dibuka.
 // =========================================================
 function setupRiwayatSelectors() {
     if (DOM.riwayatMapel.dataset.filled) return;
@@ -814,7 +975,6 @@ function setupRiwayatSelectors() {
     DOM.riwayatMapel.dataset.filled = "1";
 }
 
-// DIPANGGIL oleh EventDelegation saat #riwayatMapel atau #riwayatKelas berubah
 async function fetchRiwayat() {
     const mapel = DOM.riwayatMapel.value;
     const kelas = DOM.riwayatKelas.value;
@@ -860,9 +1020,6 @@ async function fetchRiwayat() {
 
 // =========================================================
 // PANEL DASHBOARD ANALITIK
-// ---------------------------------------------------------
-// Pakai AppState.setChart() / destroyChart() untuk manajemen
-// chart yang aman (mencegah memory leak).
 // =========================================================
 async function loadDashboard() {
     DOM.dashboardLoading.classList.remove('hidden');
@@ -953,9 +1110,6 @@ function renderTrendChart(trend) {
 
 // =========================================================
 // PANEL ABSEN WALI KELAS
-// ---------------------------------------------------------
-// Pakai StudentTable component & AppState cache, sama seperti
-// panel mapel. Tidak ada duplikasi kode.
 // =========================================================
 async function fetchStudentsWali(kelas) {
     const tbody = DOM.waliStudentsBody;
@@ -988,7 +1142,6 @@ async function fetchStudentsWali(kelas) {
     }
 }
 
-// DIPANGGIL oleh EventDelegation saat #waliTanggal berubah
 async function checkExistingAbsenWali() {
     const kelas = AppState.session.kelasWali;
     const tanggalInput = DOM.waliTanggal;
@@ -1023,9 +1176,23 @@ async function checkExistingAbsenWali() {
     }
 }
 
+// =========================================================
+// SUBMIT ABSENSI WALI KELAS
+// ---------------------------------------------------------
+// PERUBAHAN PRIORITAS #5:
+// Sama seperti panel mapel -- validasi form dulu sebelum submit.
+// =========================================================
 document.getElementById('waliAbsenForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = DOM.waliBtnSubmit;
+
+    // ===== VALIDASI FORM (Prioritas #5) =====
+    const validationResult = FormValidator.validateWaliForm();
+    if (!FormValidator.applyValidation(validationResult)) {
+        showAlert('Mohon perbaiki field yang ditandai merah.', false);
+        return;
+    }
+
     const dataKehadiran = StudentTable.getAttendanceData('waliStudentsBody');
     const kelas = AppState.session.kelasWali;
     const tanggal = DOM.waliTanggal.value;
@@ -1044,6 +1211,7 @@ document.getElementById('waliAbsenForm').addEventListener('submit', async (e) =>
             showAlert(resData.message, true);
             btn.innerText = "Perbarui Absensi";
             fetchRiwayatAbsenWali();
+            FormValidator.clearAll();
         } else if (resData.sessionExpired) {
             showAlert(resData.message, false);
             setTimeout(logout, 1500);
@@ -1057,7 +1225,7 @@ document.getElementById('waliAbsenForm').addEventListener('submit', async (e) =>
     }
     btn.disabled = false;
 });
-// ===== SELESAI: PANEL ABSEN WALI KELAS =====
+// ===== SELESAI: SUBMIT ABSENSI WALI KELAS =====
 
 
 // =========================================================
@@ -1101,8 +1269,6 @@ async function fetchRiwayatAbsenWali() {
     }
 }
 
-// DIPANGGIL oleh EventDelegation.handleAction() saat tombol
-// dengan data-action="downloadRekapAbsenWali" diklik.
 async function downloadRekapAbsenWali() {
     if (!AppState.session.kelasWali) return;
     const btn = document.getElementById('btnRekapWali');
