@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    
+
     <!-- =========================================================
     META TAGS UNTUK GITHUB PAGES (PENTING!)
     ---------------------------------------------------------
@@ -17,43 +17,44 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <meta name="theme-color" content="#4F46E5">
-    
+
     <!-- =========================================================
     JUDUL TAB BROWSER
     Ganti "Aplikasi Absensi Sekolah" sesuai nama sekolah Anda
     ========================================================= -->
     <title>Aplikasi Absensi Sekolah</title>
-    
+
     <!-- =========================================================
     FAVICON (ikon di tab browser)
     Kalau belum punya, bisa pakai favicon gratis dari
-    https://favicon.io/ atau biarkan default browser
+    https://favicon.io/ atau hapus baris ini untuk pakai default browser
     ========================================================= -->
     <link rel="icon" type="image/png" href="assets/favicon.png">
-    
+
     <!-- =========================================================
     CACHE-BUSTING UNTUK CSS (PENTING!)
     ---------------------------------------------------------
     Tambahkan ?v=YYYYMMDD di akhir URL file CSS/JS setiap kali
     Anda push update ke GitHub. Ini memaksa browser download
     versi terbaru, bukan pakai cache lama.
-    
+
     CARA PAKAI:
     - Saat push update, ubah angka setelah ?v= jadi tanggal hari ini
     - Contoh: ?v=20260722  (artinya versi 22 Juli 2026)
     - Atau pakai git commit hash pendek kalau mau lebih presisi
-    
-    ALTERNATIF OTOMATIS:
-    Kalau malas update manual, pakai GitHub Actions untuk inject
-    version string otomatis (lihat bagian bawah README).
+
+    PENTING: angka versi di CSS & JS HARUS SAMA, supaya tidak ada
+    kasus CSS versi baru tapi JS versi lama (atau sebaliknya).
     ========================================================= -->
     <link rel="stylesheet" href="style.css?v=20260722">
-    
+
     <!-- =========================================================
     LIBRARY LUAR (dari CDN)
     - SheetJS (XLSX): untuk generate file rekap .xlsx di browser
     - Chart.js: untuk grafik tren kehadiran di Dashboard
-    Pakai CDN Cloudflare karena lebih cepat dari jsDelivr di Indonesia
+    Pakai CDN Cloudflare karena lebih cepat dari jsDelivr di Indonesia.
+    Kalau CDN down, fitur rekap & dashboard tidak bekerja, tapi
+    fitur input absensi tetap bisa dipakai.
     ========================================================= -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -71,6 +72,7 @@
         PANEL LOGIN
         Hanya muncul sebelum guru berhasil login.
         Setelah login, panel ini disembunyikan lewat class .hidden
+        oleh script.js (lihat fungsi showDashboard()).
         ========================================================= -->
         <section id="loginSection">
             <h2>🏫 Login Guru</h2>
@@ -98,16 +100,27 @@
         4. Absen Wali Kelas (hanya muncul kalau guru punya kelas binaan)
         ========================================================= -->
         <section id="dashboardSection" class="hidden">
-            
+
             <!-- Header info guru yang login -->
             <div class="header-info">
                 <h2 id="greeting">Selamat Datang!</h2>
                 <div class="action-buttons">
-                    <!-- Tombol download rekap pribadi (dirakit di browser pakai SheetJS) -->
-                    <button onclick="downloadRekapKelasSaya()" style="background-color: #10B981;">
+                    <!-- =====================================================
+                    TOMBOL AKSI GLOBAL
+                    ---------------------------------------------------------
+                    Pakai data-action="..." (bukan onclick inline) supaya
+                    konsisten dengan pola Event Delegation di script.js.
+                    EventDelegation.handleAction() akan otomatis memanggil
+                    fungsi yang sesuai berdasarkan nilai data-action.
+
+                    Untuk menambah tombol aksi baru:
+                    1. Tambah <button data-action="namaAksiBaru">...</button>
+                    2. Di script.js, tambahkan case di EventDelegation.handleAction()
+                    ===================================================== -->
+                    <button data-action="downloadRekapKelasSaya" id="btnRecap" style="background-color: #10B981;">
                         📥 Rekap Kelas Saya (.xlsx)
                     </button>
-                    <button onclick="logout()" style="background-color: #EF4444;">
+                    <button data-action="logout" style="background-color: #EF4444;">
                         Logout
                     </button>
                 </div>
@@ -115,23 +128,30 @@
 
             <!-- =========================================================
             TAB NAVIGASI
-            Tambah tab baru? Ikuti pola:
+            ---------------------------------------------------------
+            Tambah tab baru? Ikuti 3 langkah:
             1. Tambah <button class="tab-btn" data-tab="panelBaru">...</button>
+               di bawah ini (JANGAN pakai onclick inline!)
             2. Tambah <div id="panelBaru" class="tab-panel hidden">...</div>
-            3. Di script.js, tambahkan kondisi di fungsi switchTab()
+               di bagian panel konten
+            3. Tambahkan kondisi "if (tabId === 'panelBaru')" di fungsi
+               switchTab() pada script.js
+
+            EventDelegation.init() akan otomatis menangani klik pada
+            semua .tab-btn lewat event delegation di level document.
             ========================================================= -->
             <div class="tab-nav" role="tablist">
-                <button class="tab-btn active" data-tab="panelAbsensi" onclick="switchTab('panelAbsensi')" role="tab">
+                <button class="tab-btn active" data-tab="panelAbsensi" role="tab">
                     📝 Input Absensi
                 </button>
-                <button class="tab-btn" data-tab="panelRiwayat" onclick="switchTab('panelRiwayat')" role="tab">
+                <button class="tab-btn" data-tab="panelRiwayat" role="tab">
                     🕒 Riwayat
                 </button>
-                <button class="tab-btn" data-tab="panelDashboard" onclick="switchTab('panelDashboard')" role="tab">
+                <button class="tab-btn" data-tab="panelDashboard" role="tab">
                     📊 Dashboard
                 </button>
                 <!-- Tab Absen Wali disembunyikan default, baru muncul kalau guru punya kelasWali -->
-                <button id="tabBtnAbsenWali" class="tab-btn hidden" data-tab="panelAbsenWali" onclick="switchTab('panelAbsenWali')" role="tab">
+                <button id="tabBtnAbsenWali" class="tab-btn hidden" data-tab="panelAbsenWali" role="tab">
                     👪 Absen Wali
                 </button>
             </div>
@@ -159,7 +179,7 @@
 
                     <h3>Daftar Siswa</h3>
                     <p id="loading" class="hidden">Mengambil data dari server...</p>
-                    
+
                     <!-- Wrapper supaya tabel bisa di-scroll horizontal di HP -->
                     <div class="table-wrapper">
                         <table id="studentsTable">
@@ -172,9 +192,7 @@
                             </thead>
                             <tbody id="studentsBody">
                                 <tr>
-                                    <td>Silakan pilih kelas terlebih dahulu.</td>
-                                    <td>Silakan pilih kelas terlebih dahulu.</td>
-                                    <td>Silakan pilih kelas terlebih dahulu.</td>
+                                    <td colspan="3">Silakan pilih kelas terlebih dahulu.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -247,7 +265,7 @@
 
                     <h3>Daftar Siswa</h3>
                     <p id="waliLoading" class="hidden">Mengambil data dari server...</p>
-                    
+
                     <div class="table-wrapper">
                         <table id="waliStudentsTable">
                             <thead>
@@ -259,9 +277,7 @@
                             </thead>
                             <tbody id="waliStudentsBody">
                                 <tr>
-                                    <td>Silakan pilih kelas terlebih dahulu.</td>
-                                    <td>Silakan pilih kelas terlebih dahulu.</td>
-                                    <td>Silakan pilih kelas terlebih dahulu.</td>
+                                    <td colspan="3">Silakan pilih tanggal terlebih dahulu.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -272,8 +288,8 @@
                     </button>
                 </form>
 
-                <!-- Tombol download rekap wali kelas (harian, bukan per mapel) -->
-                <button onclick="downloadRekapAbsenWali()" id="btnRekapWali" 
+                <!-- Tombol download rekap wali kelas (pakai data-action untuk konsistensi) -->
+                <button data-action="downloadRekapAbsenWali" id="btnRekapWali"
                         style="margin-top: 20px; background-color: #10B981;">
                     📥 Unduh Rekap Wali Kelas (.xlsx)
                 </button>
@@ -294,7 +310,10 @@
 
     <!-- =========================================================
     MODAL ALERT (popup notifikasi sukses/gagal)
-    Dipanggil dari script.js lewat showAlert()
+    ---------------------------------------------------------
+    Dipanggil dari script.js lewat showAlert(message, isSuccess).
+    Tombol "OK, Mengerti" pakai onclick inline karena ini spesifik
+    untuk modal ini saja (tidak perlu event delegation global).
     ========================================================= -->
     <div id="customAlert" class="modal-overlay" role="dialog" aria-modal="true">
         <div class="modal-box">
@@ -307,8 +326,10 @@
 
     <!-- =========================================================
     MODAL KONFIRMASI (Ya/Tidak)
-    Dipanggil dari script.js lewat showConfirmModal()
+    ---------------------------------------------------------
+    Dipanggil dari script.js lewat showConfirmModal(message).
     Dipakai saat guru mau mengedit absensi yang sudah tersimpan
+    di tanggal yang sama (supaya tidak tidak sengaja menimpa).
     ========================================================= -->
     <div id="confirmModal" class="modal-overlay" role="dialog" aria-modal="true">
         <div class="modal-box">
@@ -328,6 +349,9 @@
     PENTING: selalu tambahkan ?v=YYYYMMDD di akhir URL setiap
     kali push update ke GitHub, supaya browser tidak pakai
     versi lama dari cache. Lihat catatan di bagian <head>.
+
+    Angka versi di sini HARUS SAMA dengan versi di style.css
+    supaya tidak ada kasus CSS versi baru tapi JS versi lama.
     ========================================================= -->
     <script src="script.js?v=20260722"></script>
 
