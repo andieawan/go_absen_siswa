@@ -1,35 +1,20 @@
 // =========================================================
 // KONFIGURASI
-// ---------------------------------------------------------
-// Ganti URL Web App Google Apps Script di sini kalau berubah.
-// URL ini didapat dari Deploy > Manage deployments > Web app URL
-// di project Apps Script Anda.
 // =========================================================
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbyMGAl2rTMzOEVkosA-QKNrVvo69x3WZPrYgRBRcVF9JL-K1guOv-zJAWnisfCZ1t8n/exec';
 // ===== SELESAI: KONFIGURASI =====
 
 
 // =========================================================
-// STATE MANAGEMENT TERPUSAT (Prioritas #2)
-// ---------------------------------------------------------
-// Semua state aplikasi dikonsolidasikan di satu object ini.
-//
-// KEUNTUNGAN:
-//   1. Mudah di-debug: cukup console.log(AppState) untuk lihat
-//      seluruh kondisi aplikasi saat ini
-//   2. Mudah di-reset: satu method reset() saat logout
-//   3. Auto-persist session ke sessionStorage
-//   4. Tidak ada variabel global yang tersebar
-//
-// CARA DEBUG:
-//   Ketik AppState.debug() di console browser untuk inspeksi
+// STATE MANAGEMENT TERPUSAT
 // =========================================================
 const AppState = {
     session: null,
     studentCache: {},
     ui: {
         currentTab: 'panelAbsensi',
-        charts: {}
+        charts: {},
+        fabOpen: false
     },
 
     loadSession() {
@@ -37,7 +22,7 @@ const AppState = {
             const saved = sessionStorage.getItem('guruSession');
             this.session = saved ? JSON.parse(saved) : null;
         } catch (e) {
-            console.warn('Gagal memuat sesi dari sessionStorage:', e);
+            console.warn('Gagal memuat sesi:', e);
             this.session = null;
         }
         return this.session;
@@ -48,7 +33,7 @@ const AppState = {
         try {
             sessionStorage.setItem('guruSession', JSON.stringify(data));
         } catch (e) {
-            console.warn('Gagal menyimpan sesi ke sessionStorage:', e);
+            console.warn('Gagal menyimpan sesi:', e);
         }
     },
 
@@ -57,7 +42,7 @@ const AppState = {
         try {
             sessionStorage.removeItem('guruSession');
         } catch (e) {
-            console.warn('Gagal menghapus sesi dari sessionStorage:', e);
+            console.warn('Gagal menghapus sesi:', e);
         }
     },
 
@@ -69,18 +54,9 @@ const AppState = {
         return this.studentCache[kelas];
     },
 
-    clearStudentCache(kelas) {
-        if (kelas) delete this.studentCache[kelas];
-        else this.studentCache = {};
-    },
-
     setChart(name, chartInstance) {
         this.destroyChart(name);
         this.ui.charts[name] = chartInstance;
-    },
-
-    getChart(name) {
-        return this.ui.charts[name];
     },
 
     destroyChart(name) {
@@ -99,44 +75,43 @@ const AppState = {
         this.destroyAllCharts();
         this.studentCache = {};
         this.ui.currentTab = 'panelAbsensi';
+        this.ui.fabOpen = false;
         this.clearSession();
     },
 
     debug() {
-        console.group('🔍 AppState Debug');
+        console.group('🔍 AppState');
         console.log('Session:', this.session);
         console.log('Student Cache:', this.studentCache);
         console.log('UI State:', this.ui);
-        console.log('Active Charts:', Object.keys(this.ui.charts));
         console.groupEnd();
     }
 };
 
 AppState.loadSession();
-// ===== SELESAI: STATE MANAGEMENT TERPUSAT =====
+// ===== SELESAI: STATE MANAGEMENT =====
 
 
 // =========================================================
-// REFERENSI ELEMEN DOM (Prioritas #2)
-// ---------------------------------------------------------
-// Dikumpulkan di satu tempat supaya mudah dicari & di-maintain.
-// Tidak perlu querySelector berulang-ulang di banyak fungsi.
+// REFERENSI DOM
 // =========================================================
 const DOM = {
     loginSection: document.getElementById('loginSection'),
     dashboardSection: document.getElementById('dashboardSection'),
     greeting: document.getElementById('greeting'),
+    headerDate: document.getElementById('headerDate'),
+    headerAvatar: document.getElementById('headerAvatar'),
     tanggalAbsen: document.getElementById('tanggalAbsen'),
     selectMapel: document.getElementById('selectMapel'),
     selectKelas: document.getElementById('selectKelas'),
-    loading: document.getElementById('loading'),
+    skeletonLoader: document.getElementById('skeletonLoader'),
     studentsBody: document.getElementById('studentsBody'),
     btnSubmit: document.getElementById('btnSubmit'),
     loginMsg: document.getElementById('loginMsg'),
     tabBtnAbsenWali: document.getElementById('tabBtnAbsenWali'),
     waliKelasLabel: document.getElementById('waliKelasLabel'),
     waliTanggal: document.getElementById('waliTanggal'),
-    waliLoading: document.getElementById('waliLoading'),
+    waliSkeletonLoader: document.getElementById('waliSkeletonLoader'),
     waliStudentsBody: document.getElementById('waliStudentsBody'),
     waliBtnSubmit: document.getElementById('waliBtnSubmit'),
     customAlert: document.getElementById('customAlert'),
@@ -157,41 +132,163 @@ const DOM = {
     dashboardContent: document.getElementById('dashboardContent'),
     rekapKelasMapelList: document.getElementById('rekapKelasMapelList'),
     topAlpaList: document.getElementById('topAlpaList'),
-    trendChart: document.getElementById('trendChart')
+    trendChart: document.getElementById('trendChart'),
+    toastContainer: document.getElementById('toastContainer'),
+    fabContainer: document.getElementById('fabContainer'),
+    fabMain: document.getElementById('fabMain'),
+    fabMenu: document.getElementById('fabMenu')
 };
 
 if (AppState.session) showDashboard();
-// ===== SELESAI: REFERENSI ELEMEN DOM =====
+// ===== SELESAI: REFERENSI DOM =====
 
 
 // =========================================================
-// OPTIMASI PERFORMA: FUNGSI DEBOUNCE
+// TOAST NOTIFICATION (Fitur Baru)
 // ---------------------------------------------------------
-// Mencegah request beruntun ke server saat pengguna mengganti
-// dropdown / input dengan cepat.
+// Pengganti modal untuk notifikasi sukses/info yang tidak
+// mengganggu. Auto-dismiss setelah 3 detik.
+//
+// CARA PAKAI:
+//   showToast("Pesan sukses", "success");
+//   showToast("Pesan error", "error");
+//   showToast("Pesan warning", "warning");
+//   showToast("Pesan info", "info");
+// =========================================================
+function showToast(message, type = 'info', duration = 3000) {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    
+    const icons = {
+        success: '✅',
+        error: '❌',
+        warning: '⚠️',
+        info: 'ℹ️'
+    };
+    
+    const titles = {
+        success: 'Berhasil',
+        error: 'Gagal',
+        warning: 'Peringatan',
+        info: 'Informasi'
+    };
+    
+    toast.innerHTML = `
+        <div class="toast-icon">${icons[type]}</div>
+        <div class="toast-content">
+            <div class="toast-title">${titles[type]}</div>
+            <div class="toast-message">${message}</div>
+        </div>
+    `;
+    
+    DOM.toastContainer.appendChild(toast);
+    
+    // Auto-dismiss
+    setTimeout(() => {
+        toast.classList.add('toast-exit');
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+// ===== SELESAI: TOAST NOTIFICATION =====
+
+
+// =========================================================
+// SKELETON LOADER (Fitur Baru)
+// ---------------------------------------------------------
+// Tampilkan/sembunyikan skeleton loader saat fetch data.
+// Memberikan feedback visual yang lebih baik dari spinner.
+// =========================================================
+function showSkeleton(skeletonId) {
+    const skeleton = document.getElementById(skeletonId);
+    if (skeleton) skeleton.classList.remove('hidden');
+}
+
+function hideSkeleton(skeletonId) {
+    const skeleton = document.getElementById(skeletonId);
+    if (skeleton) skeleton.classList.add('hidden');
+}
+// ===== SELESAI: SKELETON LOADER =====
+
+
+// =========================================================
+// PROGRESS INDICATOR DI TOMBOL (Fitur Baru)
+// ---------------------------------------------------------
+// Tampilkan progress bar di tombol submit saat menyimpan.
+// Memberikan feedback visual bahwa proses sedang berjalan.
+// =========================================================
+function showButtonProgress(btn) {
+    const text = btn.querySelector('.btn-text');
+    const loader = btn.querySelector('.btn-loader');
+    const progress = btn.querySelector('.btn-progress');
+    if (text) text.classList.add('hidden');
+    if (loader) loader.classList.remove('hidden');
+    if (progress) progress.classList.remove('hidden');
+}
+
+function hideButtonProgress(btn) {
+    const text = btn.querySelector('.btn-text');
+    const loader = btn.querySelector('.btn-loader');
+    const progress = btn.querySelector('.btn-progress');
+    if (text) text.classList.remove('hidden');
+    if (loader) loader.classList.add('hidden');
+    if (progress) progress.classList.add('hidden');
+}
+// ===== SELESAI: PROGRESS INDICATOR =====
+
+
+// =========================================================
+// FLOATING ACTION BUTTON (FAB) - Quick Actions (Fitur Baru)
+// ---------------------------------------------------------
+// Tombol melayang untuk aksi cepat. Klik untuk expand menu.
+// =========================================================
+function toggleFab() {
+    AppState.ui.fabOpen = !AppState.ui.fabOpen;
+    DOM.fabMain.classList.toggle('active', AppState.ui.fabOpen);
+    DOM.fabMenu.classList.toggle('active', AppState.ui.fabOpen);
+}
+
+function closeFab() {
+    AppState.ui.fabOpen = false;
+    DOM.fabMain.classList.remove('active');
+    DOM.fabMenu.classList.remove('active');
+}
+
+// Quick actions handlers
+function quickAbsenHariIni() {
+    closeFab();
+    switchTab('panelAbsensi');
+    // Set tanggal ke hari ini
+    DOM.tanggalAbsen.valueAsDate = new Date();
+    // Fokus ke dropdown kelas
+    setTimeout(() => DOM.selectKelas.focus(), 300);
+    showToast('Siap untuk absen hari ini!', 'info');
+}
+
+function quickLihatRiwayat() {
+    closeFab();
+    switchTab('panelRiwayat');
+}
+
+function quickDownloadRekap() {
+    closeFab();
+    downloadRekapKelasSaya();
+}
+// ===== SELESAI: FAB =====
+
+
+// =========================================================
+// FUNGSI BANTUAN
 // =========================================================
 function debounce(func, wait) {
     let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
+    return function(...args) {
         clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
+        timeout = setTimeout(() => func(...args), wait);
     };
 }
-// ===== SELESAI: FUNGSI DEBOUNCE =====
 
-
-// =========================================================
-// GITHUB PAGES COMPATIBILITY: HELPER FETCH GAS
-// ---------------------------------------------------------
-// Semua request ke Google Apps Script dibungkus di fungsi ini.
-// =========================================================
 async function fetchGas(actionOrPayload, paramsOrBody = null, isPost = false) {
     let url, options;
-
     if (isPost) {
         url = GAS_URL;
         options = {
@@ -210,24 +307,32 @@ async function fetchGas(actionOrPayload, paramsOrBody = null, isPost = false) {
             });
         }
         url = `${GAS_URL}?${query.toString()}`;
-        options = {
-            method: 'GET',
-            mode: 'cors',
-            redirect: 'follow'
-        };
+        options = { method: 'GET', mode: 'cors', redirect: 'follow' };
     }
-
     const response = await fetch(url, options);
     return await response.json();
 }
-// ===== SELESAI: HELPER FETCH GAS =====
+
+function formatTanggalIndo(tanggalStr) {
+    const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const [y, m, d] = tanggalStr.split('-');
+    return `${parseInt(d, 10)} ${bulan[parseInt(m, 10) - 1]} ${y}`;
+}
+
+function formatTanggalPanjang(date) {
+    const hari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const bulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    return `${hari[date.getDay()]}, ${date.getDate()} ${bulan[date.getMonth()]} ${date.getFullYear()}`;
+}
+
+function splitNisList(str) {
+    return (str || "").toString().split(',').map(s => s.trim()).filter(s => s !== "");
+}
+// ===== SELESAI: FUNGSI BANTUAN =====
 
 
 // =========================================================
-// KOMPONEN: STUDENT TABLE (Prioritas #1 - Component Thinking)
-// ---------------------------------------------------------
-// Menggabungkan logika render & pembacaan tabel siswa yang
-// sebelumnya duplikat di 2 tempat (panel mapel & panel wali).
+// KOMPONEN: STUDENT TABLE
 // =========================================================
 const StudentTable = {
     render(tbodyId, students) {
@@ -245,10 +350,10 @@ const StudentTable = {
                 <td class="nama-siswa">${siswa.nama}</td>
                 <td>
                     <div class="radio-group">
-                        <label><input type="radio" name="${radioName}" value="H" checked required> H</label>
-                        <label><input type="radio" name="${radioName}" value="I"> I</label>
-                        <label><input type="radio" name="${radioName}" value="S"> S</label>
-                        <label><input type="radio" name="${radioName}" value="A"> A</label>
+                        <label><input type="radio" name="${radioName}" value="H" checked required> ✓ Hadir</label>
+                        <label><input type="radio" name="${radioName}" value="I"> 📝 Izin</label>
+                        <label><input type="radio" name="${radioName}" value="S"> 🤒 Sakit</label>
+                        <label><input type="radio" name="${radioName}" value="A"> ❌ Alpa</label>
                     </div>
                 </td>
             `;
@@ -272,6 +377,14 @@ const StudentTable = {
         });
     },
 
+    setAllTo(tbodyId, status) {
+        const rows = document.querySelectorAll(`#${tbodyId} tr.student-row`);
+        rows.forEach(row => {
+            const targetRadio = row.querySelector(`input[type="radio"][value="${status}"]`);
+            if (targetRadio) targetRadio.checked = true;
+        });
+    },
+
     getAttendanceData(tbodyId) {
         const rows = document.querySelectorAll(`#${tbodyId} tr.student-row`);
         const data = [];
@@ -289,137 +402,79 @@ const StudentTable = {
         return document.querySelectorAll(`#${tbodyId} tr.student-row`).length > 0;
     }
 };
-// ===== SELESAI: KOMPONEN STUDENT TABLE =====
+// ===== SELESAI: STUDENT TABLE =====
 
 
 // =========================================================
-// KOMPONEN: FORM VALIDATOR (Prioritas #5 - Form Validation Visual)
-// ---------------------------------------------------------
-// Memberikan feedback visual yang jelas saat form tidak valid.
-//
-// FITUR:
-//   1. Validasi tanggal masa depan (error)
-//   2. Warning tanggal terlalu lama (> 60 hari)
-//   3. Inline error message di bawah field yang bermasalah
-//   4. Real-time validation saat tanggal berubah
-//   5. Auto-scroll ke field error saat submit gagal
-//
-// CARA PAKAI:
-//   const result = FormValidator.validateAbsenForm();
-//   if (!FormValidator.applyValidation(result)) {
-//       showAlert('Mohon perbaiki field yang ditandai merah.', false);
-//       return;
-//   }
-//   // ... lanjut submit
-//
-// CATATAN ZONA WAKTU:
-//   Aplikasi ini ditujukan untuk pengguna di Indonesia (GMT+7).
-//   Validasi tanggal memakai zona waktu lokal browser. Kalau
-//   developer testing dari luar negeri, hasil validasi mungkin
-//   berbeda 1 hari. Untuk produksi di Indonesia, ini tidak masalah.
+// FORM VALIDATOR
 // =========================================================
 const FormValidator = {
-    // Batas warning: tanggal lebih dari N hari yang lalu
     WARNING_DAYS_THRESHOLD: 60,
 
-    // Inisialisasi listener untuk real-time validation.
-    // Dipanggil sekali saat script dimuat.
     init() {
-        // Real-time validation saat tanggal berubah
-        // (berjalan berdampingan dengan EventDelegation, tidak konflik)
         document.addEventListener('change', (e) => {
             if (e.target.id === 'tanggalAbsen' || e.target.id === 'waliTanggal') {
                 this.validateDateRealtime(e.target.id);
             }
         });
 
-        // Hapus error saat user mulai berinteraksi dengan field error
-        // (feedback positif: "oh, saya sudah perbaiki, error hilang")
         document.addEventListener('input', (e) => {
             if (e.target.classList.contains('field-error')) {
                 this.clearFieldError(e.target.id);
             }
         });
-        document.addEventListener('change', (e) => {
-            if (e.target.classList.contains('field-error')) {
-                this.clearFieldError(e.target.id);
-            }
-        });
-
-        console.log('✅ Form validator initialized');
     },
 
-    // ===== METHOD VALIDASI =====
-
-    // Validasi form input absensi (panel mapel).
-    // Return: { errors: [...], warnings: [...] }
     validateAbsenForm() {
         const errors = [];
         const warnings = [];
 
-        // Validasi mapel
         if (!DOM.selectMapel.value) {
             errors.push({ field: 'selectMapel', message: 'Mata pelajaran harus dipilih' });
         }
-
-        // Validasi kelas
         if (!DOM.selectKelas.value) {
             errors.push({ field: 'selectKelas', message: 'Kelas harus dipilih' });
         }
 
-        // Validasi tanggal
         const tanggal = DOM.tanggalAbsen.value;
         if (!tanggal) {
-            errors.push({ field: 'tanggalAbsen', message: 'Tanggal pertemuan harus diisi' });
+            errors.push({ field: 'tanggalAbsen', message: 'Tanggal harus diisi' });
         } else {
             if (this.isDateInFuture(tanggal)) {
                 errors.push({ field: 'tanggalAbsen', message: 'Tanggal tidak boleh di masa depan' });
             } else if (this.isDateTooOld(tanggal, this.WARNING_DAYS_THRESHOLD)) {
-                warnings.push({
-                    field: 'tanggalAbsen',
-                    message: `Tanggal lebih dari ${this.WARNING_DAYS_THRESHOLD} hari yang lalu`
-                });
+                warnings.push({ field: 'tanggalAbsen', message: `Tanggal lebih dari ${this.WARNING_DAYS_THRESHOLD} hari yang lalu` });
             }
         }
 
         return { errors, warnings };
     },
 
-    // Validasi form absen wali kelas.
-    // Return: { errors: [...], warnings: [...] }
     validateWaliForm() {
         const errors = [];
         const warnings = [];
-
         const tanggal = DOM.waliTanggal.value;
+
         if (!tanggal) {
             errors.push({ field: 'waliTanggal', message: 'Tanggal harus diisi' });
         } else {
             if (this.isDateInFuture(tanggal)) {
                 errors.push({ field: 'waliTanggal', message: 'Tanggal tidak boleh di masa depan' });
             } else if (this.isDateTooOld(tanggal, this.WARNING_DAYS_THRESHOLD)) {
-                warnings.push({
-                    field: 'waliTanggal',
-                    message: `Tanggal lebih dari ${this.WARNING_DAYS_THRESHOLD} hari yang lalu`
-                });
+                warnings.push({ field: 'waliTanggal', message: `Tanggal lebih dari ${this.WARNING_DAYS_THRESHOLD} hari yang lalu` });
             }
         }
 
         return { errors, warnings };
     },
 
-    // ===== METHOD BANTUAN TANGGAL =====
-
-    // Cek apakah tanggal di masa depan.
-    // dateStr format: "YYYY-MM-DD"
     isDateInFuture(dateStr) {
         const today = new Date();
-        today.setHours(23, 59, 59, 999); // end of today (local time)
+        today.setHours(23, 59, 59, 999);
         const selectedDate = new Date(dateStr + 'T00:00:00');
         return selectedDate > today;
     },
 
-    // Cek apakah tanggal terlalu lama (lebih dari N hari yang lalu).
     isDateTooOld(dateStr, days) {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -428,16 +483,11 @@ const FormValidator = {
         return diffDays > days;
     },
 
-    // ===== METHOD VISUAL FEEDBACK =====
-
-    // Validasi real-time saat tanggal berubah.
-    // Dipanggil otomatis oleh listener di init().
     validateDateRealtime(fieldId) {
         const field = document.getElementById(fieldId);
         if (!field) return;
         const tanggal = field.value;
 
-        // Bersihkan error & warning lama dulu
         this.clearFieldError(fieldId);
         this.clearFieldWarning(fieldId);
 
@@ -450,38 +500,29 @@ const FormValidator = {
         }
     },
 
-    // Tampilkan error inline pada field tertentu.
-    // Field akan berubah merah, dan pesan error muncul di bawahnya.
     showFieldError(fieldId, message) {
         this.clearFieldError(fieldId);
         const field = document.getElementById(fieldId);
         if (!field) return;
-
         field.classList.add('field-error');
-
         const errorEl = document.createElement('div');
         errorEl.className = 'field-error-message';
-        errorEl.setAttribute('role', 'alert'); // aksesibilitas: screen reader akan baca ini
+        errorEl.setAttribute('role', 'alert');
         errorEl.innerText = '⚠ ' + message;
         field.parentElement.appendChild(errorEl);
     },
 
-    // Tampilkan warning inline pada field tertentu.
-    // Field akan berubah kuning, dan pesan warning muncul di bawahnya.
     showFieldWarning(fieldId, message) {
         this.clearFieldWarning(fieldId);
         const field = document.getElementById(fieldId);
         if (!field) return;
-
         field.classList.add('field-warning');
-
         const warningEl = document.createElement('div');
         warningEl.className = 'field-warning-message';
         warningEl.innerText = 'ℹ ' + message;
         field.parentElement.appendChild(warningEl);
     },
 
-    // Hapus error dari field tertentu.
     clearFieldError(fieldId) {
         const field = document.getElementById(fieldId);
         if (!field) return;
@@ -490,7 +531,6 @@ const FormValidator = {
         if (existing) existing.remove();
     },
 
-    // Hapus warning dari field tertentu.
     clearFieldWarning(fieldId) {
         const field = document.getElementById(fieldId);
         if (!field) return;
@@ -499,9 +539,6 @@ const FormValidator = {
         if (existing) existing.remove();
     },
 
-    // Hapus SEMUA error & warning di seluruh form.
-    // Dipanggil di awal submit handler supaya tidak ada error "hantu"
-    // dari validasi sebelumnya.
     clearAll() {
         document.querySelectorAll('.field-error').forEach(el => el.classList.remove('field-error'));
         document.querySelectorAll('.field-error-message').forEach(el => el.remove());
@@ -509,50 +546,33 @@ const FormValidator = {
         document.querySelectorAll('.field-warning-message').forEach(el => el.remove());
     },
 
-    // Terapkan hasil validasi ke UI:
-    // - Tampilkan semua error & warning
-    // - Scroll ke field error pertama
-    // - Return true kalau valid (tidak ada error), false kalau ada error
-    //
-    // CATATAN: warning TIDAK menghalangi submit, hanya memberi informasi.
-    // Hanya error yang menghalangi submit.
     applyValidation(result) {
         this.clearAll();
-
-        // Tampilkan semua error
         result.errors.forEach(err => this.showFieldError(err.field, err.message));
-
-        // Tampilkan semua warning
         result.warnings.forEach(warn => this.showFieldWarning(warn.field, warn.message));
 
-        // Kalau ada error, scroll ke field error pertama & fokuskan
         if (result.errors.length > 0) {
             const firstErrorField = document.getElementById(result.errors[0].field);
             if (firstErrorField) {
                 firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                // Delay fokus supaya scroll selesai dulu
                 setTimeout(() => firstErrorField.focus(), 400);
             }
             return false;
         }
-
         return true;
     }
 };
 
-// Inisialisasi form validator sekali saat script dimuat
 FormValidator.init();
-// ===== SELESAI: KOMPONEN FORM VALIDATOR =====
+// ===== SELESAI: FORM VALIDATOR =====
 
 
 // =========================================================
-// EVENT DELEGATION TERPUSAT (Prioritas #3)
-// ---------------------------------------------------------
-// Semua event listener dikonsolidasi di satu modul ini.
+// EVENT DELEGATION
 // =========================================================
 const EventDelegation = {
     init() {
-        // 1. Tombol aksi global (pakai data-action attribute di HTML)
+        // Tombol aksi global (data-action)
         document.addEventListener('click', (e) => {
             const actionBtn = e.target.closest('[data-action]');
             if (actionBtn) {
@@ -561,7 +581,7 @@ const EventDelegation = {
             }
         });
 
-        // 2. Tab navigation (pakai data-tab attribute di HTML)
+        // Tab navigation
         document.addEventListener('click', (e) => {
             const tabBtn = e.target.closest('.tab-btn');
             if (tabBtn && tabBtn.dataset.tab) {
@@ -570,16 +590,44 @@ const EventDelegation = {
             }
         });
 
-        // 3. Radio button kehadiran (visual feedback: highlight baris)
-        document.addEventListener('change', (e) => {
-            if (e.target.matches('.student-row input[type="radio"]')) {
-                this.handleRadioChange(e);
+        // FAB main button
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('#fabMain')) {
+                toggleFab();
             }
         });
 
-        // 4. Dropdown & tanggal change events (pakai ID elemen)
-        // CATATAN: validasi visual tanggal di-handle oleh FormValidator.init()
-        // secara terpisah. Di sini hanya handle logic bisnis.
+        // Quick status buttons
+        document.addEventListener('click', (e) => {
+            const quickBtn = e.target.closest('[data-quick-status]');
+            if (quickBtn) {
+                const status = quickBtn.dataset.quickStatus;
+                const target = quickBtn.dataset.target || 'mapel';
+                const tbodyId = target === 'wali' ? 'waliStudentsBody' : 'studentsBody';
+                
+                if (status === 'reset') {
+                    StudentTable.resetAll(tbodyId);
+                    showToast('Status direset ke Hadir', 'info');
+                } else {
+                    StudentTable.setAllTo(tbodyId, status);
+                    showToast(`Semua siswa di-set ${status === 'H' ? 'Hadir' : status}`, 'success');
+                }
+            }
+        });
+
+        // Radio button highlight
+        document.addEventListener('change', (e) => {
+            if (e.target.matches('.student-row input[type="radio"]')) {
+                const row = e.target.closest('.student-row');
+                if (row) {
+                    const tbody = row.closest('tbody');
+                    tbody.querySelectorAll('.student-row').forEach(r => r.classList.remove('selected'));
+                    row.classList.add('selected');
+                }
+            }
+        });
+
+        // Dropdown & tanggal change
         document.addEventListener('change', (e) => {
             const target = e.target;
             if (target.id === 'selectKelas') {
@@ -593,16 +641,14 @@ const EventDelegation = {
             }
         });
 
-        console.log('✅ Event delegation initialized');
-    },
+        // Tutup FAB saat klik di luar
+        document.addEventListener('click', (e) => {
+            if (AppState.ui.fabOpen && !e.target.closest('.fab-container')) {
+                closeFab();
+            }
+        });
 
-    handleRadioChange(e) {
-        const radio = e.target;
-        const row = radio.closest('.student-row');
-        if (!row) return;
-        const tbody = row.closest('tbody');
-        tbody.querySelectorAll('.student-row').forEach(r => r.classList.remove('selected'));
-        row.classList.add('selected');
+        console.log('✅ Event delegation initialized');
     },
 
     handleAction(action) {
@@ -616,6 +662,15 @@ const EventDelegation = {
             case 'downloadRekapAbsenWali':
                 downloadRekapAbsenWali();
                 break;
+            case 'quickAbsenHariIni':
+                quickAbsenHariIni();
+                break;
+            case 'quickLihatRiwayat':
+                quickLihatRiwayat();
+                break;
+            case 'quickDownloadRekap':
+                quickDownloadRekap();
+                break;
             default:
                 console.warn(`Action tidak dikenal: ${action}`);
         }
@@ -623,23 +678,21 @@ const EventDelegation = {
 };
 
 EventDelegation.init();
-// ===== SELESAI: EVENT DELEGATION TERPUSAT =====
+// ===== SELESAI: EVENT DELEGATION =====
 
 
 // =========================================================
-// FUNGSI CUSTOM ALERT (popup notifikasi)
+// MODAL (Alert & Confirm)
 // =========================================================
 function showAlert(message, isSuccess = true) {
     if (isSuccess) {
         DOM.alertIcon.innerHTML = '✓';
         DOM.alertIcon.className = 'modal-icon icon-success';
         DOM.alertTitle.innerText = 'Berhasil!';
-        DOM.customAlert.querySelector('.modal-btn').style.backgroundColor = '#10B981';
     } else {
         DOM.alertIcon.innerHTML = '✕';
         DOM.alertIcon.className = 'modal-icon icon-error';
-        DOM.alertTitle.innerText = 'Oops, Gagal!';
-        DOM.customAlert.querySelector('.modal-btn').style.backgroundColor = '#EF4444';
+        DOM.alertTitle.innerText = 'Oops!';
     }
     DOM.alertMessage.innerText = message;
     DOM.customAlert.classList.add('active');
@@ -648,12 +701,7 @@ function showAlert(message, isSuccess = true) {
 function closeCustomAlert() {
     DOM.customAlert.classList.remove('active');
 }
-// ===== SELESAI: FUNGSI CUSTOM ALERT =====
 
-
-// =========================================================
-// FUNGSI CUSTOM CONFIRM (popup Ya/Tidak)
-// =========================================================
 function showConfirmModal(message) {
     return new Promise((resolve) => {
         DOM.confirmMessage.innerText = message;
@@ -670,43 +718,29 @@ function showConfirmModal(message) {
         DOM.confirmBtnNo.addEventListener('click', onNo);
     });
 }
-// ===== SELESAI: FUNGSI CUSTOM CONFIRM =====
+// ===== SELESAI: MODAL =====
 
 
 // =========================================================
-// FUNGSI BANTUAN: FORMAT TANGGAL & PEMECAH STRING NIS
-// =========================================================
-function formatTanggalIndoShort(tanggalIso) {
-    const [y, m, d] = tanggalIso.split('-');
-    return `${d}/${m}/${y}`;
-}
-
-function formatTanggalIndo(tanggalStr) {
-    const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-    const [y, m, d] = tanggalStr.split('-');
-    return `${parseInt(d, 10)} ${bulan[parseInt(m, 10) - 1]} ${y}`;
-}
-
-function splitNisList(str) {
-    return (str || "").toString().split(',').map(s => s.trim()).filter(s => s !== "");
-}
-// ===== SELESAI: FUNGSI BANTUAN =====
-
-
-// =========================================================
-// HANDLE LOGIN
+// LOGIN
 // =========================================================
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const user = document.getElementById('username').value;
     const pass = document.getElementById('password').value;
     const btn = e.target.querySelector('button');
-    btn.innerText = 'Mengecek...';
+    const originalText = btn.querySelector('.btn-text').innerText;
+    
+    btn.querySelector('.btn-text').classList.add('hidden');
+    btn.querySelector('.btn-loader').classList.remove('hidden');
+    btn.disabled = true;
     DOM.loginMsg.innerText = '';
+    
     try {
         const resData = await fetchGas({ action: 'login', username: user, password: pass }, null, true);
         if (resData.success) {
             AppState.setSession(resData.data);
+            showToast(`Selamat datang, ${resData.data.nama}!`, 'success');
             showDashboard();
         } else {
             DOM.loginMsg.innerText = resData.message;
@@ -714,13 +748,16 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     } catch (error) {
         DOM.loginMsg.innerText = "Gagal terhubung ke server.";
     }
-    btn.innerText = 'Login';
+    
+    btn.querySelector('.btn-text').classList.remove('hidden');
+    btn.querySelector('.btn-loader').classList.add('hidden');
+    btn.disabled = false;
 });
-// ===== SELESAI: HANDLE LOGIN =====
+// ===== SELESAI: LOGIN =====
 
 
 // =========================================================
-// TAMPILKAN DASHBOARD (setelah login / saat sesi ditemukan)
+// DASHBOARD
 // =========================================================
 function showDashboard() {
     const session = AppState.session;
@@ -728,7 +765,8 @@ function showDashboard() {
 
     DOM.loginSection.classList.add('hidden');
     DOM.dashboardSection.classList.remove('hidden');
-    DOM.greeting.innerText = `Selamat Mengajar, ${session.nama}`;
+    DOM.greeting.innerText = `Halo, ${session.nama}`;
+    DOM.headerDate.innerText = formatTanggalPanjang(new Date());
     DOM.tanggalAbsen.valueAsDate = new Date();
 
     const mapelArr = session.mapel.split(',').map(s => s.trim());
@@ -737,6 +775,9 @@ function showDashboard() {
     const kelasArr = session.kelas.split(',').map(s => s.trim());
     DOM.selectKelas.innerHTML = '<option value="" disabled selected>-- Pilih Kelas --</option>' +
                                 kelasArr.map(k => `<option value="${k}">${k}</option>`).join('');
+
+    // Tampilkan FAB
+    DOM.fabContainer.classList.remove('hidden');
 
     if (session.kelasWali) {
         DOM.tabBtnAbsenWali.classList.remove('hidden');
@@ -748,12 +789,7 @@ function showDashboard() {
         DOM.tabBtnAbsenWali.classList.add('hidden');
     }
 }
-// ===== SELESAI: TAMPILKAN DASHBOARD =====
 
-
-// =========================================================
-// GANTI TAB
-// =========================================================
 function switchTab(tabId) {
     document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
     document.getElementById(tabId).classList.remove('hidden');
@@ -761,56 +797,49 @@ function switchTab(tabId) {
     document.querySelector(`.tab-btn[data-tab="${tabId}"]`).classList.add('active');
 
     AppState.ui.currentTab = tabId;
-
-    // Bersihkan error/warning form saat pindah tab
-    // (supaya tidak ada error "hantu" yang tertinggal)
     FormValidator.clearAll();
 
     if (tabId === 'panelRiwayat') setupRiwayatSelectors();
     if (tabId === 'panelDashboard') loadDashboard();
 }
-// ===== SELESAI: GANTI TAB =====
+// ===== SELESAI: DASHBOARD =====
 
 
 // =========================================================
-// FETCH DATA SISWA (panel Input Absensi per Mapel)
+// FETCH DATA SISWA
 // =========================================================
 async function fetchStudents(kelas) {
     const tbody = DOM.studentsBody;
-    const loading = DOM.loading;
     const btnSubmit = DOM.btnSubmit;
     tbody.innerHTML = '';
-    btnSubmit.style.display = 'none';
-    loading.classList.remove('hidden');
+    btnSubmit.classList.add('hidden');
+    
+    // Tampilkan skeleton loader
+    showSkeleton('skeletonLoader');
 
     try {
         let students = AppState.getStudents(kelas);
         if (!students) {
             const resData = await fetchGas('getStudents', { kelas });
-            loading.classList.add('hidden');
+            hideSkeleton('skeletonLoader');
             if (!resData.success || resData.data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3">${resData.message || 'Tidak ada data siswa.'}</td></tr>`;
+                tbody.innerHTML = `<tr class="empty-row"><td colspan="3"><div class="empty-state-illustration"><svg viewBox="0 0 200 150"><circle cx="100" cy="75" r="50" fill="#E0E7FF"/></svg><p>${resData.message || 'Tidak ada data siswa.'}</p></div></td></tr>`;
                 return;
             }
             students = resData.data;
             AppState.cacheStudents(kelas, students);
         } else {
-            loading.classList.add('hidden');
+            hideSkeleton('skeletonLoader');
         }
         StudentTable.render('studentsBody', students);
-        btnSubmit.style.display = 'block';
+        btnSubmit.classList.remove('hidden');
         await checkExistingAttendance();
     } catch (error) {
-        loading.classList.add('hidden');
-        tbody.innerHTML = `<tr><td colspan="3">Gagal mengambil data siswa.</td></tr>`;
+        hideSkeleton('skeletonLoader');
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="3"><div class="empty-state-illustration"><p>Gagal mengambil data siswa.</p></div></td></tr>`;
     }
 }
-// ===== SELESAI: FETCH DATA SISWA (panel mapel) =====
 
-
-// =========================================================
-// CEK ABSENSI YANG SUDAH ADA (panel Input Absensi per Mapel)
-// =========================================================
 async function checkExistingAttendance() {
     const mapel = DOM.selectMapel.value;
     const kelas = DOM.selectKelas.value;
@@ -821,17 +850,15 @@ async function checkExistingAttendance() {
     if (!mapel || !kelas || !tanggal) return;
     if (!StudentTable.hasData('studentsBody')) return;
 
-    btnSubmit.innerText = "Mengecek status...";
     try {
         const resData = await fetchGas('getExistingAttendance', { guru, mapel, kelas, tanggal });
         if (resData.success && resData.data) {
             const lanjutEdit = await showConfirmModal(
-                `Absensi untuk kelas ${kelas} - mapel ${mapel} pada tanggal ${formatTanggalIndo(tanggal)} sudah pernah diisi sebelumnya. Lanjutkan untuk mengedit data yang sudah tersimpan?`
+                `Absensi untuk ${kelas} - ${mapel} pada ${formatTanggalIndo(tanggal)} sudah ada. Edit data yang tersimpan?`
             );
             if (!lanjutEdit) {
                 tanggalInput.value = '';
-                btnSubmit.style.display = 'none';
-                btnSubmit.innerText = "Simpan Absensi";
+                btnSubmit.classList.add('hidden');
                 return;
             }
             const savedIzin = splitNisList(resData.data.izin);
@@ -846,39 +873,30 @@ async function checkExistingAttendance() {
                 else if (savedAlpa.includes(nis)) status = 'A';
                 StudentTable.setStatus('studentsBody', nis, status);
             });
-            btnSubmit.innerText = "Perbarui Absensi";
+            btnSubmit.querySelector('.btn-text').innerText = '💾 Perbarui Absensi';
         } else {
             StudentTable.resetAll('studentsBody');
-            btnSubmit.innerText = "Simpan Absensi";
+            btnSubmit.querySelector('.btn-text').innerText = '💾 Simpan Absensi';
         }
     } catch (error) {
-        btnSubmit.innerText = "Simpan Absensi";
+        btnSubmit.querySelector('.btn-text').innerText = '💾 Simpan Absensi';
     }
 }
-// ===== SELESAI: CEK ABSENSI YANG SUDAH ADA (panel mapel) =====
+// ===== SELESAI: FETCH DATA SISWA =====
 
 
 // =========================================================
-// SUBMIT ABSENSI (panel Input Absensi per Mapel)
-// ---------------------------------------------------------
-// PERUBAHAN PRIORITAS #5:
-// Sebelum submit, panggil FormValidator.validateAbsenForm()
-// untuk cek semua field. Kalau ada error, tampilkan inline
-// & batal submit. Warning tidak menghalangi submit.
+// SUBMIT ABSENSI
 // =========================================================
 document.getElementById('absenForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = DOM.btnSubmit;
 
-    // ===== VALIDASI FORM (Prioritas #5) =====
     const validationResult = FormValidator.validateAbsenForm();
     if (!FormValidator.applyValidation(validationResult)) {
-        // Ada error -- tampilkan alert & batal submit
-        showAlert('Mohon perbaiki field yang ditandai merah.', false);
+        showToast('Mohon perbaiki field yang ditandai', 'error');
         return;
     }
-    // Kalau ada warning (tapi tidak ada error), lanjut submit
-    // Warning hanya informasi, tidak menghalangi.
 
     const attendanceData = StudentTable.getAttendanceData('studentsBody');
     const payload = {
@@ -888,8 +906,10 @@ document.getElementById('absenForm').addEventListener('submit', async (e) => {
         tanggal: DOM.tanggalAbsen.value,
         attendance: attendanceData
     };
-    btn.innerText = "Menyimpan...";
+    
     btn.disabled = true;
+    showButtonProgress(btn);
+    
     try {
         const resData = await fetchGas({
             action: 'submit',
@@ -897,35 +917,32 @@ document.getElementById('absenForm').addEventListener('submit', async (e) => {
             token: AppState.session.token,
             payload: payload
         }, null, true);
+        
         if (resData.success) {
-            showAlert(resData.message, true);
-            btn.innerText = "Perbarui Absensi";
-            // Bersihkan error/warning setelah submit berhasil
+            showToast(resData.message, 'success');
+            btn.querySelector('.btn-text').innerText = '💾 Perbarui Absensi';
             FormValidator.clearAll();
         } else if (resData.sessionExpired) {
             showAlert(resData.message, false);
             setTimeout(logout, 1500);
         } else {
-            showAlert(resData.message, false);
-            btn.innerText = "Simpan Absensi";
+            showToast(resData.message, 'error');
         }
     } catch (error) {
-        showAlert("Terjadi kesalahan jaringan saat menyimpan data.", false);
-        btn.innerText = "Simpan Absensi";
+        showToast("Terjadi kesalahan jaringan", 'error');
     }
+    
     btn.disabled = false;
+    hideButtonProgress(btn);
 });
-// ===== SELESAI: SUBMIT ABSENSI (panel mapel) =====
+// ===== SELESAI: SUBMIT ABSENSI =====
 
 
 // =========================================================
-// REKAP KELAS SAYA (download .xlsx)
+// REKAP & LOGOUT
 // =========================================================
 async function downloadRekapKelasSaya() {
-    const btn = document.getElementById('btnRecap');
-    const originalText = btn.innerHTML;
-    btn.innerText = "Menyiapkan file...";
-    btn.disabled = true;
+    showToast('Menyiapkan file rekap...', 'info');
     try {
         const resData = await fetchGas('getRekapKelasSaya', {
             mapel: AppState.session.mapel,
@@ -939,31 +956,24 @@ async function downloadRekapKelasSaya() {
             });
             const namaFile = `Rekap_${AppState.session.nama}_${new Date().toISOString().slice(0, 10)}.xlsx`;
             XLSX.writeFile(wb, namaFile);
-            showAlert("Rekap berhasil dibuat dan diunduh!", true);
+            showToast("Rekap berhasil diunduh!", 'success');
         } else {
-            showAlert(resData.message, false);
+            showToast(resData.message, 'error');
         }
     } catch (error) {
-        showAlert("Terjadi kesalahan saat menyiapkan file rekap.", false);
+        showToast("Gagal menyiapkan file rekap", 'error');
     }
-    btn.innerHTML = originalText;
-    btn.disabled = false;
 }
-// ===== SELESAI: REKAP KELAS SAYA =====
 
-
-// =========================================================
-// LOGOUT
-// =========================================================
 function logout() {
     AppState.reset();
     window.location.reload();
 }
-// ===== SELESAI: LOGOUT =====
+// ===== SELESAI: REKAP & LOGOUT =====
 
 
 // =========================================================
-// PANEL RIWAYAT ABSENSI (per mapel)
+// RIWAYAT
 // =========================================================
 function setupRiwayatSelectors() {
     if (DOM.riwayatMapel.dataset.filled) return;
@@ -981,73 +991,75 @@ async function fetchRiwayat() {
     if (!mapel || !kelas) return;
 
     DOM.riwayatList.innerHTML = '';
-    DOM.riwayatLoading.classList.remove('hidden');
+    showSkeleton('riwayatLoading');
+    
     try {
         const resData = await fetchGas('getRiwayatAbsensi', { mapel, kelas });
-        DOM.riwayatLoading.classList.add('hidden');
+        hideSkeleton('riwayatLoading');
         if (resData.success && resData.data.length > 0) {
             DOM.riwayatList.innerHTML = resData.data.map(rec => {
                 const rincian = [
-                    rec.namaIzin.length ? `Izin: ${rec.namaIzin.join(', ')}` : '',
-                    rec.namaSakit.length ? `Sakit: ${rec.namaSakit.join(', ')}` : '',
-                    rec.namaAlpa.length ? `Alpa: ${rec.namaAlpa.join(', ')}` : ''
-                ].filter(Boolean).join(' &middot; ');
+                    rec.namaIzin.length ? `📝 Izin: ${rec.namaIzin.join(', ')}` : '',
+                    rec.namaSakit.length ? `🤒 Sakit: ${rec.namaSakit.join(', ')}` : '',
+                    rec.namaAlpa.length ? `❌ Alpa: ${rec.namaAlpa.join(', ')}` : ''
+                ].filter(Boolean).join(' · ');
                 return `
                     <div class="riwayat-card">
                         <div class="riwayat-header">
-                            <span class="riwayat-tanggal">${formatTanggalIndo(rec.tanggal)}</span>
-                            <span class="riwayat-badge">${rec.jumlahHadir} Hadir</span>
+                            <span class="riwayat-tanggal">📅 ${formatTanggalIndo(rec.tanggal)}</span>
+                            <span class="riwayat-badge">✓ ${rec.jumlahHadir} Hadir</span>
                         </div>
                         <div class="riwayat-stats">
-                            <span>Izin: ${rec.jumlahIzin}</span>
-                            <span>Sakit: ${rec.jumlahSakit}</span>
-                            <span>Alpa: ${rec.jumlahAlpa}</span>
+                            <span>📝 ${rec.jumlahIzin}</span>
+                            <span>🤒 ${rec.jumlahSakit}</span>
+                            <span>❌ ${rec.jumlahAlpa}</span>
                         </div>
                         ${rincian ? `<div class="riwayat-detail">${rincian}</div>` : ''}
                     </div>
                 `;
             }).join('');
         } else {
-            DOM.riwayatList.innerHTML = `<p class="empty-state">Belum ada riwayat absensi untuk kelas &amp; mapel ini.</p>`;
+            DOM.riwayatList.innerHTML = `<div class="empty-state-illustration large"><svg viewBox="0 0 200 150"><circle cx="100" cy="75" r="50" fill="#E0E7FF"/><text x="100" y="85" text-anchor="middle" font-size="40">📚</text></svg><p>Belum ada riwayat absensi</p></div>`;
         }
     } catch (error) {
-        DOM.riwayatLoading.classList.add('hidden');
-        DOM.riwayatList.innerHTML = `<p class="empty-state">Gagal mengambil riwayat absensi.</p>`;
+        hideSkeleton('riwayatLoading');
+        DOM.riwayatList.innerHTML = `<div class="empty-state-illustration"><p>Gagal mengambil riwayat</p></div>`;
     }
 }
-// ===== SELESAI: PANEL RIWAYAT ABSENSI =====
+// ===== SELESAI: RIWAYAT =====
 
 
 // =========================================================
-// PANEL DASHBOARD ANALITIK
+// DASHBOARD ANALITIK
 // =========================================================
 async function loadDashboard() {
-    DOM.dashboardLoading.classList.remove('hidden');
+    showSkeleton('dashboardLoading');
     DOM.dashboardContent.classList.add('hidden');
+    
     try {
         const resData = await fetchGas('getDashboardData', {
             mapel: AppState.session.mapel,
             kelas: AppState.session.kelas
         });
-        DOM.dashboardLoading.classList.add('hidden');
+        hideSkeleton('dashboardLoading');
         DOM.dashboardContent.classList.remove('hidden');
         if (resData.success) {
             renderRekapKelasMapel(resData.data.rekapKelasMapel);
             renderTrendChart(resData.data.trend);
             renderTopAlpa(resData.data.topAlpa);
         } else {
-            DOM.dashboardContent.innerHTML = `<p class="empty-state">${resData.message || 'Belum ada data absensi untuk ditampilkan.'}</p>`;
+            DOM.dashboardContent.innerHTML = `<div class="empty-state-illustration large"><p>${resData.message || 'Belum ada data'}</p></div>`;
         }
     } catch (error) {
-        DOM.dashboardLoading.classList.add('hidden');
+        hideSkeleton('dashboardLoading');
         DOM.dashboardContent.classList.remove('hidden');
-        DOM.dashboardContent.innerHTML = `<p class="empty-state">Gagal memuat data dashboard.</p>`;
+        DOM.dashboardContent.innerHTML = `<div class="empty-state-illustration"><p>Gagal memuat dashboard</p></div>`;
     }
 }
 
 function renderRekapKelasMapel(list) {
     if (!list || list.length === 0) {
-        DOM.rekapKelasMapelList.innerHTML = `<p class="empty-state">Belum ada data.</p>`;
+        DOM.rekapKelasMapelList.innerHTML = `<div class="empty-state-illustration"><p>Belum ada data</p></div>`;
         return;
     }
     DOM.rekapKelasMapelList.innerHTML = list.map(item => `
@@ -1065,14 +1077,14 @@ function renderRekapKelasMapel(list) {
 
 function renderTopAlpa(list) {
     if (!list || list.length === 0) {
-        DOM.topAlpaList.innerHTML = `<p class="empty-state">Tidak ada siswa dengan catatan Alpa. Bagus!</p>`;
+        DOM.topAlpaList.innerHTML = `<div class="empty-state-illustration"><p>🎉 Tidak ada siswa dengan catatan Alpa</p></div>`;
         return;
     }
     DOM.topAlpaList.innerHTML = list.map((s, i) => `
         <div class="alpa-item">
             <span class="alpa-rank">${i + 1}</span>
             <span class="alpa-nama">${s.nama}</span>
-            <span class="alpa-jumlah">${s.jumlahAlpa}x Alpa</span>
+            <span class="alpa-jumlah">${s.jumlahAlpa}x</span>
         </div>
     `).join('');
 }
@@ -1088,15 +1100,20 @@ function renderTrendChart(trend) {
             datasets: [{
                 label: '% Kehadiran',
                 data: trend.map(t => t.persenHadir),
-                borderColor: '#4F46E5',
-                backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                tension: 0.3,
+                borderColor: '#6366F1',
+                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                tension: 0.4,
                 fill: true,
-                pointRadius: 3
+                pointRadius: 4,
+                pointBackgroundColor: '#6366F1',
+                pointBorderColor: '#fff',
+                pointBorderWidth: 2,
+                pointHoverRadius: 6
             }]
         },
         options: {
             responsive: true,
+            maintainAspectRatio: true,
             scales: {
                 y: { min: 0, max: 100, ticks: { callback: v => v + '%' } }
             },
@@ -1105,40 +1122,40 @@ function renderTrendChart(trend) {
     });
     AppState.setChart('trend', chartInstance);
 }
-// ===== SELESAI: PANEL DASHBOARD ANALITIK =====
+// ===== SELESAI: DASHBOARD ANALITIK =====
 
 
 // =========================================================
-// PANEL ABSEN WALI KELAS
+// ABSEN WALI
 // =========================================================
 async function fetchStudentsWali(kelas) {
     const tbody = DOM.waliStudentsBody;
-    const loading = DOM.waliLoading;
     const btnSubmit = DOM.waliBtnSubmit;
     tbody.innerHTML = '';
-    btnSubmit.style.display = 'none';
-    loading.classList.remove('hidden');
+    btnSubmit.classList.add('hidden');
+    
+    showSkeleton('waliSkeletonLoader');
 
     try {
         let students = AppState.getStudents(kelas);
         if (!students) {
             const resData = await fetchGas('getStudents', { kelas });
-            loading.classList.add('hidden');
+            hideSkeleton('waliSkeletonLoader');
             if (!resData.success || resData.data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3">${resData.message || 'Tidak ada data siswa.'}</td></tr>`;
+                tbody.innerHTML = `<tr class="empty-row"><td colspan="3"><div class="empty-state-illustration"><p>${resData.message || 'Tidak ada data siswa.'}</p></div></td></tr>`;
                 return;
             }
             students = resData.data;
             AppState.cacheStudents(kelas, students);
         } else {
-            loading.classList.add('hidden');
+            hideSkeleton('waliSkeletonLoader');
         }
         StudentTable.render('waliStudentsBody', students);
-        btnSubmit.style.display = 'block';
+        btnSubmit.classList.remove('hidden');
         await checkExistingAbsenWali();
     } catch (error) {
-        loading.classList.add('hidden');
-        tbody.innerHTML = `<tr><td colspan="3">Gagal mengambil data siswa.</td></tr>`;
+        hideSkeleton('waliSkeletonLoader');
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="3"><div class="empty-state-illustration"><p>Gagal mengambil data siswa.</p></div></td></tr>`;
     }
 }
 
@@ -1150,54 +1167,47 @@ async function checkExistingAbsenWali() {
     if (!kelas || !tanggal) return;
     if (!StudentTable.hasData('waliStudentsBody')) return;
 
-    btnSubmit.innerText = "Mengecek status...";
     try {
         const resData = await fetchGas('getAbsenWaliExisting', { kelas, tanggal });
         if (resData.success && resData.data) {
             const lanjutEdit = await showConfirmModal(
-                `Absensi harian kelas ${kelas} untuk tanggal ${formatTanggalIndo(tanggal)} sudah pernah diisi sebelumnya. Lanjutkan untuk mengedit data yang sudah tersimpan?`
+                `Absensi harian ${kelas} untuk ${formatTanggalIndo(tanggal)} sudah ada. Edit data?`
             );
             if (!lanjutEdit) {
                 tanggalInput.value = '';
-                btnSubmit.style.display = 'none';
-                btnSubmit.innerText = "Simpan Absensi";
+                btnSubmit.classList.add('hidden');
                 return;
             }
             Object.entries(resData.data).forEach(([nis, status]) => {
                 StudentTable.setStatus('waliStudentsBody', nis, status || 'H');
             });
-            btnSubmit.innerText = "Perbarui Absensi";
+            btnSubmit.querySelector('.btn-text').innerText = '💾 Perbarui Absensi';
         } else {
             StudentTable.resetAll('waliStudentsBody');
-            btnSubmit.innerText = "Simpan Absensi";
+            btnSubmit.querySelector('.btn-text').innerText = '💾 Simpan Absensi';
         }
     } catch (error) {
-        btnSubmit.innerText = "Simpan Absensi";
+        btnSubmit.querySelector('.btn-text').innerText = '💾 Simpan Absensi';
     }
 }
 
-// =========================================================
-// SUBMIT ABSENSI WALI KELAS
-// ---------------------------------------------------------
-// PERUBAHAN PRIORITAS #5:
-// Sama seperti panel mapel -- validasi form dulu sebelum submit.
-// =========================================================
 document.getElementById('waliAbsenForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = DOM.waliBtnSubmit;
 
-    // ===== VALIDASI FORM (Prioritas #5) =====
     const validationResult = FormValidator.validateWaliForm();
     if (!FormValidator.applyValidation(validationResult)) {
-        showAlert('Mohon perbaiki field yang ditandai merah.', false);
+        showToast('Mohon perbaiki field yang ditandai', 'error');
         return;
     }
 
     const dataKehadiran = StudentTable.getAttendanceData('waliStudentsBody');
     const kelas = AppState.session.kelasWali;
     const tanggal = DOM.waliTanggal.value;
-    btn.innerText = "Menyimpan...";
+    
     btn.disabled = true;
+    showButtonProgress(btn);
+    
     try {
         const resData = await fetchGas({
             action: 'submitAbsenWali',
@@ -1207,74 +1217,68 @@ document.getElementById('waliAbsenForm').addEventListener('submit', async (e) =>
             tanggal,
             dataKehadiran
         }, null, true);
+        
         if (resData.success) {
-            showAlert(resData.message, true);
-            btn.innerText = "Perbarui Absensi";
+            showToast(resData.message, 'success');
+            btn.querySelector('.btn-text').innerText = '💾 Perbarui Absensi';
             fetchRiwayatAbsenWali();
             FormValidator.clearAll();
         } else if (resData.sessionExpired) {
             showAlert(resData.message, false);
             setTimeout(logout, 1500);
         } else {
-            showAlert(resData.message, false);
-            btn.innerText = "Simpan Absensi";
+            showToast(resData.message, 'error');
         }
     } catch (error) {
-        showAlert("Terjadi kesalahan jaringan saat menyimpan data.", false);
-        btn.innerText = "Simpan Absensi";
+        showToast("Terjadi kesalahan jaringan", 'error');
     }
+    
     btn.disabled = false;
+    hideButtonProgress(btn);
 });
-// ===== SELESAI: SUBMIT ABSENSI WALI KELAS =====
 
-
-// =========================================================
-// RIWAYAT & REKAP ABSEN WALI KELAS
-// =========================================================
 async function fetchRiwayatAbsenWali() {
     if (!AppState.session.kelasWali) return;
     DOM.waliRiwayatList.innerHTML = '';
-    DOM.waliRiwayatLoading.classList.remove('hidden');
+    showSkeleton('waliRiwayatLoading');
+    
     try {
         const resData = await fetchGas('getRiwayatAbsenWali', { kelas: AppState.session.kelasWali });
-        DOM.waliRiwayatLoading.classList.add('hidden');
+        hideSkeleton('waliRiwayatLoading');
         if (resData.success && resData.data.length > 0) {
             DOM.waliRiwayatList.innerHTML = resData.data.map(rec => {
                 const rincian = [
-                    rec.namaIzin.length ? `Izin: ${rec.namaIzin.join(', ')}` : '',
-                    rec.namaSakit.length ? `Sakit: ${rec.namaSakit.join(', ')}` : '',
-                    rec.namaAlpa.length ? `Alpa: ${rec.namaAlpa.join(', ')}` : ''
-                ].filter(Boolean).join(' &middot; ');
+                    rec.namaIzin.length ? `📝 Izin: ${rec.namaIzin.join(', ')}` : '',
+                    rec.namaSakit.length ? `🤒 Sakit: ${rec.namaSakit.join(', ')}` : '',
+                    rec.namaAlpa.length ? `❌ Alpa: ${rec.namaAlpa.join(', ')}` : ''
+                ].filter(Boolean).join(' · ');
                 return `
                     <div class="riwayat-card">
                         <div class="riwayat-header">
-                            <span class="riwayat-tanggal">${formatTanggalIndo(rec.tanggal)}</span>
-                            <span class="riwayat-badge">${rec.jumlahHadir} Hadir</span>
+                            <span class="riwayat-tanggal">📅 ${formatTanggalIndo(rec.tanggal)}</span>
+                            <span class="riwayat-badge">✓ ${rec.jumlahHadir} Hadir</span>
                         </div>
                         <div class="riwayat-stats">
-                            <span>Izin: ${rec.jumlahIzin}</span>
-                            <span>Sakit: ${rec.jumlahSakit}</span>
-                            <span>Alpa: ${rec.jumlahAlpa}</span>
+                            <span>📝 ${rec.jumlahIzin}</span>
+                            <span>🤒 ${rec.jumlahSakit}</span>
+                            <span>❌ ${rec.jumlahAlpa}</span>
                         </div>
                         ${rincian ? `<div class="riwayat-detail">${rincian}</div>` : ''}
                     </div>
                 `;
             }).join('');
         } else {
-            DOM.waliRiwayatList.innerHTML = `<p class="empty-state">Belum ada riwayat absensi wali kelas.</p>`;
+            DOM.waliRiwayatList.innerHTML = `<div class="empty-state-illustration"><p>Belum ada riwayat absensi wali</p></div>`;
         }
     } catch (error) {
-        DOM.waliRiwayatLoading.classList.add('hidden');
-        DOM.waliRiwayatList.innerHTML = `<p class="empty-state">Gagal mengambil riwayat absensi wali kelas.</p>`;
+        hideSkeleton('waliRiwayatLoading');
+        DOM.waliRiwayatList.innerHTML = `<div class="empty-state-illustration"><p>Gagal mengambil riwayat</p></div>`;
     }
 }
 
 async function downloadRekapAbsenWali() {
     if (!AppState.session.kelasWali) return;
-    const btn = document.getElementById('btnRekapWali');
-    const originalText = btn.innerHTML;
-    btn.innerText = "Menyiapkan file...";
-    btn.disabled = true;
+    showToast('Menyiapkan file rekap wali...', 'info');
     try {
         const resData = await fetchGas('getRekapAbsenWali', { kelas: AppState.session.kelasWali });
         if (resData.success) {
@@ -1285,14 +1289,12 @@ async function downloadRekapAbsenWali() {
             });
             const namaFile = `Rekap_Wali_${AppState.session.kelasWali}_${new Date().toISOString().slice(0, 10)}.xlsx`;
             XLSX.writeFile(wb, namaFile);
-            showAlert("Rekap wali kelas berhasil dibuat dan diunduh!", true);
+            showToast("Rekap wali berhasil diunduh!", 'success');
         } else {
-            showAlert(resData.message, false);
+            showToast(resData.message, 'error');
         }
     } catch (error) {
-        showAlert("Terjadi kesalahan saat menyiapkan file rekap wali kelas.", false);
+        showToast("Gagal menyiapkan file rekap wali", 'error');
     }
-    btn.innerHTML = originalText;
-    btn.disabled = false;
 }
-// ===== SELESAI: RIWAYAT & REKAP ABSEN WALI KELAS =====
+// ===== SELESAI: ABSEN WALI =====
