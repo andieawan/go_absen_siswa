@@ -192,6 +192,18 @@
                 </div>
                 <button type="submit" id="waliBtnSubmit" style="margin-top: 20px; display: none;">Simpan Absensi</button>
             </form>
+
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #E5E7EB;">
+
+            <div class="action-buttons" style="justify-content: flex-start;">
+                <button id="btnRekapWali" onclick="downloadRekapAbsenWali()" style="background-color: #10B981; width: auto;">📥 Unduh Rekap Wali Kelas (.xlsx)</button>
+            </div>
+
+            <h3>Riwayat Absensi Wali Kelas</h3>
+            <div id="waliRiwayatLoading" class="hidden">Mengambil riwayat...</div>
+            <div id="waliRiwayatList">
+                <p class="empty-state">Riwayat akan muncul di sini setelah ada absensi tersimpan.</p>
+            </div>
         </div>
         <!-- ===== SELESAI: PANEL ABSEN WALI KELAS ===== -->
     </div>
