@@ -5,16 +5,21 @@ Ubah warna utama aplikasi di sini:
 - --primary : warna utama (tombol, tab aktif, progress bar)
 - --bg      : warna latar belakang halaman
 - --text    : warna teks utama
+- --error   : warna error (merah)
+- --warning : warna warning (kuning/oranye)
 
-Kalau mau ganti tema warna, cukup ubah 3 variabel di atas.
+Kalau mau ganti tema warna, cukup ubah variabel di atas.
 ========================================================= */
 :root {
     --primary: #4F46E5;
     --bg: #F3F4F6;
     --text: #1F2937;
+    --error: #EF4444;
+    --error-bg: #FEF2F2;
+    --warning: #F59E0B;
+    --warning-bg: #FFFBEB;
 }
 
-/* Reset box-sizing supaya padding tidak merusak lebar elemen */
 *, *::before, *::after {
     box-sizing: border-box;
 }
@@ -31,10 +36,7 @@ body {
 
 
 /* =========================================================
-LAYOUT UTAMA (kotak putih pembungkus semua konten)
----------------------------------------------------------
-Maksimum lebar 800px supaya tetap rapi di layar besar,
-dan otomatis full-width di HP.
+LAYOUT UTAMA
 ========================================================= */
 .container {
     max-width: 800px;
@@ -62,14 +64,14 @@ h4 {
 
 
 /* =========================================================
-STYLE FORM (input, label, select)
+STYLE FORM
 ---------------------------------------------------------
 PENTING: font-size minimal 16px supaya Safari iOS tidak
-auto-zoom saat input difokuskan. min-height 44px adalah
-ukuran target sentuh minimal yang nyaman di HP (Apple HIG).
+auto-zoom saat input difokuskan.
 ========================================================= */
 .form-group {
     margin-bottom: 15px;
+    position: relative; /* supaya error message bisa diposisikan relatif */
 }
 
 .form-group label {
@@ -84,8 +86,9 @@ ukuran target sentuh minimal yang nyaman di HP (Apple HIG).
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
-    font-size: 16px; /* wajib >=16px, kalau tidak Safari iOS auto-zoom */
-    min-height: 44px; /* target sentuh minimal yang nyaman di HP */
+    font-size: 16px;
+    min-height: 44px;
+    transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .form-group input:focus,
@@ -98,11 +101,73 @@ ukuran target sentuh minimal yang nyaman di HP (Apple HIG).
 
 
 /* =========================================================
-STYLE TOMBOL
+FORM VALIDATION VISUAL (Prioritas #5)
 ---------------------------------------------------------
-Semua tombol default pakai warna primary. Tombol dengan
-warna khusus (misal Logout merah, Rekap hijau) diatur lewat
-inline style di HTML atau class khusus.
+Style untuk inline error & warning message pada field form.
+Ditambahkan oleh FormValidator component di script.js.
+
+CARA KERJA:
+- Field error: border merah + background merah muda + glow merah
+- Field warning: border kuning + background kuning muda + glow kuning
+- Pesan error/warning muncul di bawah field, dengan ikon
+
+AKSESIBILITAS:
+- Error message pakai role="alert" supaya screen reader baca
+- Kontras warna sudah disesuaikan dengan WCAG AA
+========================================================= */
+
+/* Field dengan error: border merah, background merah muda */
+.field-error {
+    border-color: var(--error) !important;
+    background-color: var(--error-bg) !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+}
+
+/* Animasi pulse untuk menarik perhatian ke field error */
+@keyframes field-error-pulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15); }
+    50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0.3); }
+}
+
+.field-error {
+    animation: field-error-pulse 1.2s ease-in-out;
+}
+
+/* Pesan error di bawah field */
+.field-error-message {
+    color: #DC2626;
+    font-size: 0.85rem;
+    margin-top: 6px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 0;
+}
+
+/* Field dengan warning: border kuning, background kuning muda */
+.field-warning {
+    border-color: var(--warning) !important;
+    background-color: var(--warning-bg) !important;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15) !important;
+}
+
+/* Pesan warning di bawah field */
+.field-warning-message {
+    color: #B45309;
+    font-size: 0.85rem;
+    margin-top: 6px;
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 0;
+}
+/* ===== SELESAI: FORM VALIDATION VISUAL ===== */
+
+
+/* =========================================================
+STYLE TOMBOL
 ========================================================= */
 button {
     padding: 10px;
@@ -136,9 +201,6 @@ button:disabled {
 
 /* =========================================================
 STYLE TABEL DAFTAR SISWA
----------------------------------------------------------
-Wrapper .table-wrapper memungkinkan scroll horizontal di
-layar kecil supaya tabel tidak rusak.
 ========================================================= */
 .table-wrapper {
     overflow-x: auto;
@@ -169,8 +231,7 @@ th {
 RADIO BUTTON KEHADIRAN (H/I/S/A)
 ---------------------------------------------------------
 Label dibuat seperti "pil" supaya area sentuhnya besar di HP.
-Saat radio dipilih, label-nya berubah warna sesuai status
-(H = hijau, I = biru, S = kuning, A = merah).
+Saat radio dipilih, label-nya berubah warna sesuai status.
 ========================================================= */
 .radio-group {
     display: flex;
@@ -203,7 +264,6 @@ Saat radio dipilih, label-nya berubah warna sesuai status
 }
 
 /* Warna label saat radio dipilih (visual feedback per status) */
-.radio-group input[type="radio"][value="H"]:checked + label,
 .radio-group label:has(input[type="radio"][value="H"]:checked) {
     background-color: #D9EAD3;
     border-color: #1F7A3D;
@@ -211,7 +271,6 @@ Saat radio dipilih, label-nya berubah warna sesuai status
     font-weight: bold;
 }
 
-.radio-group input[type="radio"][value="I"]:checked + label,
 .radio-group label:has(input[type="radio"][value="I"]:checked) {
     background-color: #C9DAF8;
     border-color: #1E40AF;
@@ -219,7 +278,6 @@ Saat radio dipilih, label-nya berubah warna sesuai status
     font-weight: bold;
 }
 
-.radio-group input[type="radio"][value="S"]:checked + label,
 .radio-group label:has(input[type="radio"][value="S"]:checked) {
     background-color: #FFF2CC;
     border-color: #B45309;
@@ -227,7 +285,6 @@ Saat radio dipilih, label-nya berubah warna sesuai status
     font-weight: bold;
 }
 
-.radio-group input[type="radio"][value="A"]:checked + label,
 .radio-group label:has(input[type="radio"][value="A"]:checked) {
     background-color: #F4CCCC;
     border-color: #DC2626;
@@ -239,10 +296,7 @@ Saat radio dipilih, label-nya berubah warna sesuai status
 
 /* =========================================================
 VISUAL FEEDBACK: Highlight baris siswa saat radio diklik
----------------------------------------------------------
-Ditambahkan untuk Event Delegation (Prioritas #3).
-Class .selected ditambahkan oleh EventDelegation.handleRadioChange()
-saat guru mengklik radio button di baris siswa manapun.
+(Prioritas #3 - Event Delegation)
 ========================================================= */
 .student-row.selected {
     background-color: #E0E7FF;
@@ -257,9 +311,6 @@ saat guru mengklik radio button di baris siswa manapun.
 
 /* =========================================================
 UTILITAS / ELEMEN LAIN-LAIN
----------------------------------------------------------
-Tambahkan class utilitas baru (misal .hidden) di sini supaya
-mudah dicari & tidak tercecer di banyak tempat.
 ========================================================= */
 .hidden {
     display: none !important;
@@ -310,10 +361,7 @@ mudah dicari & tidak tercecer di banyak tempat.
 
 
 /* =========================================================
-TAB NAVIGASI (Input Absensi / Riwayat / Dashboard / Absen Wali)
----------------------------------------------------------
-Tambah tab baru? Tidak perlu ubah CSS ini selama masih pakai
-class .tab-btn & .tab-panel. Lebar otomatis menyesuaikan.
+TAB NAVIGASI
 ========================================================= */
 .tab-nav {
     display: flex;
@@ -352,11 +400,6 @@ class .tab-btn & .tab-panel. Lebar otomatis menyesuaikan.
 
 /* =========================================================
 PANEL RIWAYAT ABSENSI
----------------------------------------------------------
-Tiap entri riwayat ditampilkan sebagai kartu dengan:
-- Header (tanggal + badge jumlah hadir)
-- Stats (jumlah Izin/Sakit/Alpa)
-- Detail (nama siswa per status, dipisah tanda ·)
 ========================================================= */
 .riwayat-card {
     border: 1px solid #E5E7EB;
@@ -415,11 +458,6 @@ Tiap entri riwayat ditampilkan sebagai kartu dengan:
 
 /* =========================================================
 PANEL DASHBOARD ANALITIK
----------------------------------------------------------
-Berisi 3 visualisasi:
-1. Progress bar persentase kehadiran per kelas & mapel
-2. Chart garis tren kehadiran (pakai Chart.js)
-3. Daftar siswa dengan jumlah Alpa terbanyak
 ========================================================= */
 .rekap-bar-item {
     margin-bottom: 14px;
@@ -497,9 +535,6 @@ Berisi 3 visualisasi:
 
 /* =========================================================
 MODAL ALERT (popup notifikasi sukses/gagal)
----------------------------------------------------------
-Struktur: .modal-overlay (latar gelap) > .modal-box (kotak putih)
-Panggil dari script.js lewat showAlert(message, isSuccess).
 ========================================================= */
 .modal-overlay {
     position: fixed;
@@ -594,10 +629,6 @@ Panggil dari script.js lewat showAlert(message, isSuccess).
 
 /* =========================================================
 MODAL KONFIRMASI (Ya/Tidak)
----------------------------------------------------------
-Menumpang struktur .modal-box yang sama dengan modal alert,
-hanya beda: 2 tombol berdampingan (Tidak / Ya, Lanjutkan).
-Dipakai saat guru mau mengedit absensi yang sudah tersimpan.
 ========================================================= */
 .modal-btn-group {
     display: flex;
@@ -621,14 +652,6 @@ Dipakai saat guru mau mengedit absensi yang sudah tersimpan.
 
 /* =========================================================
 TAMPILAN KHUSUS MOBILE (layar <= 640px)
----------------------------------------------------------
-Ubah angka 640px kalau mau ganti titik patahnya (breakpoint).
-Tambah aturan baru untuk mobile? taruh di dalam blok ini.
-
-FITUR UTAMA:
-- Tabel siswa diubah jadi "kartu" supaya tidak sempit di HP
-- Tombol aksi ditumpuk vertikal, full-width
-- Tab navigasi tetap bisa digeser horizontal kalau tidak muat
 ========================================================= */
 @media (max-width: 640px) {
     body {
@@ -648,7 +671,6 @@ FITUR UTAMA:
         font-size: 1.05rem;
     }
 
-    /* Tombol Rekap & Logout ditumpuk vertikal, full-width */
     .action-buttons {
         flex-direction: column;
     }
@@ -670,9 +692,9 @@ FITUR UTAMA:
         padding: 20px;
     }
 
-    /* --- Ubah tabel siswa (panel mapel) jadi kartu --- */
+    /* --- Tabel siswa jadi kartu di mobile --- */
     #studentsTable thead {
-        display: none; /* judul kolom disembunyikan, diganti label per kartu */
+        display: none;
     }
 
     #studentsTable,
@@ -683,7 +705,6 @@ FITUR UTAMA:
         width: 100%;
     }
 
-    /* Baris placeholder ("Silakan pilih kelas...") tetap tampil biasa */
     #studentsBody tr:not(.student-row) {
         padding: 12px;
         text-align: center;
@@ -691,7 +712,6 @@ FITUR UTAMA:
         font-style: italic;
     }
 
-    /* Kartu siswa (baris dengan class .student-row) */
     #studentsBody tr.student-row {
         border: 1px solid #E5E7EB;
         border-radius: 8px;
@@ -705,7 +725,6 @@ FITUR UTAMA:
         padding: 4px 0;
     }
 
-    /* Label kecil "NIS:" muncul otomatis di depan nomor induk siswa */
     #studentsBody tr.student-row td:nth-child(1) {
         font-size: 0.8rem;
         color: #6B7280;
@@ -716,18 +735,16 @@ FITUR UTAMA:
         font-weight: bold;
     }
 
-    /* Nama siswa dibuat lebih besar & tebal sebagai judul kartu */
     #studentsBody tr.student-row td:nth-child(2) {
         font-size: 1.05rem;
         font-weight: bold;
     }
 
-    /* Grup radio kehadiran diberi jarak lebih di atas */
     #studentsBody tr.student-row td:nth-child(3) {
         padding-top: 8px;
     }
 
-    /* --- Ubah tabel wali kelas jadi kartu juga --- */
+    /* --- Tabel wali kelas jadi kartu juga --- */
     #waliStudentsTable thead {
         display: none;
     }
@@ -779,27 +796,29 @@ FITUR UTAMA:
         padding-top: 8px;
     }
 
-    /* Tab navigasi: teks lebih kecil, tetap bisa digeser */
     .tab-btn {
         padding: 8px 12px;
         font-size: 0.85rem;
     }
 
-    /* Riwayat: badge & tanggal ditumpuk supaya tidak sempit */
     .riwayat-stats {
         gap: 10px;
         font-size: 0.8rem;
     }
 
-    /* Dashboard: beri sedikit ruang lebih di kanan-kiri chart */
     .chart-wrapper {
         padding: 8px;
     }
 
-    /* Radio button di mobile: padding lebih kecil supaya muat */
     .radio-group label {
         padding: 6px 10px;
         font-size: 0.9rem;
+    }
+
+    /* Pesan error/warning di mobile: font sedikit lebih kecil */
+    .field-error-message,
+    .field-warning-message {
+        font-size: 0.8rem;
     }
 }
 /* ===== SELESAI: TAMPILAN KHUSUS MOBILE ===== */
