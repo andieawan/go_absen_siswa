@@ -32,10 +32,11 @@ function showAlert(message, isSuccess = true) {
         btn.style.backgroundColor = '#EF4444';
     }
     msg.innerText = message;
-    modal.classList.add('active');
+    if (modal) modal.classList.add('active');
 }
 function closeCustomAlert() {
-    document.getElementById('customAlert').classList.remove('active');
+    const modal = document.getElementById('customAlert');
+    if (modal) modal.classList.remove('active');
 }
 
 // =========================================================
@@ -44,20 +45,21 @@ function closeCustomAlert() {
 function showConfirmModal(message) {
     return new Promise((resolve) => {
         const modal = document.getElementById('confirmModal');
-        document.getElementById('confirmMessage').innerText = message;
-        modal.classList.add('active');
+        const msgEl = document.getElementById('confirmMessage');
+        if (msgEl) msgEl.innerText = message;
+        if (modal) modal.classList.add('active');
         const btnYes = document.getElementById('confirmBtnYes');
         const btnNo = document.getElementById('confirmBtnNo');
         function selesai(hasil) {
-            modal.classList.remove('active');
-            btnYes.removeEventListener('click', onYes);
-            btnNo.removeEventListener('click', onNo);
+            if (modal) modal.classList.remove('active');
+            if (btnYes) btnYes.removeEventListener('click', onYes);
+            if (btnNo) btnNo.removeEventListener('click', onNo);
             resolve(hasil);
         }
         function onYes() { selesai(true); }
         function onNo() { selesai(false); }
-        btnYes.addEventListener('click', onYes);
-        btnNo.addEventListener('click', onNo);
+        if (btnYes) btnYes.addEventListener('click', onYes);
+        if (btnNo) btnNo.addEventListener('click', onNo);
     });
 }
 
@@ -71,7 +73,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     const btn = e.target.querySelector('button');
     const msg = document.getElementById('loginMsg');
     btn.innerText = 'Mengecek...';
-    msg.innerText = '';
+    if (msg) msg.innerText = '';
     try {
         const response = await fetch(GAS_URL, {
             method: 'POST',
@@ -83,10 +85,10 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             sessionData = resData.data;
             showDashboard();
         } else {
-            msg.innerText = resData.message;
+            if (msg) msg.innerText = resData.message;
         }
     } catch (error) {
-        msg.innerText = "Gagal terhubung ke server.";
+        if (msg) msg.innerText = "Gagal terhubung ke server.";
     }
     btn.innerText = 'Login';
 });
@@ -95,45 +97,49 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 // TAMPILKAN DASHBOARD
 // =========================================================
 function showDashboard() {
-    loginSection.classList.add('hidden');
-    dashboardSection.classList.remove('hidden');
-    document.getElementById('greeting').innerText = `Selamat Mengajar, ${sessionData.nama}`;
-    document.getElementById('tanggalAbsen').valueAsDate = new Date();
+    if (loginSection) loginSection.classList.add('hidden');
+    if (dashboardSection) dashboardSection.classList.remove('hidden');
+    
+    const greeting = document.getElementById('greeting');
+    if (greeting) greeting.innerText = `Selamat Mengajar, ${sessionData.nama}`;
+    
+    const tanggalAbsen = document.getElementById('tanggalAbsen');
+    if (tanggalAbsen) tanggalAbsen.valueAsDate = new Date();
 
     const mapelArr = sessionData.mapel.split(',').map(s => s.trim());
     const selectMapel = document.getElementById('selectMapel');
-    selectMapel.innerHTML = '';
-    mapelArr.forEach(m => selectMapel.innerHTML += `<option value="${m}">${m}</option>`);
+    if (selectMapel) {
+        selectMapel.innerHTML = '';
+        mapelArr.forEach(m => selectMapel.innerHTML += `<option value="${m}">${m}</option>`);
+    }
 
     const kelasArr = sessionData.kelas.split(',').map(s => s.trim());
     const selectKelas = document.getElementById('selectKelas');
-    selectKelas.innerHTML = '<option value="" disabled selected>-- Pilih Kelas --</option>';
-    kelasArr.forEach(k => selectKelas.innerHTML += `<option value="${k}">${k}</option>`);
+    if (selectKelas) {
+        selectKelas.innerHTML = '<option value="" disabled selected>-- Pilih Kelas --</option>';
+        kelasArr.forEach(k => selectKelas.innerHTML += `<option value="${k}">${k}</option>`);
+    }
 
-    selectKelas.addEventListener('change', (e) => fetchStudents(e.target.value));
-    document.getElementById('tanggalAbsen').addEventListener('change', checkExistingAttendance);
-    document.getElementById('selectMapel').addEventListener('change', checkExistingAttendance);
+    if (selectKelas) selectKelas.addEventListener('change', (e) => fetchStudents(e.target.value));
+    if (tanggalAbsen) tanggalAbsen.addEventListener('change', checkExistingAttendance);
+    if (selectMapel) selectMapel.addEventListener('change', checkExistingAttendance);
 
     const tabBtnAbsenWali = document.getElementById('tabBtnAbsenWali');
     if (sessionData.kelasWali) {
-        tabBtnAbsenWali.classList.remove('hidden');
-        document.getElementById('waliKelasLabel').innerText = sessionData.kelasWali;
-        document.getElementById('waliTanggal').valueAsDate = new Date();
-        document.getElementById('waliTanggal').addEventListener('change', checkExistingAbsenWali);
+        if (tabBtnAbsenWali) tabBtnAbsenWali.classList.remove('hidden');
+        const waliKelasLabel = document.getElementById('waliKelasLabel');
+        if (waliKelasLabel) waliKelasLabel.innerText = sessionData.kelasWali;
         
-        document.getElementById('subtabBtnWali').classList.remove('hidden');
-        document.getElementById('riwayatWaliKelasLabel').innerText = sessionData.kelasWali;
-        document.getElementById('rekapWaliCard').classList.remove('hidden');
-        document.getElementById('rekapWaliKelasLabel').innerText = `👪 Kelas: ${sessionData.kelasWali}`;
-        document.getElementById('dashboardWaliSection').classList.remove('hidden');
+        const waliTanggal = document.getElementById('waliTanggal');
+        if (waliTanggal) {
+            waliTanggal.valueAsDate = new Date();
+            waliTanggal.addEventListener('change', checkExistingAbsenWali);
+        }
         
         fetchStudentsWali(sessionData.kelasWali);
         fetchRiwayatAbsenWali();
     } else {
-        tabBtnAbsenWali.classList.add('hidden');
-        document.getElementById('subtabBtnWali').classList.add('hidden');
-        document.getElementById('rekapWaliCard').classList.add('hidden');
-        document.getElementById('dashboardWaliSection').classList.add('hidden');
+        if (tabBtnAbsenWali) tabBtnAbsenWali.classList.add('hidden');
     }
 }
 
@@ -142,25 +148,19 @@ function showDashboard() {
 // =========================================================
 function switchTab(tabId) {
     document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
-    document.getElementById(tabId).classList.remove('hidden');
+    const targetPanel = document.getElementById(tabId);
+    if (targetPanel) targetPanel.classList.remove('hidden');
+    
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelector(`.tab-btn[data-tab="${tabId}"]`).classList.add('active');
+    const targetBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+    if (targetBtn) targetBtn.classList.add('active');
+    
     if (tabId === 'panelRiwayat') setupRiwayatSelectors();
     if (tabId === 'panelDashboard') loadDashboard();
 }
 
-function switchSubTab(subtabId) {
-    document.querySelectorAll('.sub-tab-panel').forEach(panel => panel.classList.add('hidden'));
-    document.getElementById(subtabId).classList.remove('hidden');
-    document.querySelectorAll('.sub-tab-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelector(`.sub-tab-btn[data-subtab="${subtabId}"]`).classList.add('active');
-    if (subtabId === 'subtabWali' && sessionData.kelasWali) {
-        fetchRiwayatWaliDiPanelRiwayat();
-    }
-}
-
 // =========================================================
-// FETCH DATA SISWA (DENGAN NULL CHECK)
+// FETCH DATA SISWA (DENGAN NULL CHECK AMAN)
 // =========================================================
 async function fetchStudents(kelas) {
     const tbody = document.getElementById('studentsBody');
@@ -193,7 +193,7 @@ async function fetchStudents(kelas) {
                         </div>
                     </td>
                 `;
-                tbody.appendChild(tr);
+                if (tbody) tbody.appendChild(tr);
             });
             if (btnSubmit) btnSubmit.style.display = 'block';
             await checkExistingAttendance();
@@ -216,7 +216,7 @@ async function checkExistingAttendance() {
     const tanggal = tanggalInput.value;
     const guru = sessionData.nama;
     const btnSubmit = document.getElementById('btnSubmit');
-    if (!mapel || !kelas || !tanggal) return;
+    if (!mapel || !kelas || !tanggal || !btnSubmit) return;
 
     btnSubmit.innerText = "Mengecek status...";
     btnSubmit.disabled = true;
@@ -264,6 +264,7 @@ async function checkExistingAttendance() {
 document.getElementById('absenForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('btnSubmit');
+    if (!btn) return;
 
     if (btn.dataset.exists === "true") {
         const lanjutEdit = await showConfirmModal(`Data absensi untuk tanggal ini sudah ada. Timpa data yang lama dengan data baru?`);
@@ -372,7 +373,7 @@ function formatTanggalPanjang(date) {
 function setupRiwayatSelectors() {
     const selMapel = document.getElementById('riwayatMapel');
     const selKelas = document.getElementById('riwayatKelas');
-    if (selMapel.dataset.filled) return;
+    if (!selMapel || selMapel.dataset.filled) return;
     
     const mapelArr = sessionData.mapel.split(',').map(s => s.trim());
     mapelArr.forEach(m => selMapel.innerHTML += `<option value="${m}">${m}</option>`);
@@ -382,10 +383,6 @@ function setupRiwayatSelectors() {
     
     selMapel.addEventListener('change', fetchRiwayat);
     selKelas.addEventListener('change', fetchRiwayat);
-    
-    document.querySelectorAll('.sub-tab-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => switchSubTab(e.target.dataset.subtab));
-    });
 }
 
 async function fetchRiwayat() {
@@ -395,7 +392,7 @@ async function fetchRiwayat() {
     const loading = document.getElementById('riwayatLoading');
     if (!mapel || !kelas) return;
     
-    listEl.innerHTML = '';
+    if (listEl) listEl.innerHTML = '';
     if (loading) loading.classList.remove('hidden');
     
     try {
@@ -426,55 +423,11 @@ async function fetchRiwayat() {
                 `;
             }).join('');
         } else {
-            listEl.innerHTML = `<div class="empty-state-illustration large"><svg viewBox="0 0 200 150"><circle cx="100" cy="75" r="50" fill="#E0E7FF"/><text x="100" y="85" text-anchor="middle" font-size="40">📚</text></svg><p>Belum ada riwayat absensi</p></div>`;
+            if (listEl) listEl.innerHTML = `<div class="empty-state-illustration large"><svg viewBox="0 0 200 150"><circle cx="100" cy="75" r="50" fill="#E0E7FF"/><text x="100" y="85" text-anchor="middle" font-size="40">📚</text></svg><p>Belum ada riwayat absensi</p></div>`;
         }
     } catch (error) {
         if (loading) loading.classList.add('hidden');
-        listEl.innerHTML = `<div class="empty-state-illustration"><p>Gagal mengambil riwayat</p></div>`;
-    }
-}
-
-async function fetchRiwayatWaliDiPanelRiwayat() {
-    if (!sessionData.kelasWali) return;
-    const listEl = document.getElementById('riwayatWaliList');
-    const loading = document.getElementById('riwayatWaliLoading');
-    
-    listEl.innerHTML = '';
-    if (loading) loading.classList.remove('hidden');
-    
-    try {
-        const response = await fetch(`${GAS_URL}?action=getRiwayatAbsenWali&kelas=${encodeURIComponent(sessionData.kelasWali)}`);
-        const resData = await response.json();
-        if (loading) loading.classList.add('hidden');
-        
-        if (resData.success && resData.data.length > 0) {
-            listEl.innerHTML = resData.data.map(rec => {
-                const rincian = [
-                    rec.namaIzin.length ? `📝 Izin: ${rec.namaIzin.join(', ')}` : '',
-                    rec.namaSakit.length ? `🤒 Sakit: ${rec.namaSakit.join(', ')}` : '',
-                    rec.namaAlpa.length ? `❌ Alpa: ${rec.namaAlpa.join(', ')}` : ''
-                ].filter(Boolean).join(' · ');
-                return `
-                    <div class="riwayat-card">
-                        <div class="riwayat-header">
-                            <span class="riwayat-tanggal">📅 ${formatTanggalIndo(rec.tanggal)}</span>
-                            <span class="riwayat-badge">✓ ${rec.jumlahHadir} Hadir</span>
-                        </div>
-                        <div class="riwayat-stats">
-                            <span>📝 ${rec.jumlahIzin}</span>
-                            <span>🤒 ${rec.jumlahSakit}</span>
-                            <span>❌ ${rec.jumlahAlpa}</span>
-                        </div>
-                        ${rincian ? `<div class="riwayat-detail">${rincian}</div>` : ''}
-                    </div>
-                `;
-            }).join('');
-        } else {
-            listEl.innerHTML = `<div class="empty-state-illustration large"><svg viewBox="0 0 200 150"><circle cx="100" cy="75" r="50" fill="#E0E7FF"/><text x="100" y="85" text-anchor="middle" font-size="40">👨‍👩‍👧</text></svg><p>Belum ada riwayat absensi wali kelas</p></div>`;
-        }
-    } catch (error) {
-        if (loading) loading.classList.add('hidden');
-        listEl.innerHTML = `<div class="empty-state-illustration"><p>Gagal mengambil riwayat</p></div>`;
+        if (listEl) listEl.innerHTML = `<div class="empty-state-illustration"><p>Gagal mengambil riwayat</p></div>`;
     }
 }
 
@@ -501,7 +454,7 @@ async function loadDashboard() {
             renderTrendChart(resData.data.trend);
             renderTopAlpa(resData.data.topAlpa);
         } else {
-            content.innerHTML = `<div class="empty-state-illustration large"><p>${resData.message || 'Belum ada data'}</p></div>`;
+            if (content) content.innerHTML = `<div class="empty-state-illustration large"><p>${resData.message || 'Belum ada data'}</p></div>`;
         }
         
         if (sessionData.kelasWali) loadDashboardWali();
@@ -517,30 +470,34 @@ async function loadDashboard() {
 function renderRekapKelasMapel(list) {
     const el = document.getElementById('rekapKelasMapelList');
     if (!list || list.length === 0) {
-        el.innerHTML = `<div class="empty-state-illustration"><p>Belum ada data</p></div>`;
+        if (el) el.innerHTML = `<div class="empty-state-illustration"><p>Belum ada data</p></div>`;
         return;
     }
-    el.innerHTML = list.map(item => `
-        <div class="rekap-bar-item">
-            <div class="rekap-bar-label"><span>${item.label}</span><span>${item.persenHadir}%</span></div>
-            <div class="rekap-bar-track"><div class="rekap-bar-fill" style="width: ${item.persenHadir}%;"></div></div>
-        </div>
-    `).join('');
+    if (el) {
+        el.innerHTML = list.map(item => `
+            <div class="rekap-bar-item">
+                <div class="rekap-bar-label"><span>${item.label}</span><span>${item.persenHadir}%</span></div>
+                <div class="rekap-bar-track"><div class="rekap-bar-fill" style="width: ${item.persenHadir}%;"></div></div>
+            </div>
+        `).join('');
+    }
 }
 
 function renderTopAlpa(list) {
     const el = document.getElementById('topAlpaList');
     if (!list || list.length === 0) {
-        el.innerHTML = `<div class="empty-state-illustration"><p>🎉 Tidak ada siswa dengan catatan Alpa</p></div>`;
+        if (el) el.innerHTML = `<div class="empty-state-illustration"><p>🎉 Tidak ada siswa dengan catatan Alpa</p></div>`;
         return;
     }
-    el.innerHTML = list.map((s, i) => `
-        <div class="alpa-item">
-            <span class="alpa-rank">${i + 1}</span>
-            <span class="alpa-nama">${s.nama}</span>
-            <span class="alpa-jumlah">${s.jumlahAlpa}x</span>
-        </div>
-    `).join('');
+    if (el) {
+        el.innerHTML = list.map((s, i) => `
+            <div class="alpa-item">
+                <span class="alpa-rank">${i + 1}</span>
+                <span class="alpa-nama">${s.nama}</span>
+                <span class="alpa-jumlah">${s.jumlahAlpa}x</span>
+            </div>
+        `).join('');
+    }
 }
 
 function renderTrendChart(trend) {
@@ -550,7 +507,10 @@ function renderTrendChart(trend) {
     }
     if (!trend || trend.length === 0) return;
 
-    trendChartInstance = new Chart(document.getElementById('trendChart'), {
+    const canvas = document.getElementById('trendChart');
+    if (!canvas) return;
+
+    trendChartInstance = new Chart(canvas, {
         type: 'line',
         data: {
             labels: trend.map(t => formatTanggalIndo(t.tanggal)),
@@ -585,21 +545,21 @@ async function loadDashboardWali() {
         const resData = await response.json();
         
         if (!resData.success) {
-            document.getElementById('waliStatPertemuan').innerText = '0';
-            document.getElementById('waliStatSiswa').innerText = '0';
-            document.getElementById('waliStatRataHadir').innerText = '0%';
-            document.getElementById('waliStatRataAlpa').innerText = '0%';
-            document.getElementById('waliDistribusiList').innerHTML = `<div class="empty-state-illustration"><p>${resData.message}</p></div>`;
-            document.getElementById('waliTopAlpaList').innerHTML = '';
+            const el1 = document.getElementById('waliStatPertemuan'); if (el1) el1.innerText = '0';
+            const el2 = document.getElementById('waliStatSiswa'); if (el2) el2.innerText = '0';
+            const el3 = document.getElementById('waliStatRataHadir'); if (el3) el3.innerText = '0%';
+            const el4 = document.getElementById('waliStatRataAlpa'); if (el4) el4.innerText = '0%';
+            const el5 = document.getElementById('waliDistribusiList'); if (el5) el5.innerHTML = `<div class="empty-state-illustration"><p>${resData.message}</p></div>`;
+            const el6 = document.getElementById('waliTopAlpaList'); if (el6) el6.innerHTML = '';
             if (trendChartWaliInstance) { trendChartWaliInstance.destroy(); trendChartWaliInstance = null; }
             return;
         }
         
         const data = resData.data;
-        document.getElementById('waliStatPertemuan').innerText = data.totalPertemuan;
-        document.getElementById('waliStatSiswa').innerText = data.totalSiswa;
-        document.getElementById('waliStatRataHadir').innerText = data.rataRata.hadir + '%';
-        document.getElementById('waliStatRataAlpa').innerText = data.rataRata.alpa + '%';
+        const el1 = document.getElementById('waliStatPertemuan'); if (el1) el1.innerText = data.totalPertemuan;
+        const el2 = document.getElementById('waliStatSiswa'); if (el2) el2.innerText = data.totalSiswa;
+        const el3 = document.getElementById('waliStatRataHadir'); if (el3) el3.innerText = data.rataRata.hadir + '%';
+        const el4 = document.getElementById('waliStatRataAlpa'); if (el4) el4.innerText = data.rataRata.alpa + '%';
         
         const items = [
             { label: 'Hadir', icon: '✓', value: data.rataRata.hadir, class: 'hadir' },
@@ -608,63 +568,73 @@ async function loadDashboardWali() {
             { label: 'Alpa', icon: '❌', value: data.rataRata.alpa, class: 'alpa' }
         ];
         
-        document.getElementById('waliDistribusiList').innerHTML = items.map(item => `
-            <div class="distribusi-item">
-                <div class="distribusi-label">
-                    <span class="distribusi-label-status"><span>${item.icon}</span><span>${item.label}</span></span>
-                    <span>${item.value}%</span>
-                </div>
-                <div class="distribusi-track"><div class="distribusi-fill ${item.class}" style="width: ${item.value}%;"></div></div>
-            </div>
-        `).join('');
-        
-        if (trendChartWaliInstance) { trendChartWaliInstance.destroy(); trendChartWaliInstance = null; }
-        if (data.statistikHarian && data.statistikHarian.length > 0) {
-            trendChartWaliInstance = new Chart(document.getElementById('trendChartWali'), {
-                type: 'line',
-                data: {
-                    labels: data.statistikHarian.map(s => formatTanggalIndo(s.tanggal)),
-                    datasets: [{
-                        label: '% Kehadiran Harian',
-                        data: data.statistikHarian.map(s => s.persenHadir),
-                        borderColor: '#10B981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        tension: 0.4,
-                        fill: true,
-                        pointRadius: 4,
-                        pointBackgroundColor: '#10B981',
-                        pointBorderColor: '#fff',
-                        pointBorderWidth: 2
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    scales: { y: { min: 0, max: 100, ticks: { callback: v => v + '%' } } },
-                    plugins: { legend: { display: false } }
-                }
-            });
-        }
-        
-        if (!data.topAlpa || data.topAlpa.length === 0) {
-            document.getElementById('waliTopAlpaList').innerHTML = `<div class="empty-state-illustration"><p>🎉 Tidak ada siswa dengan catatan Alpa di kelas wali</p></div>`;
-        } else {
-            document.getElementById('waliTopAlpaList').innerHTML = data.topAlpa.map((s, i) => `
-                <div class="alpa-item">
-                    <span class="alpa-rank">${i + 1}</span>
-                    <span class="alpa-nama">${s.nama}</span>
-                    <span class="alpa-jumlah">${s.jumlahAlpa}x</span>
+        const el5 = document.getElementById('waliDistribusiList');
+        if (el5) {
+            el5.innerHTML = items.map(item => `
+                <div class="distribusi-item">
+                    <div class="distribusi-label">
+                        <span class="distribusi-label-status"><span>${item.icon}</span><span>${item.label}</span></span>
+                        <span>${item.value}%</span>
+                    </div>
+                    <div class="distribusi-track"><div class="distribusi-fill ${item.class}" style="width: ${item.value}%;"></div></div>
                 </div>
             `).join('');
         }
+        
+        if (trendChartWaliInstance) { trendChartWaliInstance.destroy(); trendChartWaliInstance = null; }
+        if (data.statistikHarian && data.statistikHarian.length > 0) {
+            const canvasWali = document.getElementById('trendChartWali');
+            if (canvasWali) {
+                trendChartWaliInstance = new Chart(canvasWali, {
+                    type: 'line',
+                    data: {
+                        labels: data.statistikHarian.map(s => formatTanggalIndo(s.tanggal)),
+                        datasets: [{
+                            label: '% Kehadiran Harian',
+                            data: data.statistikHarian.map(s => s.persenHadir),
+                            borderColor: '#10B981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#10B981',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        scales: { y: { min: 0, max: 100, ticks: { callback: v => v + '%' } } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            }
+        }
+        
+        const el6 = document.getElementById('waliTopAlpaList');
+        if (el6) {
+            if (!data.topAlpa || data.topAlpa.length === 0) {
+                el6.innerHTML = `<div class="empty-state-illustration"><p>🎉 Tidak ada siswa dengan catatan Alpa di kelas wali</p></div>`;
+            } else {
+                el6.innerHTML = data.topAlpa.map((s, i) => `
+                    <div class="alpa-item">
+                        <span class="alpa-rank">${i + 1}</span>
+                        <span class="alpa-nama">${s.nama}</span>
+                        <span class="alpa-jumlah">${s.jumlahAlpa}x</span>
+                    </div>
+                `).join('');
+            }
+        }
     } catch (error) {
         console.error('Gagal memuat dashboard wali:', error);
-        document.getElementById('waliDistribusiList').innerHTML = `<div class="empty-state-illustration"><p>Gagal memuat data dashboard wali</p></div>`;
+        const el5 = document.getElementById('waliDistribusiList');
+        if (el5) el5.innerHTML = `<div class="empty-state-illustration"><p>Gagal memuat data dashboard wali</p></div>`;
     }
 }
 
 // =========================================================
-// ABSEN WALI (DENGAN NULL CHECK)
+// ABSEN WALI (DENGAN NULL CHECK AMAN)
 // =========================================================
 async function fetchStudentsWali(kelas) {
     const tbody = document.getElementById('waliStudentsBody');
@@ -697,7 +667,7 @@ async function fetchStudentsWali(kelas) {
                         </div>
                     </td>
                 `;
-                tbody.appendChild(tr);
+                if (tbody) tbody.appendChild(tr);
             });
             if (btnSubmit) btnSubmit.style.display = 'block';
             await checkExistingAbsenWali();
@@ -716,7 +686,7 @@ async function checkExistingAbsenWali() {
     const tanggal = tanggalInput.value;
     const btnSubmit = document.getElementById('waliBtnSubmit');
     const rows = document.querySelectorAll('#waliStudentsBody tr.student-row');
-    if (!kelas || !tanggal || rows.length === 0) return;
+    if (!kelas || !tanggal || rows.length === 0 || !btnSubmit) return;
 
     btnSubmit.innerText = "Mengecek status...";
     btnSubmit.disabled = true;
@@ -754,6 +724,7 @@ async function checkExistingAbsenWali() {
 document.getElementById('waliAbsenForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('waliBtnSubmit');
+    if (!btn) return;
 
     if (btn.dataset.exists === "true") {
         const lanjutEdit = await showConfirmModal(`Data absensi harian untuk tanggal ini sudah ada. Timpa data yang lama dengan data baru?`);
@@ -812,7 +783,7 @@ async function fetchRiwayatAbsenWali() {
     const listEl = document.getElementById('waliRiwayatList');
     const loading = document.getElementById('waliRiwayatLoading');
     
-    listEl.innerHTML = '';
+    if (listEl) listEl.innerHTML = '';
     if (loading) loading.classList.remove('hidden');
     
     try {
@@ -843,11 +814,11 @@ async function fetchRiwayatAbsenWali() {
                 `;
             }).join('');
         } else {
-            listEl.innerHTML = `<div class="empty-state-illustration"><p>Belum ada riwayat absensi wali</p></div>`;
+            if (listEl) listEl.innerHTML = `<div class="empty-state-illustration"><p>Belum ada riwayat absensi wali</p></div>`;
         }
     } catch (error) {
         if (loading) loading.classList.add('hidden');
-        listEl.innerHTML = `<div class="empty-state-illustration"><p>Gagal mengambil riwayat</p></div>`;
+        if (listEl) listEl.innerHTML = `<div class="empty-state-illustration"><p>Gagal mengambil riwayat</p></div>`;
     }
 }
 
