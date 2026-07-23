@@ -4,6 +4,7 @@
  */
 export const CONFIG = {
     // URL Web App Google Apps Script (Ganti setelah deploy)
+    // PERBAIKAN: Spasi di akhir URL telah dihapus
     BACKEND_URL: 'https://script.google.com/macros/s/AKfycbyMGAl2rTMzOEVkosA-QKNrVvo69x3WZPrYgRBRcVF9JL-K1guOv-zJAWnisfCZ1t8n/exec', 
     
     // Konfigurasi lainnya
