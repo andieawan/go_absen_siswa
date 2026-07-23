@@ -4,7 +4,7 @@
  * Memuat template HTML secara dinamis berdasarkan state login
  */
 
-import { checkAuth, logout } from './auth.js';
+import { isLoggedIn, getCurrentUser, logout } from './api.js';
 import { initLoginForm } from './login.js';
 import { initDashboard } from './dashboard.js';
 import { showNotification } from './utils.js';
@@ -72,13 +72,14 @@ async function renderDashboard() {
  * Routing berdasarkan status autentikasi
  */
 async function route() {
-    const authData = checkAuth();
+    const isUserLoggedIn = isLoggedIn();
+    const user = getCurrentUser();
     
-    if (!authData || !authData.isLoggedIn) {
+    if (!isUserLoggedIn || !user) {
         currentUser = null;
         await renderLogin();
     } else {
-        currentUser = authData.user;
+        currentUser = user;
         await renderDashboard();
     }
 }
