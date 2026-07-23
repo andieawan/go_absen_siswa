@@ -4,7 +4,7 @@
  */
 export const CONFIG = {
     // URL Web App Google Apps Script (Ganti setelah deploy)
-    BACKEND_URL: 'https://script.google.com/macros/s/AKfycbx.../exec', 
+    BACKEND_URL: 'https://script.google.com/macros/s/AKfycbyMGAl2rTMzOEVkosA-QKNrVvo69x3WZPrYgRBRcVF9JL-K1guOv-zJAWnisfCZ1t8n/exec', 
     
     // Konfigurasi lainnya
     APP_NAME: 'Sistem Absensi Sekolah',
