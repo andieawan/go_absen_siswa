@@ -7,7 +7,8 @@
 import { checkAuth, logout } from './auth.js';
 import { initLoginForm } from './login.js';
 import { initDashboard } from './dashboard.js';
-import { showNotification, showAlert, showConfirm } from './utils.js';
+import { showNotification } from './utils.js';
+import { showAlert, showConfirm } from './modal.js';
 import { initModalHandlers } from './modal.js';
 
 // Container utama
