@@ -1,26 +1,22 @@
 ```
-# Google Apps Script specific ignores
-**/*.gs.bak
-**/*.gs~
-**/appsscript.json.bak
-
-# General ignores for Google Apps Script projects
-.vscode/
-.idea/
-*.log
-*.tmp
-*.swp
-.DS_Store
-Thumbs.db
-
-# Environment and local config
-.env
-.env.local
-*.env.*
-
-# Dependencies and build artifacts (if any)
+# Dependencies
 node_modules/
+
+# Build artifacts
 dist/
 build/
 target/
+
+# Logs and temp files
+*.log
+*.tmp
+
+# Editors
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.local
+*.env.*
 ```
