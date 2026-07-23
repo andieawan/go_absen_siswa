@@ -103,6 +103,9 @@ function showDashboard() {
     const greeting = document.getElementById('greeting');
     if (greeting) greeting.innerText = `Selamat Mengajar, ${sessionData.nama}`;
     
+    const headerDate = document.getElementById('headerDate');
+    if (headerDate) headerDate.innerText = formatTanggalPanjang(new Date());
+
     const tanggalAbsen = document.getElementById('tanggalAbsen');
     if (tanggalAbsen) tanggalAbsen.valueAsDate = new Date();
 
@@ -120,15 +123,24 @@ function showDashboard() {
         kelasArr.forEach(k => selectKelas.innerHTML += `<option value="${k}">${k}</option>`);
     }
 
+    const rekapMapelJumlahMapel = document.getElementById('rekapMapelJumlahMapel');
+    if (rekapMapelJumlahMapel) rekapMapelJumlahMapel.innerText = `${mapelArr.length} Mapel`;
+    const rekapMapelJumlahKelas = document.getElementById('rekapMapelJumlahKelas');
+    if (rekapMapelJumlahKelas) rekapMapelJumlahKelas.innerText = `${kelasArr.length} Kelas`;
+
     if (selectKelas) selectKelas.addEventListener('change', (e) => fetchStudents(e.target.value));
     if (tanggalAbsen) tanggalAbsen.addEventListener('change', checkExistingAttendance);
     if (selectMapel) selectMapel.addEventListener('change', checkExistingAttendance);
 
     const tabBtnAbsenWali = document.getElementById('tabBtnAbsenWali');
+    const rekapWaliCard = document.getElementById('rekapWaliCard');
     if (sessionData.kelasWali) {
         if (tabBtnAbsenWali) tabBtnAbsenWali.classList.remove('hidden');
+        if (rekapWaliCard) rekapWaliCard.classList.remove('hidden');
         const waliKelasLabel = document.getElementById('waliKelasLabel');
         if (waliKelasLabel) waliKelasLabel.innerText = sessionData.kelasWali;
+        const rekapWaliKelasLabel = document.getElementById('rekapWaliKelasLabel');
+        if (rekapWaliKelasLabel) rekapWaliKelasLabel.innerText = `Kelas ${sessionData.kelasWali}`;
         
         const waliTanggal = document.getElementById('waliTanggal');
         if (waliTanggal) {
@@ -140,7 +152,59 @@ function showDashboard() {
         fetchRiwayatAbsenWali();
     } else {
         if (tabBtnAbsenWali) tabBtnAbsenWali.classList.add('hidden');
+        if (rekapWaliCard) rekapWaliCard.classList.add('hidden');
     }
+}
+
+// =========================================================
+// DELEGASI KLIK GLOBAL (tab, tombol aksi, quick-status)
+// =========================================================
+// BUG FIX: sebelumnya tombol-tombol dengan atribut data-tab,
+// data-action, dan data-quick-status di index.html tidak
+// pernah "disambungkan" ke fungsi JS manapun, sehingga
+// navigasi tab, logout, unduh rekap, dan tombol cepat
+// (Semua Hadir/Reset) semuanya tidak berfungsi sama sekali.
+document.addEventListener('click', (e) => {
+    const tabBtn = e.target.closest('.tab-btn[data-tab]');
+    if (tabBtn) {
+        switchTab(tabBtn.dataset.tab);
+        return;
+    }
+
+    const actionBtn = e.target.closest('[data-action]');
+    if (actionBtn) {
+        const action = actionBtn.dataset.action;
+        if (action === 'logout') {
+            logout();
+        } else if (action === 'quickBukaRekap') {
+            switchTab('panelRekap');
+        } else if (action === 'downloadRekapKelasSaya') {
+            downloadRekapKelasSaya(actionBtn);
+        } else if (action === 'downloadRekapAbsenWali') {
+            downloadRekapAbsenWali(actionBtn);
+        }
+        return;
+    }
+
+    const quickBtn = e.target.closest('[data-quick-status]');
+    if (quickBtn) {
+        const isWali = quickBtn.dataset.target === 'wali';
+        const statusVal = quickBtn.dataset.quickStatus;
+        if (statusVal === 'reset') {
+            if (isWali) checkExistingAbsenWali(); else checkExistingAttendance();
+        } else {
+            setAllStatus(isWali ? 'waliStudentsBody' : 'studentsBody', statusVal);
+        }
+        return;
+    }
+});
+
+function setAllStatus(tbodyId, status) {
+    const rows = document.querySelectorAll(`#${tbodyId} tr.student-row`);
+    rows.forEach(row => {
+        const target = row.querySelector(`input[type="radio"][value="${status}"]`);
+        if (target) target.checked = true;
+    });
 }
 
 // =========================================================
@@ -323,8 +387,8 @@ document.getElementById('absenForm').addEventListener('submit', async (e) => {
 // =========================================================
 // REKAP & LOGOUT
 // =========================================================
-async function downloadRekapKelasSaya() {
-    const btn = document.getElementById('btnRecap');
+async function downloadRekapKelasSaya(btn) {
+    if (!btn) return;
     const originalText = btn.innerHTML;
     btn.innerText = "Menyiapkan file...";
     btn.disabled = true;
@@ -822,9 +886,8 @@ async function fetchRiwayatAbsenWali() {
     }
 }
 
-async function downloadRekapAbsenWali() {
-    if (!sessionData.kelasWali) return;
-    const btn = document.getElementById('btnRekapWali');
+async function downloadRekapAbsenWali(btn) {
+    if (!sessionData.kelasWali || !btn) return;
     const originalText = btn.innerHTML;
     btn.innerText = "Menyiapkan file...";
     btn.disabled = true;
