@@ -115,6 +115,3 @@ window.addEventListener('unhandledrejection', (event) => {
     console.error('Unhandled promise rejection:', event.reason);
     event.preventDefault();
 });
-
-// Export fungsi untuk digunakan modul lain
-export { handleLogout };
