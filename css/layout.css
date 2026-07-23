@@ -1,0 +1,151 @@
+/* =========================================
+   Layout - Struktur Halaman
+   ========================================= */
+
+/* Container utama */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--spacing-4);
+  width: 100%;
+}
+
+/* Header */
+.header {
+  background: var(--surface-color);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-6) var(--spacing-8);
+  margin-bottom: var(--spacing-6);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-4);
+}
+
+.header__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.header__logo {
+  font-size: var(--font-size-2xl);
+  color: var(--primary-color);
+}
+
+.header__title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--gray-800);
+}
+
+.header__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+/* Main content */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+}
+
+/* Sections */
+.section {
+  background: var(--card-bg);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-6);
+  box-shadow: var(--shadow-md);
+  transition: box-shadow var(--transition-normal);
+}
+
+.section:hover {
+  box-shadow: var(--shadow-lg);
+}
+
+.section__header {
+  margin-bottom: var(--spacing-6);
+  border-bottom: 1px solid var(--gray-200);
+  padding-bottom: var(--spacing-4);
+}
+
+.section__title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--gray-800);
+  margin-bottom: var(--spacing-2);
+}
+
+.section__subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--gray-500);
+}
+
+/* Grid layouts */
+.grid {
+  display: grid;
+  gap: var(--spacing-6);
+}
+
+.grid--2-cols {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.grid--3-cols {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.grid--4-cols {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* Responsive grid */
+@media (max-width: 1024px) {
+  .grid--4-cols {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .grid--3-cols {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .grid--2-cols,
+  .grid--3-cols,
+  .grid--4-cols {
+    grid-template-columns: 1fr;
+  }
+  
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+  
+  .header__brand {
+    justify-content: center;
+  }
+  
+  .header__actions {
+    justify-content: center;
+  }
+}
+
+/* Footer */
+.footer {
+  margin-top: var(--spacing-8);
+  padding: var(--spacing-6);
+  text-align: center;
+  color: var(--gray-500);
+  font-size: var(--font-size-sm);
+  border-top: 1px solid var(--gray-200);
+}
