@@ -6,27 +6,36 @@ import { showNotification } from './utils.js';
  * Menangani semua komunikasi dengan Google Apps Script Backend
  */
 
-// Helper untuk fetch dengan timeout dan error handling
+// Helper untuk fetch dengan timeout dan error handling khusus Google Apps Script
 async function fetchWithTimeout(url, options = {}, timeout = CONFIG.DEFAULT_TIMEOUT) {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeout);
     
     try {
+        // Google Apps Script Web App kadang memerlukan header Content-Type text/plain untuk menghindari preflight OPTIONS yang gagal CORS
+        // Namun untuk JSON body, kita tetap gunakan application/json tapi dengan penanganan error yang lebih baik
         const response = await fetch(url, {
             ...options,
-            signal: controller.signal
+            signal: controller.signal,
+            redirect: 'follow' // Penting untuk redirect GAS
         });
         clearTimeout(id);
         
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text().catch(() => 'Unknown error');
+            throw new Error(`HTTP ${response.status}: ${errorText}`);
         }
         
         return await response.json();
     } catch (error) {
         clearTimeout(id);
         if (error.name === 'AbortError') {
-            throw new Error('Request timeout. Silakan coba lagi.');
+            throw new Error('Request timeout. Periksa koneksi internet Anda.');
+        }
+        // Deteksi error CORS umum dari GAS
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            console.error('CORS Error: Pastikan Web App Deploy setting: "Execute as: Me" & "Who has access: Anyone"');
+            throw new Error('Gagal terhubung ke server. Periksa pengaturan Deploy Web App di Google Apps Script:\n1. Execute as: Me\n2. Who has access: Anyone\n3. Pastikan URL Web App benar di config.js');
         }
         throw error;
     }
