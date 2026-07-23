@@ -40,3 +40,75 @@ function getOrCreateSheet(ss, sheetName) {
   }
   return sheet;
 }
+
+// ===== VALIDASI & SANITASI INPUT =====
+
+/**
+ * Validasi dan sanitasi input
+ * @param {string|number} str - Input yang akan divalidasi
+ * @param {string} type - Tipe validasi ('nip', 'nisn', 'nama', 'status_absen', 'tanggal')
+ * @return {boolean|string} - true jika valid, atau pesan error jika tidak
+ */
+function validateInput(str, type) {
+  if (str === null || str === undefined) {
+    return 'Input tidak boleh kosong';
+  }
+  
+  const strVal = str.toString().trim();
+  
+  if (strVal.length === 0) {
+    return 'Input tidak boleh hanya spasi';
+  }
+
+  switch (type) {
+    case 'nip':
+    case 'nisn':
+      if (!/^\d+$/.test(strVal)) {
+        return `${type.toUpperCase()} harus berupa angka`;
+      }
+      if (strVal.length < 5) {
+        return `${type.toUpperCase()} terlalu pendek`;
+      }
+      break;
+      
+    case 'nama':
+      if (strVal.length < 3) {
+        return 'Nama terlalu pendek (min 3 karakter)';
+      }
+      if (/[^a-zA-Z\s.'-]/.test(strVal)) {
+        return 'Nama mengandung karakter tidak valid';
+      }
+      break;
+      
+    case 'status_absen':
+      const validStatus = ['Hadir', 'Izin', 'Sakit', 'Alpha'];
+      if (!validStatus.includes(strVal)) {
+        return 'Status absensi tidak valid';
+      }
+      break;
+      
+    case 'tanggal':
+      const d = new Date(strVal);
+      if (isNaN(d.getTime())) {
+        return 'Format tanggal tidak valid';
+      }
+      break;
+      
+    default:
+      if (strVal.length > 500) {
+        return 'Input terlalu panjang';
+      }
+  }
+  
+  return true;
+}
+
+/**
+ * Sanitasi string sederhana
+ * @param {string|number} str 
+ * @return {string}
+ */
+function sanitizeString(str) {
+  if (!str) return '';
+  return str.toString().trim().replace(/\s+/g, ' ');
+}
