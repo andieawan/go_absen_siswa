@@ -1,5 +1,5 @@
 import { login } from './api.js';
-import { showLoading, hideLoading, showNotification } from './utils.js';
+import { showLoading, hideLoading } from './utils.js';
 
 /**
  * Login Module
@@ -8,7 +8,7 @@ import { showLoading, hideLoading, showNotification } from './utils.js';
 
 // Inisialisasi form login
 export function initLoginForm() {
-    const form = document.getElementById('form-login');
+    const form = document.getElementById('loginForm');
     if (!form) return;
     
     setupFormListeners(form);
@@ -31,30 +31,49 @@ async function handleLoginSubmit(e) {
     
     const form = e.target;
     const submitBtn = form.querySelector('button[type="submit"]');
+    const msgEl = document.getElementById('loginMsg');
     
     const username = document.getElementById('username')?.value.trim();
     const password = document.getElementById('password')?.value;
     
+    // Reset pesan
+    if (msgEl) msgEl.textContent = '';
+    
     // Validasi input
     if (!username || !password) {
-        showNotification('Username dan password harus diisi', 'error');
+        if (msgEl) {
+            msgEl.textContent = 'Username dan password harus diisi';
+            msgEl.className = 'login-msg error';
+        }
         return;
     }
     
-    showLoading(submitBtn.id || 'login-btn');
+    // Show loading state
+    const btnText = submitBtn.querySelector('.btn-text');
+    const btnLoader = submitBtn.querySelector('.btn-loader');
+    if (btnText) btnText.classList.add('hidden');
+    if (btnLoader) btnLoader.classList.remove('hidden');
+    submitBtn.disabled = true;
     
     try {
         const response = await login(username, password);
         
         if (response.success) {
-            showNotification('Login berhasil! Mengalihkan...', 'success');
+            if (msgEl) {
+                msgEl.textContent = 'Login berhasil! Mengalihkan...';
+                msgEl.className = 'login-msg success';
+            }
             
             // Delay sebentar agar user melihat notifikasi
             setTimeout(() => {
-                window.location.href = 'dashboard.html';
+                // Redirect akan dihandle oleh main.js router
+                window.location.reload();
             }, 1000);
         } else {
-            showNotification(response.message || 'Login gagal. Periksa username dan password Anda.', 'error');
+            if (msgEl) {
+                msgEl.textContent = response.message || 'Login gagal. Periksa username dan password Anda.';
+                msgEl.className = 'login-msg error';
+            }
             // Reset password field
             const passwordInput = document.getElementById('password');
             if (passwordInput) {
@@ -63,9 +82,15 @@ async function handleLoginSubmit(e) {
             }
         }
     } catch (error) {
-        showNotification('Error: ' + error.message, 'error');
+        if (msgEl) {
+            msgEl.textContent = 'Error: ' + error.message;
+            msgEl.className = 'login-msg error';
+        }
     } finally {
-        hideLoading(submitBtn.id || 'login-btn');
+        // Hide loading state
+        if (btnText) btnText.classList.remove('hidden');
+        if (btnLoader) btnLoader.classList.add('hidden');
+        submitBtn.disabled = false;
     }
 }
 

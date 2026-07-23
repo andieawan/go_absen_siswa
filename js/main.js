@@ -1,50 +1,119 @@
 /**
  * Main Entry Point
- * Menginisialisasi aplikasi berdasarkan halaman yang aktif
+ * Menginisialisasi aplikasi dengan routing sederhana
+ * Memuat template HTML secara dinamis berdasarkan state login
  */
 
-import { initAuth } from './auth.js';
+import { checkAuth, logout } from './auth.js';
 import { initLoginForm } from './login.js';
 import { initDashboard } from './dashboard.js';
-import { initAbsensiForm } from './absensi.js';
 
-// Deteksi halaman yang sedang aktif
-const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+// Container utama
+const appContainer = document.getElementById('app');
 
-// Inisialisasi auth untuk semua halaman
-initAuth();
+// State aplikasi
+let currentUser = null;
 
-// Inisialisasi modul berdasarkan halaman
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('Aplikasi dimuat:', currentPage);
-    
-    switch (true) {
-        // Halaman Login
-        case currentPage.includes('index.html') || currentPage === '':
-            initLoginForm();
-            break;
-        
-        // Halaman Dashboard
-        case currentPage.includes('dashboard.html'):
-            initDashboard();
-            break;
-        
-        // Halaman Absensi
-        case currentPage.includes('absensi.html'):
-            initAbsensiForm();
-            break;
-        
-        // Halaman lain dapat ditambahkan di sini
-        
-        default:
-            console.log('Tidak ada modul khusus untuk halaman ini');
+/**
+ * Muat template HTML dari folder templates/
+ */
+async function loadTemplate(templateName) {
+    try {
+        const response = await fetch(`templates/${templateName}.html`);
+        if (!response.ok) throw new Error(`Gagal memuat template: ${templateName}`);
+        return await response.text();
+    } catch (error) {
+        console.error('Error loading template:', error);
+        showNotification('Gagal memuat halaman', 'error');
+        return null;
     }
+}
+
+/**
+ * Tampilkan notifikasi
+ */
+function showNotification(message, type = 'info') {
+    const container = document.getElementById('notification-container');
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.textContent = message;
+    container.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+/**
+ * Render halaman Login
+ */
+async function renderLogin() {
+    const template = await loadTemplate('login');
+    if (template) {
+        appContainer.innerHTML = template;
+        initLoginForm();
+    }
+}
+
+/**
+ * Render halaman Dashboard
+ */
+async function renderDashboard() {
+    const template = await loadTemplate('dashboard');
+    if (template) {
+        appContainer.innerHTML = template;
+        
+        // Set data user
+        if (currentUser) {
+            const greetingEl = document.getElementById('greeting');
+            if (greetingEl) greetingEl.textContent = `Selamat Datang, ${currentUser.nama}!`;
+            
+            const headerDateEl = document.getElementById('headerDate');
+            if (headerDateEl) {
+                const now = new Date();
+                const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                headerDateEl.textContent = now.toLocaleDateString('id-ID', options);
+            }
+        }
+        
+        initDashboard();
+    }
+}
+
+/**
+ * Routing berdasarkan status autentikasi
+ */
+async function route() {
+    const authData = checkAuth();
+    
+    if (!authData || !authData.isLoggedIn) {
+        currentUser = null;
+        await renderLogin();
+    } else {
+        currentUser = authData.user;
+        await renderDashboard();
+    }
+}
+
+// Inisialisasi aplikasi
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Aplikasi Absensi Sekolah dimuat');
+    route();
 });
+
+// Handle navigasi logout
+window.handleLogout = async () => {
+    if (confirm('Apakah Anda yakin ingin keluar?')) {
+        await logout();
+        currentUser = null;
+        await renderLogin();
+        showNotification('Berhasil logout', 'success');
+    }
+};
 
 // Global error handler
 window.addEventListener('error', (event) => {
     console.error('Global error:', event.message, event.filename, event.lineno);
-    // Bisa ditambahkan logging ke backend atau service monitoring
 });
 
 // Handle unhandled promise rejections
@@ -52,3 +121,6 @@ window.addEventListener('unhandledrejection', (event) => {
     console.error('Unhandled promise rejection:', event.reason);
     event.preventDefault();
 });
+
+// Export fungsi untuk digunakan modul lain
+export { showNotification, handleLogout };

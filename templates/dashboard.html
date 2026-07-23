@@ -1,0 +1,287 @@
+<!-- Template Dashboard -->
+<section id="dashboardSection">
+    <div class="header-card">
+        <div class="header-content">
+            <div class="header-avatar">👨‍🏫</div>
+            <div class="header-info-text">
+                <h2 id="greeting">Selamat Datang!</h2>
+                <p class="header-date" id="headerDate"></p>
+            </div>
+        </div>
+        <div class="header-actions">
+            <button data-action="quickBukaRekap" class="btn-secondary btn-sm"><span>📁</span> Rekap</button>
+            <button data-action="logout" class="btn-danger btn-sm"><span>🚪</span> Keluar</button>
+        </div>
+    </div>
+
+    <div class="tab-nav" role="tablist">
+        <button class="tab-btn active" data-tab="panelAbsensi" role="tab"><span class="tab-icon">📝</span><span class="tab-label">Input</span></button>
+        <button class="tab-btn" data-tab="panelRiwayat" role="tab"><span class="tab-icon">🕒</span><span class="tab-label">Riwayat</span></button>
+        <button class="tab-btn" data-tab="panelDashboard" role="tab"><span class="tab-icon">📊</span><span class="tab-label">Dashboard</span></button>
+        <button class="tab-btn" data-tab="panelRekap" role="tab"><span class="tab-icon">📁</span><span class="tab-label">Rekap</span></button>
+        <button id="tabBtnAbsenWali" class="tab-btn hidden" data-tab="panelAbsenWali" role="tab"><span class="tab-icon">👪</span><span class="tab-label">Wali</span></button>
+    </div>
+
+    <!-- PANEL 1: INPUT ABSENSI -->
+    <div id="panelAbsensi" class="tab-panel">
+        <div class="panel-header">
+            <h3>📝 Input Absensi</h3>
+            <p class="panel-subtitle">Pilih mata pelajaran, kelas, dan tanggal</p>
+        </div>
+        
+        <form id="absenForm" class="card">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="selectMapel">Mata Pelajaran</label>
+                    <select id="selectMapel" required></select>
+                </div>
+                <div class="form-group">
+                    <label for="selectKelas">Kelas</label>
+                    <select id="selectKelas" required>
+                        <option value="" disabled selected>-- Pilih Kelas --</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="tanggalAbsen">Tanggal Pertemuan</label>
+                <input type="date" id="tanggalAbsen" required>
+            </div>
+
+            <div class="students-section">
+                <div class="section-header">
+                    <h4>👥 Daftar Siswa</h4>
+                    <div class="quick-status-buttons">
+                        <button type="button" class="btn-quick" data-quick-status="H">✓ Semua Hadir</button>
+                        <button type="button" class="btn-quick" data-quick-status="reset">↺ Reset</button>
+                    </div>
+                </div>
+                
+                <p id="loading" class="hidden">Mengambil data dari server...</p>
+                
+                <div class="table-wrapper">
+                    <table id="studentsTable">
+                        <thead>
+                            <tr><th>NIS</th><th>Nama Siswa</th><th>Kehadiran</th></tr>
+                        </thead>
+                        <tbody id="studentsBody">
+                            <tr class="empty-row">
+                                <td colspan="3">
+                                    <div class="empty-state-illustration">
+                                        <svg viewBox="0 0 200 150"><circle cx="100" cy="75" r="50" fill="#E0E7FF"/><text x="100" y="85" text-anchor="middle" font-size="40">📋</text></svg>
+                                        <p>Silakan pilih kelas terlebih dahulu</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <button type="submit" id="btnSubmit" class="btn-primary btn-full btn-submit hidden">
+                <span class="btn-text">💾 Simpan Absensi</span>
+                <span class="btn-loader hidden">⏳ Menyimpan...</span>
+                <div class="btn-progress hidden"><div class="btn-progress-bar"></div></div>
+            </button>
+        </form>
+    </div>
+
+    <!-- PANEL 2: RIWAYAT -->
+    <div id="panelRiwayat" class="tab-panel hidden">
+        <div class="panel-header">
+            <h3>🕒 Riwayat Absensi</h3>
+            <p class="panel-subtitle">Lihat riwayat absensi per mapel atau per kelas (wali)</p>
+        </div>
+        <div class="sub-tab-nav" id="riwayatSubTabNav">
+            <button class="sub-tab-btn active" data-subtab="subtabMapel">📚 Per Mapel</button>
+            <button class="sub-tab-btn hidden" data-subtab="subtabWali" id="subtabBtnWali">👪 Per Kelas (Wali)</button>
+        </div>
+        <div id="subtabMapel" class="sub-tab-panel">
+            <div class="card">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="riwayatMapel">Mata Pelajaran</label>
+                        <select id="riwayatMapel"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="riwayatKelas">Kelas</label>
+                        <select id="riwayatKelas">
+                            <option value="" disabled selected>-- Pilih Kelas --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <p id="riwayatLoading" class="hidden">Mengambil riwayat...</p>
+            <div id="riwayatList">
+                <div class="empty-state-illustration large">
+                    <svg viewBox="0 0 200 150"><circle cx="100" cy="75" r="50" fill="#E0E7FF"/><text x="100" y="85" text-anchor="middle" font-size="40">📚</text></svg>
+                    <p>Pilih mata pelajaran dan kelas untuk melihat riwayat</p>
+                </div>
+            </div>
+        </div>
+        <div id="subtabWali" class="sub-tab-panel hidden">
+            <div class="card">
+                <div class="info-banner">
+                    <span class="info-icon">👪</span>
+                    <div>
+                        <strong>Riwayat Absensi Harian</strong>
+                        <p>Kelas wali: <strong id="riwayatWaliKelasLabel">-</strong></p>
+                    </div>
+                </div>
+            </div>
+            <p id="riwayatWaliLoading" class="hidden">Mengambil riwayat...</p>
+            <div id="riwayatWaliList">
+                <div class="empty-state-illustration large">
+                    <svg viewBox="0 0 200 150"><circle cx="100" cy="75" r="50" fill="#E0E7FF"/><text x="100" y="85" text-anchor="middle" font-size="40">👨‍👩‍👧</text></svg>
+                    <p>Memuat riwayat absensi wali kelas...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL 3: DASHBOARD -->
+    <div id="panelDashboard" class="tab-panel hidden">
+        <div class="panel-header">
+            <h3>📊 Dashboard Analitik</h3>
+            <p class="panel-subtitle">Analisis kehadiran siswa secara visual</p>
+        </div>
+        <p id="dashboardLoading" class="hidden">Memuat data analitik...</p>
+        <div id="dashboardContent" class="hidden">
+            <div class="card">
+                <h4>📈 Persentase Kehadiran (Per Mapel)</h4>
+                <div id="rekapKelasMapelList"></div>
+            </div>
+            <div class="card">
+                <h4>📉 Tren Kehadiran</h4>
+                <div class="chart-wrapper"><canvas id="trendChart"></canvas></div>
+            </div>
+            <div class="card">
+                <h4>⚠️ Perlu Perhatian (Sering Alpa)</h4>
+                <p class="card-subtitle">Siswa dengan absensi Alpa terbanyak</p>
+                <div id="topAlpaList"></div>
+            </div>
+            
+            <div id="dashboardWaliSection" class="hidden">
+                <div class="section-divider">
+                    <span class="section-divider-line"></span>
+                    <span class="section-divider-text">👪 Dashboard Kelas Wali</span>
+                    <span class="section-divider-line"></span>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card stat-hadir"><div class="stat-icon">✓</div><div class="stat-info"><div class="stat-value" id="waliStatPertemuan">0</div><div class="stat-label">Total Pertemuan</div></div></div>
+                    <div class="stat-card stat-izin"><div class="stat-icon">📊</div><div class="stat-info"><div class="stat-value" id="waliStatSiswa">0</div><div class="stat-label">Total Siswa</div></div></div>
+                    <div class="stat-card stat-sakit"><div class="stat-icon">📈</div><div class="stat-info"><div class="stat-value" id="waliStatRataHadir">0%</div><div class="stat-label">Rata-rata Hadir</div></div></div>
+                    <div class="stat-card stat-alpa"><div class="stat-icon">⚠️</div><div class="stat-info"><div class="stat-value" id="waliStatRataAlpa">0%</div><div class="stat-label">Rata-rata Alpa</div></div></div>
+                </div>
+                <div class="card">
+                    <h4>📊 Distribusi Status Kehadiran</h4>
+                    <p class="card-subtitle">Persentase rata-rata H/I/S/A di kelas wali</p>
+                    <div id="waliDistribusiList"></div>
+                </div>
+                <div class="card">
+                    <h4>📈 Tren Kehadiran Harian</h4>
+                    <p class="card-subtitle">Persentase kehadiran per hari di kelas wali</p>
+                    <div class="chart-wrapper"><canvas id="trendChartWali"></canvas></div>
+                </div>
+                <div class="card">
+                    <h4>⚠️ Siswa Perlu Perhatian (Kelas Wali)</h4>
+                    <p class="card-subtitle">Siswa di kelas wali dengan Alpa terbanyak</p>
+                    <div id="waliTopAlpaList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL 4: REKAP -->
+    <div id="panelRekap" class="tab-panel hidden">
+        <div class="panel-header">
+            <h3>📁 Menu Rekap</h3>
+            <p class="panel-subtitle">Unduh file rekap absensi dalam format Excel (.xlsx)</p>
+        </div>
+        <div class="rekap-card">
+            <div class="rekap-card-icon">📚</div>
+            <div class="rekap-card-content">
+                <h4>Rekap Mata Pelajaran</h4>
+                <p class="rekap-card-desc">Unduh rekap absensi untuk semua mata pelajaran & kelas yang Anda ajar.</p>
+                <div class="rekap-card-info">
+                    <span class="info-chip" id="rekapMapelJumlahMapel">-</span>
+                    <span class="info-chip" id="rekapMapelJumlahKelas">-</span>
+                </div>
+                <button data-action="downloadRekapKelasSaya" class="btn-primary btn-full" style="margin-top: 16px;">📥 Unduh Rekap Mata Pelajaran (.xlsx)</button>
+            </div>
+        </div>
+        <div id="rekapWaliCard" class="rekap-card hidden">
+            <div class="rekap-card-icon">👪</div>
+            <div class="rekap-card-content">
+                <h4>Rekap Absensi Wali Kelas</h4>
+                <p class="rekap-card-desc">Unduh rekap absensi harian untuk kelas binaan Anda.</p>
+                <div class="rekap-card-info">
+                    <span class="info-chip info-chip-primary" id="rekapWaliKelasLabel">-</span>
+                </div>
+                <button data-action="downloadRekapAbsenWali" class="btn-primary btn-full" style="margin-top: 16px;">📥 Unduh Rekap Wali Kelas (.xlsx)</button>
+            </div>
+        </div>
+        <div class="info-box">
+            <div class="info-box-icon">💡</div>
+            <div class="info-box-content">
+                <strong>Tips:</strong>
+                <p>File rekap akan langsung terunduh ke perangkat Anda dalam format Excel (.xlsx).</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- PANEL 5: ABSEN WALI -->
+    <div id="panelAbsenWali" class="tab-panel hidden">
+        <div class="panel-header">
+            <h3>👪 Absensi Harian Wali Kelas</h3>
+            <p class="panel-subtitle">Absensi harian untuk kelas binaan: <strong id="waliKelasLabel">-</strong></p>
+        </div>
+        <form id="waliAbsenForm" class="card">
+            <div class="form-group">
+                <label for="waliTanggal">Tanggal</label>
+                <input type="date" id="waliTanggal" required>
+            </div>
+            <div class="students-section">
+                <div class="section-header">
+                    <h4>👥 Daftar Siswa</h4>
+                    <div class="quick-status-buttons">
+                        <button type="button" class="btn-quick" data-quick-status="H" data-target="wali">✓ Semua Hadir</button>
+                        <button type="button" class="btn-quick" data-quick-status="reset" data-target="wali">↺ Reset</button>
+                    </div>
+                </div>
+
+                <p id="waliLoading" class="hidden">Mengambil data dari server...</p>
+
+                <div class="table-wrapper">
+                    <table id="waliStudentsTable">
+                        <thead><tr><th>NIS</th><th>Nama Siswa</th><th>Kehadiran</th></tr></thead>
+                        <tbody id="waliStudentsBody">
+                            <tr class="empty-row">
+                                <td colspan="3">
+                                    <div class="empty-state-illustration">
+                                        <svg viewBox="0 0 200 150"><circle cx="100" cy="75" r="50" fill="#E0E7FF"/><text x="100" y="85" text-anchor="middle" font-size="40">👨‍👩‍👧</text></svg>
+                                        <p>Memuat data siswa...</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <button type="submit" id="waliBtnSubmit" class="btn-primary btn-full btn-submit hidden">
+                <span class="btn-text">💾 Simpan Absensi</span>
+                <span class="btn-loader hidden">⏳ Menyimpan...</span>
+                <div class="btn-progress hidden"><div class="btn-progress-bar"></div></div>
+            </button>
+        </form>
+        <div class="card" style="margin-top: 24px;">
+            <h4>📜 Riwayat Absensi Wali</h4>
+            <p id="waliRiwayatLoading" class="hidden">Mengambil riwayat...</p>
+            <div id="waliRiwayatList">
+                <div class="empty-state-illustration">
+                    <svg viewBox="0 0 200 150"><circle cx="100" cy="75" r="50" fill="#E0E7FF"/><text x="100" y="85" text-anchor="middle" font-size="40">📖</text></svg>
+                    <p>Riwayat akan muncul setelah ada absensi tersimpan</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
