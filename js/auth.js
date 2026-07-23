@@ -1,5 +1,6 @@
 import { isLoggedIn, getCurrentUser, logout } from './api.js';
 import { showNotification } from './utils.js';
+import { showAlert, showConfirm } from './modal.js';
 
 /**
  * Authentication Module
@@ -67,10 +68,12 @@ function setupLogoutButton() {
 async function handleLogout(e) {
     e.preventDefault();
     
-    if (confirm('Apakah Anda yakin ingin logout?')) {
+    const confirmed = await showConfirm('Apakah Anda yakin ingin logout?', 'Konfirmasi Logout');
+    if (confirmed) {
         try {
             logout();
-            showNotification('Berhasil logout', 'success');
+            await showAlert('Berhasil logout', 'Logout Berhasil', 'success');
+            window.location.reload(); // Reload untuk reset state
         } catch (error) {
             showNotification('Gagal logout: ' + error.message, 'error');
         }

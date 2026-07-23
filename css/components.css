@@ -489,3 +489,121 @@
   justify-content: flex-end;
   gap: var(--spacing-3);
 }
+
+/* ==================== Custom Alert & Confirm Modal (Legacy Support) ==================== */
+/* Untuk kompatibilitas dengan index.html yang menggunakan struktur lama */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-box {
+  background: var(--white);
+  padding: var(--spacing-6);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-xl);
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  transform: translateY(-20px);
+  transition: transform 0.3s ease;
+  position: relative;
+  z-index: 10000;
+}
+
+.modal-overlay.active .modal-box {
+  transform: translateY(0);
+}
+
+.modal-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto var(--spacing-4);
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.icon-success {
+  background: rgba(6, 214, 160, 0.1);
+  color: var(--success-color);
+}
+
+.icon-warning {
+  background: rgba(255, 209, 102, 0.1);
+  color: var(--warning-color);
+}
+
+.icon-error {
+  background: rgba(239, 71, 111, 0.1);
+  color: var(--danger-color);
+}
+
+.modal-title {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--gray-800);
+  margin-bottom: var(--spacing-3);
+}
+
+.modal-message {
+  color: var(--gray-600);
+  margin-bottom: var(--spacing-5);
+  line-height: 1.6;
+}
+
+.modal-btn-group {
+  display: flex;
+  gap: var(--spacing-3);
+  justify-content: center;
+}
+
+.modal-btn {
+  padding: var(--spacing-3) var(--spacing-6);
+  border: none;
+  border-radius: var(--radius-lg);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: var(--font-size-base);
+}
+
+.modal-btn.btn-primary {
+  background: var(--primary-color);
+  color: var(--white);
+}
+
+.modal-btn.btn-primary:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.modal-btn.btn-secondary {
+  background: var(--gray-200);
+  color: var(--gray-700);
+}
+
+.modal-btn.btn-secondary:hover {
+  background: var(--gray-300);
+}

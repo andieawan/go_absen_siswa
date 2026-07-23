@@ -7,6 +7,8 @@
 import { checkAuth, logout } from './auth.js';
 import { initLoginForm } from './login.js';
 import { initDashboard } from './dashboard.js';
+import { showNotification, showAlert, showConfirm } from './utils.js';
+import { initModalHandlers } from './modal.js';
 
 // Container utama
 const appContainer = document.getElementById('app');
@@ -98,16 +100,22 @@ async function route() {
 // Inisialisasi aplikasi
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Aplikasi Absensi Sekolah dimuat');
+    
+    // Inisialisasi modal handlers
+    initModalHandlers();
+    
+    // Routing awal
     route();
 });
 
 // Handle navigasi logout
 window.handleLogout = async () => {
-    if (confirm('Apakah Anda yakin ingin keluar?')) {
+    const confirmed = await showConfirm('Apakah Anda yakin ingin keluar?', 'Konfirmasi Logout');
+    if (confirmed) {
         await logout();
         currentUser = null;
         await renderLogin();
-        showNotification('Berhasil logout', 'success');
+        await showAlert('Berhasil logout', 'Logout Berhasil', 'success');
     }
 };
 
