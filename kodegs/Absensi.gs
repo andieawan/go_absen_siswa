@@ -27,10 +27,6 @@ function getExistingAttendance(guru, mapel, kelas, tanggal) {
   for (let i = 1; i < data.length; i++) {
     let rawDate = data[i][4];
     if (rawDate && isDateMatch(rawDate, tanggal)) {
-      // FIX: paksa jadi string. Jika sebuah sel status hanya berisi satu
-      // NIS (tanpa koma), Google Sheets otomatis menyimpannya sebagai
-      // Number, bukan Text. Tanpa String(...) di sini, frontend akan
-      // error saat memanggil .split(',') pada nilai Number tersebut.
       return {
         success: true,
         data: {
@@ -46,6 +42,18 @@ function getExistingAttendance(guru, mapel, kelas, tanggal) {
 }
 
 function handleSubmit(payload) {
+  // Validasi payload dasar
+  const requiredFields = ['guru', 'mapel', 'kelas', 'tanggal', 'attendance'];
+  for (let field of requiredFields) {
+    if (!payload[field]) {
+      return { success: false, message: "Data " + field + " tidak boleh kosong." };
+    }
+  }
+  
+  if (!Array.isArray(payload.attendance) || payload.attendance.length === 0) {
+    return { success: false, message: "Data absensi siswa tidak valid." };
+  }
+
   let ss = getAbsenSs();
   let sheetName = (payload.kelas + "_" + payload.mapel).replace(/[^a-zA-Z0-9]/g, "_");
   let sheet = getOrCreateSheet(ss, sheetName);
@@ -53,15 +61,36 @@ function handleSubmit(payload) {
   let timestamp = new Date();
 
   let hadir = [], izin = [], sakit = [], alpa = [];
-  payload.attendance.forEach(student => {
-    const nis = String(student.nis);
-    switch (student.status) {
+  
+  // Validasi dan proses setiap siswa
+  for (let student of payload.attendance) {
+    if (!student.nis || !student.status) continue;
+    
+    const nis = String(student.nis).trim();
+    const status = String(student.status).trim().toUpperCase();
+    
+    // Validasi NIS
+    const nisValidation = validateInput(nis, 'nisn');
+    if (nisValidation !== true) {
+      return { success: false, message: "NIS tidak valid: " + nisValidation };
+    }
+    
+    // Validasi status
+    if (!['H', 'I', 'S', 'A'].includes(status)) {
+      return { success: false, message: "Status absensi '" + status + "' tidak valid untuk NIS " + nis };
+    }
+    
+    switch (status) {
       case 'H': hadir.push(nis); break;
       case 'I': izin.push(nis); break;
       case 'S': sakit.push(nis); break;
       case 'A': alpa.push(nis); break;
     }
-  });
+  }
+
+  if (hadir.length + izin.length + sakit.length + alpa.length === 0) {
+    return { success: false, message: "Tidak ada data absensi yang valid untuk disimpan." };
+  }
 
   let strHadir = hadir.join(', ');
   let strIzin = izin.join(', ');

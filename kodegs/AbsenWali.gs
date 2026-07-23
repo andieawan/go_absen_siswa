@@ -3,22 +3,54 @@
 // =========================================================
 
 function simpanAbsenWali(kelas, tanggal, dataKehadiran) {
+  // Validasi input dasar
+  if (!kelas || !tanggal || !dataKehadiran) {
+    return { success: false, message: "Data kelas, tanggal, atau kehadiran tidak boleh kosong." };
+  }
+  
+  if (!Array.isArray(dataKehadiran) || dataKehadiran.length === 0) {
+    return { success: false, message: "Data kehadiran siswa tidak valid." };
+  }
+
   const nisKeNama = getNisKeNamaMap(kelas);
   if (Object.keys(nisKeNama).length === 0) {
     return { success: false, message: "Gagal: Data siswa kelas " + kelas + " tidak ditemukan!" };
   }
 
   let hadir = [], izin = [], sakit = [], alpa = [];
-  dataKehadiran.forEach(item => {
-    const nis = String(item.nis);
-    if (!nisKeNama[nis]) return;
-    switch (item.status) {
+  
+  // Validasi dan proses setiap siswa
+  for (let item of dataKehadiran) {
+    if (!item.nis || !item.status) continue;
+    
+    const nis = String(item.nis).trim();
+    const status = String(item.status).trim().toUpperCase();
+    
+    // Skip jika NIS tidak terdaftar di kelas ini
+    if (!nisKeNama[nis]) continue;
+    
+    // Validasi NIS
+    const nisValidation = validateInput(nis, 'nisn');
+    if (nisValidation !== true) {
+      return { success: false, message: "NIS tidak valid: " + nisValidation };
+    }
+    
+    // Validasi status
+    if (!['H', 'I', 'S', 'A'].includes(status)) {
+      return { success: false, message: "Status absensi '" + status + "' tidak valid untuk NIS " + nis };
+    }
+    
+    switch (status) {
       case 'H': hadir.push(nis); break;
       case 'I': izin.push(nis); break;
       case 'S': sakit.push(nis); break;
       case 'A': alpa.push(nis); break;
     }
-  });
+  }
+
+  if (hadir.length + izin.length + sakit.length + alpa.length === 0) {
+    return { success: false, message: "Tidak ada data absensi yang valid untuk disimpan." };
+  }
 
   const strHadir = hadir.join(', ');
   const strIzin = izin.join(', ');

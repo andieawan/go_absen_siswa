@@ -1,6 +1,26 @@
-# File lokal yang tidak perlu di-push
-.DS_Store
-Thumbs.db
-*.log
+```
+# Google Apps Script specific ignores
+**/*.gs.bak
+**/*.gs~
+**/appsscript.json.bak
+
+# General ignores for Google Apps Script projects
 .vscode/
 .idea/
+*.log
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+
+# Environment and local config
+.env
+.env.local
+*.env.*
+
+# Dependencies and build artifacts (if any)
+node_modules/
+dist/
+build/
+target/
+```
