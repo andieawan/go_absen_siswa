@@ -1,0 +1,717 @@
+/* =========================================================
+   APP UI — PATCH FILE
+   ---------------------------------------------------------
+   MASALAH YANG DIPERBAIKI FILE INI:
+
+   1. components.css mendefinisikan tombol/tab/badge dengan
+      konvensi BEM dua-strip (.btn--primary, .tab--active,
+      .badge--danger), TAPI seluruh template HTML/JS aplikasi
+      (login.html, dashboard.html, dashboard.js, utils.js)
+      memakai satu-strip (.btn-primary, .tab-btn.active,
+      .badge-danger). Karena nama class tidak pernah cocok,
+      browser tidak menerapkan style apa pun ke elemen-elemen
+      itu -> tombol jadi teks polos, tab jadi list polos, dst.
+
+   2. Banyak class yang dipakai template TIDAK PERNAH
+      didefinisikan sama sekali di file CSS manapun:
+      .header-card, .tab-nav, .students-section, .rekap-card,
+      .notification, .hidden, dll.
+
+   File ini TIDAK mengubah file CSS lain — cukup ditambahkan
+   sebagai import baru di css/main.css (paling akhir, supaya
+   bisa melengkapi tanpa merusak yang sudah ada).
+   ========================================================= */
+
+/* ==================== Utility: .hidden ====================
+   Dipakai di HAMPIR SEMUA template untuk show/hide (tab panel,
+   loading state, section wali, dll) tapi tidak pernah
+   didefinisikan sebelumnya (utilities.css cuma punya .d-none). */
+.hidden {
+  display: none !important;
+}
+
+/* ==================== Buttons (single-dash) ====================
+   Alias lengkap dari .btn--primary dkk di components.css, memakai
+   nama class yang benar-benar dipakai di template. */
+.btn-primary,
+.btn-secondary,
+.btn-success,
+.btn-danger,
+.btn-outline,
+.btn-quick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3) var(--spacing-6);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-lg);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  border: 2px solid transparent;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--primary-color);
+  color: var(--white);
+}
+.btn-primary:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-secondary {
+  background: var(--secondary-color);
+  color: var(--white);
+}
+.btn-secondary:hover {
+  background: var(--secondary-dark);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-success {
+  background: var(--success-color);
+  color: var(--white);
+}
+.btn-success:hover {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-danger {
+  background: var(--danger-color);
+  color: var(--white);
+}
+.btn-danger:hover {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.btn-outline {
+  background: transparent;
+  border-color: var(--gray-300);
+  color: var(--gray-700);
+}
+.btn-outline:hover {
+  background: var(--gray-50);
+  border-color: var(--gray-400);
+}
+
+.btn-quick {
+  background: var(--gray-100);
+  color: var(--gray-700);
+  padding: var(--spacing-2) var(--spacing-4);
+  font-size: var(--font-size-sm);
+  border: 1px solid var(--gray-200);
+}
+.btn-quick:hover {
+  background: var(--gray-200);
+}
+
+.btn-sm {
+  padding: var(--spacing-2) var(--spacing-4) !important;
+  font-size: var(--font-size-sm) !important;
+}
+
+.btn-full {
+  width: 100%;
+}
+
+.btn-primary:disabled,
+.btn-secondary:disabled,
+.btn-success:disabled,
+.btn-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Tombol submit form (login & absensi) dengan area progress bar */
+.btn-submit {
+  position: relative;
+  margin-top: var(--spacing-4);
+  overflow: hidden;
+}
+
+.btn-progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.3);
+}
+.btn-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--white);
+  transition: width var(--transition-normal);
+}
+
+/* ==================== Badges (single-dash) ====================
+   Dipakai oleh js/utils.js getStatusBadge() dan js/dashboard.js */
+.badge-success,
+.badge-warning,
+.badge-danger,
+.badge-info,
+.badge-secondary {
+  display: inline-block;
+  padding: var(--spacing-1) var(--spacing-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.badge-success { background: rgba(6, 214, 160, 0.1); color: var(--success-color); }
+.badge-warning { background: rgba(255, 209, 102, 0.1); color: #d4a017; }
+.badge-danger  { background: rgba(239, 71, 111, 0.1); color: var(--danger-color); }
+.badge-info    { background: rgba(17, 138, 178, 0.1); color: var(--info-color); }
+.badge-secondary { background: var(--gray-100); color: var(--gray-600); }
+
+/* ==================== Header Card (dashboard) ==================== */
+.header-card {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-5) var(--spacing-6);
+  margin-bottom: var(--spacing-5);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-4);
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+}
+
+.header-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: rgba(67, 97, 238, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  flex-shrink: 0;
+}
+
+.header-info-text h2 {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--gray-800);
+  margin-bottom: 2px;
+}
+
+.header-date {
+  font-size: var(--font-size-sm);
+  color: var(--gray-500);
+}
+
+.header-actions {
+  display: flex;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+}
+
+/* ==================== Tabs (dashboard nav) ====================
+   Template pakai class="active" polos (bukan "tab--active" BEM). */
+.tab-nav {
+  display: flex;
+  gap: var(--spacing-1);
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  padding: var(--spacing-2);
+  margin-bottom: var(--spacing-5);
+  box-shadow: var(--shadow-md);
+  overflow-x: auto;
+}
+
+.tab-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 72px;
+  padding: var(--spacing-3) var(--spacing-2);
+  border-radius: var(--radius-lg);
+  color: var(--gray-500);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-xs);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  background: transparent;
+}
+
+.tab-btn:hover {
+  background: var(--gray-50);
+  color: var(--primary-color);
+}
+
+.tab-btn.active {
+  background: rgba(67, 97, 238, 0.1);
+  color: var(--primary-color);
+}
+
+.tab-icon {
+  font-size: var(--font-size-lg);
+}
+
+.tab-label {
+  font-size: var(--font-size-xs);
+}
+
+.tab-panel {
+  animation: slideIn var(--transition-normal);
+}
+
+/* Sub-tabs (di dalam panel Riwayat) */
+.sub-tab-nav {
+  display: flex;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-4);
+  border-bottom: 2px solid var(--gray-200);
+}
+
+.sub-tab-btn {
+  padding: var(--spacing-2) var(--spacing-4);
+  font-weight: var(--font-weight-medium);
+  color: var(--gray-500);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.sub-tab-btn:hover {
+  color: var(--primary-color);
+}
+
+.sub-tab-btn.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+.sub-tab-panel {
+  animation: slideIn var(--transition-normal);
+}
+
+/* ==================== Panel Header ==================== */
+.panel-header {
+  margin-bottom: var(--spacing-5);
+}
+
+.panel-header h3 {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--gray-800);
+  margin-bottom: var(--spacing-1);
+}
+
+.panel-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--gray-500);
+}
+
+.card-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--gray-500);
+  margin-bottom: var(--spacing-3);
+}
+
+/* ==================== Forms ==================== */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-4);
+}
+
+@media (max-width: 640px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.form-row .form-group,
+.card > .form-group {
+  margin-bottom: var(--spacing-4);
+}
+
+.card label,
+.form-group label {
+  display: block;
+  margin-bottom: var(--spacing-2);
+  font-weight: var(--font-weight-medium);
+  color: var(--gray-700);
+  font-size: var(--font-size-sm);
+}
+
+.card input[type="text"],
+.card input[type="password"],
+.card input[type="date"],
+.card select,
+.login-form input {
+  width: 100%;
+  padding: var(--spacing-3) var(--spacing-4);
+  font-size: var(--font-size-base);
+  border: 2px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  background: var(--white);
+  transition: all var(--transition-fast);
+}
+
+.card input:focus,
+.card select:focus,
+.login-form input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+}
+
+.label-icon {
+  margin-right: var(--spacing-1);
+}
+
+/* ==================== Students Section ==================== */
+.students-section {
+  margin-top: var(--spacing-5);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+  margin-bottom: var(--spacing-4);
+}
+
+.section-header h4 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--gray-800);
+}
+
+.quick-status-buttons {
+  display: flex;
+  gap: var(--spacing-2);
+}
+
+/* ==================== Tables ==================== */
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--gray-200);
+}
+
+#studentsTable,
+#waliStudentsTable,
+.simple-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+#studentsTable thead,
+#waliStudentsTable thead,
+.simple-table thead {
+  background: var(--gray-50);
+  border-bottom: 2px solid var(--gray-200);
+}
+
+#studentsTable th,
+#waliStudentsTable th,
+.simple-table th {
+  padding: var(--spacing-3) var(--spacing-4);
+  font-weight: var(--font-weight-semibold);
+  color: var(--gray-700);
+  text-transform: uppercase;
+  font-size: var(--font-size-xs);
+  letter-spacing: 0.05em;
+  text-align: left;
+}
+
+#studentsTable td,
+#waliStudentsTable td,
+.simple-table td {
+  padding: var(--spacing-3) var(--spacing-4);
+  color: var(--gray-600);
+  border-bottom: 1px solid var(--gray-100);
+}
+
+#studentsTable tbody tr:hover,
+#waliStudentsTable tbody tr:hover,
+.simple-table tbody tr:hover {
+  background: var(--gray-50);
+}
+
+.empty-row td {
+  padding: var(--spacing-8) !important;
+}
+
+/* ==================== Empty States ==================== */
+.empty-state-illustration {
+  text-align: center;
+  padding: var(--spacing-6);
+  color: var(--gray-500);
+}
+
+.empty-state-illustration svg {
+  width: 120px;
+  height: auto;
+  margin: 0 auto var(--spacing-3);
+}
+
+.empty-state-illustration.large svg {
+  width: 160px;
+}
+
+.empty-state {
+  text-align: center;
+  color: var(--gray-500);
+  padding: var(--spacing-6);
+  font-size: var(--font-size-sm);
+}
+
+/* ==================== Rekap Cards ==================== */
+.rekap-card {
+  background: var(--white);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-md);
+  padding: var(--spacing-6);
+  display: flex;
+  gap: var(--spacing-4);
+  margin-bottom: var(--spacing-5);
+}
+
+.rekap-card-icon {
+  font-size: 2.5rem;
+  flex-shrink: 0;
+}
+
+.rekap-card-content {
+  flex: 1;
+}
+
+.rekap-card-content h4 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--gray-800);
+  margin-bottom: var(--spacing-2);
+}
+
+.rekap-card-desc {
+  color: var(--gray-600);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--spacing-3);
+}
+
+.rekap-card-info {
+  display: flex;
+  gap: var(--spacing-2);
+  flex-wrap: wrap;
+}
+
+.info-chip {
+  display: inline-block;
+  padding: var(--spacing-1) var(--spacing-3);
+  background: var(--gray-100);
+  color: var(--gray-700);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.info-chip-primary {
+  background: rgba(67, 97, 238, 0.1);
+  color: var(--primary-color);
+}
+
+/* ==================== Info Banner / Info Box ==================== */
+.info-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-4);
+  background: rgba(67, 97, 238, 0.06);
+  border-radius: var(--radius-lg);
+}
+
+.info-icon {
+  font-size: var(--font-size-2xl);
+  flex-shrink: 0;
+}
+
+.info-box {
+  display: flex;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4) var(--spacing-5);
+  background: rgba(255, 209, 102, 0.1);
+  border-left: 4px solid var(--warning-color);
+  border-radius: var(--radius-lg);
+  margin-top: var(--spacing-5);
+}
+
+.info-box-icon {
+  font-size: var(--font-size-xl);
+  flex-shrink: 0;
+}
+
+.info-box-content strong {
+  color: var(--gray-800);
+}
+
+.info-box-content p {
+  color: var(--gray-600);
+  font-size: var(--font-size-sm);
+  margin-top: var(--spacing-1);
+}
+
+/* ==================== Section Divider ==================== */
+.section-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  margin: var(--spacing-6) 0;
+}
+
+.section-divider-line {
+  flex: 1;
+  height: 1px;
+  background: var(--gray-200);
+}
+
+.section-divider-text {
+  font-weight: var(--font-weight-semibold);
+  color: var(--gray-600);
+  font-size: var(--font-size-sm);
+  white-space: nowrap;
+}
+
+/* ==================== Chart / Trend Bars ==================== */
+.chart-wrapper {
+  position: relative;
+  min-height: 160px;
+}
+
+.chart-wrapper canvas {
+  max-width: 100%;
+}
+
+.trend-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--spacing-2);
+  height: 160px;
+  padding: var(--spacing-2) 0;
+}
+
+.trend-bar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-1);
+  flex: 1;
+}
+
+.trend-bar {
+  width: 100%;
+  max-width: 28px;
+  background: var(--primary-color);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: height var(--transition-normal);
+}
+
+.trend-bar-label {
+  font-size: var(--font-size-xs);
+  color: var(--gray-500);
+}
+
+/* ==================== Notifications / Toast ====================
+   js/utils.js showNotification() memakai class-class ini, TIDAK
+   sama dengan .toast/.toast-container di components.css. */
+.notification-container {
+  position: fixed;
+  top: var(--spacing-6);
+  right: var(--spacing-6);
+  z-index: var(--z-tooltip);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  max-width: 380px;
+  width: calc(100% - var(--spacing-8));
+}
+
+.notification {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4) var(--spacing-5);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  background: var(--white);
+  border-left: 4px solid var(--info-color);
+  animation: slideInRight var(--transition-normal);
+  font-size: var(--font-size-sm);
+  color: var(--gray-700);
+}
+
+.notification-success { border-left-color: var(--success-color); }
+.notification-error   { border-left-color: var(--danger-color); }
+.notification-warning  { border-left-color: var(--warning-color); }
+.notification-info     { border-left-color: var(--info-color); }
+
+.notification.fade-out {
+  opacity: 0;
+  transform: translateX(20px);
+  transition: all var(--transition-normal);
+}
+
+.notification .close-btn {
+  font-size: var(--font-size-lg);
+  line-height: 1;
+  color: var(--gray-400);
+  flex-shrink: 0;
+}
+
+.notification .close-btn:hover {
+  color: var(--gray-600);
+}
+
+@media (max-width: 640px) {
+  .notification-container {
+    left: var(--spacing-4);
+    right: var(--spacing-4);
+    max-width: none;
+  }
+}
+
+/* ==================== Container umum (app shell) ====================
+   index.html hanya punya <div class="container"><main id="app"></main></div>
+   tanpa padding/max-width -- pastikan konten dashboard tidak mepet ke tepi
+   layar dan tetap center di layar lebar. */
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: var(--spacing-5) var(--spacing-4);
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: var(--spacing-4) var(--spacing-3);
+  }
+}
