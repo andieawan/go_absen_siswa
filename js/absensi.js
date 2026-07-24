@@ -95,9 +95,18 @@ function setupQuickStatusButtons() {
             const tbodyId = btn.dataset.target === 'wali' ? 'waliStudentsBody' : 'studentsBody';
             const tbody = document.getElementById(tbodyId);
             if (!tbody) return;
-            const status = btn.dataset.quickStatus === 'reset' ? 'H' : btn.dataset.quickStatus;
-            tbody.querySelectorAll('select.status-select').forEach(sel => {
-                sel.value = status;
+            const isReset = btn.dataset.quickStatus === 'reset';
+
+            tbody.querySelectorAll('.status-toggle-group').forEach(group => {
+                // PATCH: "Reset" mengembalikan ke status SAAT DATA DIMUAT
+                // (data-default -- bisa jadi H, atau I/S/A kalau tanggal ini
+                // sudah pernah diisi sebelumnya), BUKAN dipaksa ke Hadir.
+                // Kalau dipaksa ke H, data izin/sakit/alpa yang sudah tersimpan
+                // sebelumnya bisa keliru ke-reset jadi Hadir semua.
+                // "Semua Hadir" tetap memaksa semua baris ke H apa pun kondisinya.
+                const status = isReset ? (group.dataset.default || 'H') : btn.dataset.quickStatus;
+                const radio = group.querySelector(`input[type="radio"][value="${status}"]`);
+                if (radio) radio.checked = true;
             });
         });
     });
@@ -116,11 +125,15 @@ function setSubmitLoading(btn, loading) {
     if (loader) loader.classList.toggle('hidden', !loading);
 }
 
+const STATUS_LABEL = { H: 'Hadir', I: 'Izin', S: 'Sakit', A: 'Alpha' };
+
 /**
- * Render baris tabel daftar siswa dengan dropdown status kehadiran.
+ * Render baris tabel daftar siswa dengan segmented button (H/I/S/A) per baris.
  * existingMap: { [nis]: 'H'|'I'|'S'|'A' } -- status yang sudah tersimpan
  * sebelumnya (kalau ada), dipakai untuk pre-fill saat data absensi
- * tanggal tsb sudah pernah diisi (mode edit/update).
+ * tanggal tsb sudah pernah diisi (mode edit/update). Nilai ini juga disimpan
+ * di atribut data-default supaya tombol "Reset" tahu harus kembali ke mana
+ * (lihat setupQuickStatusButtons).
  */
 function renderStudentRows(tbodyId, students, existingMap) {
     const tbody = document.getElementById(tbodyId);
@@ -134,17 +147,23 @@ function renderStudentRows(tbodyId, students, existingMap) {
     tbody.innerHTML = students.map(s => {
         const nis = String(s.nis);
         const current = (existingMap && existingMap[nis]) || 'H';
+        const groupName = `${tbodyId}-status-${nis}`;
+
+        const tombolStatus = ['H', 'I', 'S', 'A'].map(kode => {
+            const id = `${groupName}-${kode}`;
+            return `
+                <input type="radio" class="status-toggle-input" name="${groupName}" id="${id}" value="${kode}" ${current === kode ? 'checked' : ''}>
+                <label for="${id}" class="status-toggle status-toggle--${kode}" title="${STATUS_LABEL[kode]}">${kode}</label>`;
+        }).join('');
+
         return `
             <tr data-nis="${escapeHtml(nis)}">
                 <td>${escapeHtml(nis)}</td>
                 <td>${escapeHtml(s.nama)}</td>
                 <td>
-                    <select class="status-select" data-nis="${escapeHtml(nis)}">
-                        <option value="H" ${current === 'H' ? 'selected' : ''}>Hadir</option>
-                        <option value="I" ${current === 'I' ? 'selected' : ''}>Izin</option>
-                        <option value="S" ${current === 'S' ? 'selected' : ''}>Sakit</option>
-                        <option value="A" ${current === 'A' ? 'selected' : ''}>Alpha</option>
-                    </select>
+                    <div class="status-toggle-group" data-nis="${escapeHtml(nis)}" data-default="${current}">
+                        ${tombolStatus}
+                    </div>
                 </td>
             </tr>`;
     }).join('');
@@ -156,6 +175,18 @@ async function ambilDaftarSiswa(kelas) {
     if (!res.success) throw new Error(res.message || 'Gagal memuat data siswa');
     siswaKelasCache[kelas] = res.data;
     return res.data;
+}
+
+/**
+ * Baca status kehadiran tercentang dari semua .status-toggle-group
+ * di dalam tbody tertentu (dipakai saat submit form).
+ */
+function bacaAttendanceDariTabel(tbodyId) {
+    const groups = document.querySelectorAll(`#${tbodyId} .status-toggle-group`);
+    return Array.from(groups).map(group => {
+        const checked = group.querySelector('input[type="radio"]:checked');
+        return { nis: group.dataset.nis, status: checked ? checked.value : 'H' };
+    });
 }
 
 function renderRiwayatList(res, containerId) {
@@ -278,13 +309,11 @@ function setupInputAbsensiForm(user) {
             return;
         }
 
-        const rows = document.querySelectorAll('#studentsBody select.status-select');
-        if (rows.length === 0) {
+        const attendance = bacaAttendanceDariTabel('studentsBody');
+        if (attendance.length === 0) {
             showNotification('Tidak ada data siswa untuk disimpan.', 'warning');
             return;
         }
-
-        const attendance = Array.from(rows).map(sel => ({ nis: sel.dataset.nis, status: sel.value }));
 
         setSubmitLoading(btnSubmit, true);
         try {
@@ -463,12 +492,11 @@ function setupAbsenWaliPanel(user) {
             const tanggal = waliTanggal?.value;
             if (!tanggal) return;
 
-            const rows = document.querySelectorAll('#waliStudentsBody select.status-select');
-            if (rows.length === 0) {
+            const dataKehadiran = bacaAttendanceDariTabel('waliStudentsBody');
+            if (dataKehadiran.length === 0) {
                 showNotification('Tidak ada data siswa untuk disimpan.', 'warning');
                 return;
             }
-            const dataKehadiran = Array.from(rows).map(sel => ({ nis: sel.dataset.nis, status: sel.value }));
 
             setSubmitLoading(waliBtnSubmit, true);
             try {
