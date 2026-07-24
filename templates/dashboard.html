@@ -47,6 +47,20 @@
         <!-- SUB-TAB: DASHBOARD WALI KELAS (default) -->
         <div id="subtabDashboardWali" class="sub-tab-panel hidden">
             <div id="dashboardWaliContent" class="hidden">
+                <!-- PATCH: sebelumnya dashboard analitik wali kelas TIDAK punya
+                     penanda kelas wali mana yang sedang ditampilkan (beda
+                     dengan panel Input & Riwayat Wali Kelas yang sudah punya
+                     info-banner serupa). Ditambahkan supaya konsisten dan
+                     pengguna langsung tahu data ini untuk kelas binaan mana. -->
+                <div class="card" style="margin-bottom: var(--spacing-4);">
+                    <div class="info-banner">
+                        <span class="info-icon">👪</span>
+                        <div>
+                            <strong>Dashboard Wali Kelas</strong>
+                            <p>Kelas binaan: <strong id="dashboardWaliKelasLabel">-</strong></p>
+                        </div>
+                    </div>
+                </div>
                 <div class="stats-grid">
                     <div class="stat-card stat-hadir"><div class="stat-icon">✓</div><div class="stat-info"><div class="stat-value" id="waliStatPertemuan">0</div><div class="stat-label">Total Pertemuan</div></div></div>
                     <div class="stat-card stat-izin"><div class="stat-icon">📊</div><div class="stat-info"><div class="stat-value" id="waliStatSiswa">0</div><div class="stat-label">Total Siswa</div></div></div>
