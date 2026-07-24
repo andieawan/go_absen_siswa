@@ -14,11 +14,12 @@
  *   - Navigasi tab (data-tab) & sub-tab (data-subtab) -- SEBELUMNYA
  *     tidak ada satupun listener yang toggle panel mana yang tampil,
  *     jadi klik tab "Riwayat"/"Rekap"/"Wali" tidak melakukan apa-apa.
- *   - Panel "Input" (panelAbsensi): pilih mapel/kelas/tanggal -> muat
- *     daftar siswa -> isi status kehadiran -> submit ke backend.
+ *   - Panel "Input" (panelAbsensi): 2 sub-menu -- "Guru Mapel" (pilih
+ *     mapel/kelas/tanggal -> muat daftar siswa -> isi status kehadiran ->
+ *     submit) dan "Wali Kelas" (absen harian kelas binaan, sub-menu ini
+ *     disembunyikan otomatis kalau guru bukan wali kelas).
  *   - Panel "Riwayat" (panelRiwayat): riwayat per mapel & per kelas wali.
  *   - Panel "Rekap" (panelRekap): tombol unduh .xlsx.
- *   - Panel "Wali" (panelAbsenWali): input & riwayat absen harian wali kelas.
  * Tanpa file ini, aplikasi hanya bisa login dan melihat tab Dashboard --
  * fitur inti (mengisi absensi) sama sekali tidak bisa diakses dari UI.
  * =========================================================
@@ -50,11 +51,31 @@ export function initAbsensi() {
     if (!user) return;
 
     setupTabNavigation();
+    // PATCH: input Wali Kelas sekarang jadi sub-menu di dalam tab Input
+    // (bukan tab tersendiri lagi) -- fungsi ini yang mengatur tampil/
+    // sembunyi sub-menunya berdasarkan apakah guru ini wali kelas atau bukan.
+    setupInputSubTabs(user);
     setupQuickStatusButtons();
     setupInputAbsensiForm(user);
     setupRiwayatPanel(user);
     setupRekapPanel(user);
     setupAbsenWaliPanel(user);
+}
+
+// =========================================================
+// PATCH: SUB-MENU PANEL INPUT (Guru Mapel / Wali Kelas)
+// ---------------------------------------------------------
+// Kalau guru ini BUKAN wali kelas, sub-menu "Wali Kelas" disembunyikan.
+// Karena tersisa cuma 1 pilihan ("Guru Mapel"), sub-tab-nav-nya sendiri
+// juga ikut disembunyikan -- tidak ada gunanya menampilkan bar menu kalau
+// isinya cuma 1 opsi yang memang sudah aktif oleh default.
+// =========================================================
+function setupInputSubTabs(user) {
+    const nav = document.getElementById('inputSubTabNav');
+    const btnWali = document.getElementById('subtabBtnInputWali');
+
+    if (btnWali) btnWali.classList.toggle('hidden', !user.kelasWali);
+    if (nav) nav.classList.toggle('hidden', !user.kelasWali);
 }
 
 // =========================================================
@@ -486,19 +507,17 @@ function setupRekapPanel(user) {
 }
 
 // =========================================================
-// PANEL 5: ABSEN HARIAN WALI KELAS
+// PANEL: INPUT ABSENSI -- SUB-TAB WALI KELAS (Absen Harian)
 // =========================================================
 function setupAbsenWaliPanel(user) {
-    if (!user.kelasWali) return; // bukan wali kelas -> panel tetap hidden (default)
+    if (!user.kelasWali) return; // bukan wali kelas -> sub-menu tetap hidden (lihat setupInputSubTabs)
 
-    const tabBtnWali = document.getElementById('tabBtnAbsenWali');
     const waliKelasLabel = document.getElementById('waliKelasLabel');
     const waliTanggal = document.getElementById('waliTanggal');
     const waliLoading = document.getElementById('waliLoading');
     const waliBtnSubmit = document.getElementById('waliBtnSubmit');
     const form = document.getElementById('waliAbsenForm');
 
-    if (tabBtnWali) tabBtnWali.classList.remove('hidden');
     if (waliKelasLabel) waliKelasLabel.textContent = user.kelasWali;
     if (waliTanggal && !waliTanggal.value) waliTanggal.valueAsDate = new Date();
 
