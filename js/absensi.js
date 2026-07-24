@@ -35,7 +35,7 @@ import {
     downloadRekapExcel,
     getCurrentUser
 } from './api.js';
-import { showNotification, escapeHtml } from './utils.js';
+import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js';
 
 // Cache daftar siswa per kelas supaya tidak fetch berulang kali
 // dalam satu sesi dashboard yang sama.
@@ -285,6 +285,7 @@ function setupInputAbsensiForm(user) {
 
         if (loadingEl) loadingEl.classList.remove('hidden');
         if (btnSubmit) btnSubmit.classList.add('hidden');
+        showGlobalLoading('Mengambil data siswa...');
 
         try {
             // PATCH PERFORMA: kedua request ini independen satu sama lain
@@ -318,6 +319,7 @@ function setupInputAbsensiForm(user) {
                 '<tr class="empty-row"><td colspan="3"><p class="empty-state">Gagal memuat data</p></td></tr>';
         } finally {
             if (loadingEl) loadingEl.classList.add('hidden');
+            hideGlobalLoading();
         }
     }
 
@@ -342,6 +344,7 @@ function setupInputAbsensiForm(user) {
         }
 
         setSubmitLoading(btnSubmit, true);
+        showGlobalLoading('Menyimpan absensi...');
         try {
             const res = await submitAbsensi({ mapel, kelas, tanggal, attendance });
             showNotification(res.message || (res.success ? 'Absensi tersimpan' : 'Gagal menyimpan absensi'), res.success ? 'success' : 'error');
@@ -349,6 +352,7 @@ function setupInputAbsensiForm(user) {
             showNotification('Gagal menyimpan absensi: ' + err.message, 'error');
         } finally {
             setSubmitLoading(btnSubmit, false);
+            hideGlobalLoading();
         }
     });
 
@@ -385,6 +389,7 @@ function setupRiwayatPanel(user) {
         if (!mapel || !kelas) return;
 
         if (riwayatLoading) riwayatLoading.classList.remove('hidden');
+        showGlobalLoading('Mengambil riwayat absensi...');
         try {
             const res = await getRiwayatAbsensi(mapel, kelas);
             renderRiwayatList(res, 'riwayatList');
@@ -392,6 +397,7 @@ function setupRiwayatPanel(user) {
             showNotification('Gagal memuat riwayat: ' + err.message, 'error');
         } finally {
             if (riwayatLoading) riwayatLoading.classList.add('hidden');
+            hideGlobalLoading();
         }
     }
 
@@ -405,6 +411,7 @@ function setupRiwayatPanel(user) {
 
         async function loadRiwayatWali() {
             if (riwayatWaliLoading) riwayatWaliLoading.classList.remove('hidden');
+            showGlobalLoading('Mengambil riwayat absensi...');
             try {
                 const res = await getRiwayatAbsenWali(user.kelasWali);
                 renderRiwayatList(res, 'riwayatWaliList');
@@ -412,6 +419,7 @@ function setupRiwayatPanel(user) {
                 showNotification('Gagal memuat riwayat: ' + err.message, 'error');
             } finally {
                 if (riwayatWaliLoading) riwayatWaliLoading.classList.add('hidden');
+                hideGlobalLoading();
             }
         }
 
@@ -446,6 +454,7 @@ function setupRekapPanel(user) {
                 return;
             }
             btn.disabled = true;
+            showGlobalLoading('Menyiapkan file rekap...');
             try {
                 const res = await downloadRekapExcel('mapel', user.mapelList.join(','), user.kelasList.join(','));
                 showNotification(res.message || 'Rekap berhasil diunduh', res.success ? 'success' : 'error');
@@ -453,6 +462,7 @@ function setupRekapPanel(user) {
                 showNotification('Gagal mengunduh rekap: ' + err.message, 'error');
             } finally {
                 btn.disabled = false;
+                hideGlobalLoading();
             }
         });
     });
@@ -461,6 +471,7 @@ function setupRekapPanel(user) {
         btn.addEventListener('click', async () => {
             if (!user.kelasWali) return;
             btn.disabled = true;
+            showGlobalLoading('Menyiapkan file rekap...');
             try {
                 const res = await downloadRekapExcel('wali', '', user.kelasWali);
                 showNotification(res.message || 'Rekap berhasil diunduh', res.success ? 'success' : 'error');
@@ -468,6 +479,7 @@ function setupRekapPanel(user) {
                 showNotification('Gagal mengunduh rekap: ' + err.message, 'error');
             } finally {
                 btn.disabled = false;
+                hideGlobalLoading();
             }
         });
     });
@@ -496,6 +508,7 @@ function setupAbsenWaliPanel(user) {
 
         if (waliLoading) waliLoading.classList.remove('hidden');
         if (waliBtnSubmit) waliBtnSubmit.classList.add('hidden');
+        showGlobalLoading('Mengambil data siswa...');
 
         try {
             // PATCH PERFORMA: sama seperti reloadStudents() di Panel Input --
@@ -511,6 +524,7 @@ function setupAbsenWaliPanel(user) {
             showNotification('Gagal memuat data siswa: ' + err.message, 'error');
         } finally {
             if (waliLoading) waliLoading.classList.add('hidden');
+            hideGlobalLoading();
         }
     }
 
@@ -529,6 +543,7 @@ function setupAbsenWaliPanel(user) {
             }
 
             setSubmitLoading(waliBtnSubmit, true);
+            showGlobalLoading('Menyimpan absensi...');
             try {
                 const res = await submitAbsenWali({ kelas: user.kelasWali, tanggal, dataKehadiran });
                 showNotification(res.message || (res.success ? 'Absensi tersimpan' : 'Gagal menyimpan absensi'), res.success ? 'success' : 'error');
@@ -536,6 +551,7 @@ function setupAbsenWaliPanel(user) {
                 showNotification('Gagal menyimpan absensi: ' + err.message, 'error');
             } finally {
                 setSubmitLoading(waliBtnSubmit, false);
+                hideGlobalLoading();
             }
         });
     }
