@@ -227,15 +227,28 @@
 
 /* ==================== Tabs (dashboard nav) ====================
    Template pakai class="active" polos (bukan "tab--active" BEM). */
+/* PATCH UX: menu utama (Dashboard/Input/Riwayat/Rekap) dipindah dari
+   posisi inline di ATAS halaman menjadi bar navigasi TETAP (fixed) di
+   BAWAH layar -- supaya pengguna tidak perlu scroll ke atas lagi untuk
+   pindah menu ketika sedang berada di bagian bawah halaman (mis. sudah
+   mengisi tabel siswa yang panjang lalu ingin pindah ke tab lain).
+   env(safe-area-inset-bottom) menambah jarak aman di HP dengan gesture
+   bar/notch di bawah (mis. iPhone tanpa tombol Home). */
 .tab-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
   display: flex;
   gap: var(--spacing-1);
   background: var(--white);
-  border-radius: var(--radius-xl);
-  padding: var(--spacing-2);
-  margin-bottom: var(--spacing-5);
-  box-shadow: var(--shadow-md);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  padding: var(--spacing-2) var(--spacing-3);
+  padding-bottom: calc(var(--spacing-2) + env(safe-area-inset-bottom, 0px));
+  margin: 0;
+  box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.12);
   overflow-x: auto;
+  z-index: var(--z-fixed);
 }
 
 .tab-btn {
@@ -275,6 +288,19 @@
 
 .tab-panel {
   animation: slideIn var(--transition-normal);
+}
+
+/* PATCH UX: ruang ekstra di bawah supaya konten terakhir tiap panel (mis.
+   tombol "Simpan Absensi" di ujung tabel siswa yang panjang) tidak
+   ketutupan oleh .tab-nav yang sekarang fixed di bawah layar. */
+#dashboardSection {
+  padding-bottom: 88px;
+}
+
+@media (max-width: 640px) {
+  #dashboardSection {
+    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 /* Sub-tabs (di dalam panel Riwayat) */
