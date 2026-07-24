@@ -180,45 +180,57 @@ function handleLogin(username, password) {
       const storedHash = data[i][7];
       let passwordValid = false;
       
+      let perluUpgradeHash = false;
+
       if (storedHash && storedHash !== '') {
         // Mode aman: gunakan password hashing
         const salt = data[i][6] || getSaltForUser(username);
         const inputHash = hashPassword(password, salt);
         passwordValid = (inputHash === storedHash);
       } else {
-        // Fallback ke mode lama (plaintext) - hanya untuk masa transisi
-        // Setelah migrasi, branch ini bisa dihapus
+        // Mode lama (plaintext) - masih dipakai untuk akun yang belum pernah
+        // login sejak sistem hash diaktifkan.
         passwordValid = (data[i][1] === password);
+        if (passwordValid) {
+          // PATCH: tandai akun ini untuk di-upgrade ke hash SEKARANG JUGA,
+          // sesuai desain "salt dibuat saat login pertama kali".
+          // Sebelumnya upgrade HANYA terjadi lewat migrasiHashPassword()
+          // yang harus dijalankan manual -- akun baru yang belum pernah
+          // ikut migrasi manual akan tetap plaintext selamanya.
+          perluUpgradeHash = true;
+        }
       }
       
       if (passwordValid) {
         cache.remove(cacheKey);
+
+        // ===== PATCH: AUTO-HASH SAAT LOGIN PERTAMA =====
+        // Begitu password plaintext terverifikasi benar, langsung generate
+        // salt baru (jika belum ada) + hash, lalu simpan permanen ke sheet.
+        // Login-login berikutnya untuk akun ini otomatis akan lewat jalur
+        // "Mode aman" di atas.
+        if (perluUpgradeHash) {
+          try {
+            const saltBaru = data[i][6] && data[i][6] !== '' ? data[i][6] : generateSalt();
+            const hashBaru = hashPassword(password, saltBaru);
+            sheet.getRange(i + 1, 7).setValue(saltBaru);  // kolom G: salt
+            sheet.getRange(i + 1, 8).setValue(hashBaru);  // kolom H: password_hash
+            Logger.log('Auto-upgrade hash sukses untuk user: ' + username);
+          } catch (upgradeError) {
+            // Jangan sampai kegagalan upgrade menggagalkan login yang sudah valid.
+            Logger.log('Auto-upgrade hash GAGAL untuk user ' + username + ': ' + upgradeError.toString());
+          }
+        }
+        // ===== SELESAI PATCH =====
         let kelasWali = data[i][5] ? String(data[i][5]).trim() : '';
-
-        // ===== PATCH =====
-        // SEBELUM: mengembalikan field "mapel" dan "kelas" sebagai string
-        // mentah dari spreadsheet (mis. "Matematika, IPA"), padahal frontend
-        // (js/dashboard.js, js/absensi.js) membaca userData.mapelList dan
-        // userData.kelasList sebagai ARRAY. Akibatnya array selalu kosong
-        // -> dropdown Kelas/Mapel kosong -> error "Tidak ada mata pelajaran
-        // atau kelas yang diajar".
-        // SESUDAH: parsing jadi array di sini (sama seperti getAkunGuru())
-        // supaya field yang dikirim ke frontend konsisten: mapelList & kelasList.
-        let mapelList = String(data[i][3] || '').split(',').map(s => s.trim()).filter(s => s !== '');
-        let kelasList = String(data[i][4] || '').split(',').map(s => s.trim()).filter(s => s !== '');
-
         return {
           success: true,
           data: {
             username: username,
             token: buatToken(username),
-            nama: data[i][2],
-            mapelList: mapelList,
-            kelasList: kelasList,
-            kelasWali: kelasWali
+            nama: data[i][2], mapel: data[i][3], kelas: data[i][4], kelasWali: kelasWali
           }
         };
-        // ===== SELESAI PATCH =====
       }
     }
   }
