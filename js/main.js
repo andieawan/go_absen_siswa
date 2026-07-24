@@ -42,6 +42,12 @@
 import { isLoggedIn, getCurrentUser, logout, redirectToLoginPage } from './api.js';
 import { initLoginForm } from './login.js';
 import { initDashboard } from './dashboard.js';
+// PATCH (FIX BUG KRITIS): js/absensi.js sebelumnya tidak pernah di-import sama
+// sekali (sempat terhapus dari repo, lihat catatan di js/absensi.js), sehingga
+// panel Input Absensi, Riwayat, Rekap, dan Wali tidak pernah terhubung ke apa
+// pun -- termasuk navigasi tab-nya sendiri. Modul ini sekarang dipulihkan dan
+// diinisialisasi di sini, sejajar dengan initDashboard().
+import { initAbsensi } from './absensi.js';
 import { showNotification } from './utils.js';
 import { showAlert, showConfirm } from './modal.js';
 import { initModalHandlers } from './modal.js';
@@ -100,6 +106,8 @@ async function renderDashboard() {
         }
 
         initDashboard();
+        // PATCH: inisialisasi panel Input/Riwayat/Rekap/Wali (lihat js/absensi.js)
+        initAbsensi();
     }
 }
 
@@ -197,10 +205,9 @@ document.addEventListener('click', (e) => {
     if (action === 'logout') {
         window.handleLogout();
     }
-    // Catatan: action lain seperti "quickBukaRekap" kemungkinan sudah
-    // ditangani di js/absensi.js. Kalau tombol "Rekap" di header juga
-    // belum berfungsi, beri tahu saya isi absensi.js supaya bisa
-    // dipastikan tidak ada listener dobel.
+    // Action lain seperti "quickBukaRekap", "downloadRekapKelasSaya", dan
+    // "downloadRekapAbsenWali" ditangani oleh listener spesifik di
+    // js/absensi.js (dipasang saat initAbsensi() dipanggil dari renderDashboard()).
 });
 
 // Global error handler
