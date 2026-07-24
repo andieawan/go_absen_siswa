@@ -293,6 +293,11 @@ async function loadDashboardWali() {
 
     if (waliEmpty) waliEmpty.classList.add('hidden');
 
+    // PATCH: isi label "Kelas binaan: X" supaya pengguna tahu dashboard ini
+    // menampilkan data untuk kelas wali yang mana.
+    const kelasLabel = document.getElementById('dashboardWaliKelasLabel');
+    if (kelasLabel) kelasLabel.textContent = kelasWali;
+
     showGlobalLoading('Memuat dashboard wali kelas...');
     try {
         const response = await getDashboardDataWali(kelasWali);
