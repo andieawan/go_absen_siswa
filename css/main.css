@@ -9,10 +9,18 @@
 @import url('components.css');
 @import url('utilities.css');
 
+/* PATCH: app-ui.css berisi perbaikan mismatch nama class
+   (.btn-primary vs .btn--primary, dll) dan class yang tadinya
+   hilang sama sekali (.hidden, .header-card, .tab-nav, dst).
+   Diimpor PALING TERAKHIR supaya melengkapi tanpa menimpa
+   style yang sudah benar di file-file sebelumnya. Lihat
+   komentar di dalam app-ui.css untuk detail lengkap. */
+@import url('app-ui.css');
+
 /* 
   Catatan untuk Developer:
   - File ini adalah entry point utama untuk semua style
-  - Urutan import penting: variables harus pertama
+  - Urutan import penting: variables harus pertama, app-ui.css harus terakhir
   - Untuk production, pertimbangkan untuk menggabungkan semua file ini menjadi satu file minified
   - Gunakan utility classes dari utilities.css untuk styling cepat
   - Komponen custom dapat ditambahkan di components.css
