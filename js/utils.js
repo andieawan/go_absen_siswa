@@ -112,6 +112,36 @@ export function hideLoading(elementId) {
     }
 }
 
+// =========================================================
+// PATCH UX: Overlay loading GLOBAL di tengah layar
+// ---------------------------------------------------------
+// Dipakai di setiap operasi async yang menghubungi server (login, muat
+// daftar siswa, submit absensi, muat dashboard/riwayat, unduh rekap, dll)
+// supaya pengguna SELALU sadar ada proses berjalan, tidak seperti indikator
+// teks kecil di atas tabel yang mudah terlewat kalau halaman sudah di-scroll.
+// Pakai counter (bukan boolean) supaya kalau ada beberapa pemanggilan
+// bertumpuk (mis. dua fetch paralel lewat Promise.all yang masing-masing
+// show/hide loading sendiri), overlay baru benar-benar disembunyikan
+// setelah SEMUA proses yang sedang berjalan selesai, bukan begitu salah
+// satu di antaranya selesai duluan.
+// =========================================================
+let globalLoadingCounter = 0;
+
+export function showGlobalLoading(message = 'Memproses...') {
+    globalLoadingCounter++;
+    const overlay = document.getElementById('globalLoadingOverlay');
+    const textEl = document.getElementById('globalLoadingText');
+    if (textEl) textEl.textContent = message;
+    if (overlay) overlay.classList.remove('hidden');
+}
+
+export function hideGlobalLoading() {
+    globalLoadingCounter = Math.max(0, globalLoadingCounter - 1);
+    if (globalLoadingCounter > 0) return; // masih ada proses lain yang berjalan
+    const overlay = document.getElementById('globalLoadingOverlay');
+    if (overlay) overlay.classList.add('hidden');
+}
+
 // Show notification/toast
 export function showNotification(message, type = 'info') {
     const container = document.getElementById('notification-container') || createNotificationContainer();
@@ -152,5 +182,7 @@ export default {
     getStatusBadge,
     showLoading,
     hideLoading,
+    showGlobalLoading,
+    hideGlobalLoading,
     showNotification
 };
