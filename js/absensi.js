@@ -287,9 +287,17 @@ function setupInputAbsensiForm(user) {
         if (btnSubmit) btnSubmit.classList.add('hidden');
 
         try {
-            const students = await ambilDaftarSiswa(kelas);
+            // PATCH PERFORMA: kedua request ini independen satu sama lain
+            // (daftar siswa tidak butuh hasil existing attendance, begitu
+            // juga sebaliknya) -- sebelumnya dijalankan berurutan (await
+            // satu-satu), sehingga total waktu tunggu = waktu keduanya
+            // dijumlahkan. Dijalankan paralel dengan Promise.all supaya
+            // total waktu tunggu = waktu request yang PALING LAMBAT saja.
+            const [students, existingRes] = await Promise.all([
+                ambilDaftarSiswa(kelas),
+                getExistingAttendance(user.nama, mapel, kelas, tanggal)
+            ]);
 
-            const existingRes = await getExistingAttendance(user.nama, mapel, kelas, tanggal);
             const existingMap = {};
             if (existingRes.success && existingRes.data) {
                 const kodeStatus = { hadir: 'H', izin: 'I', sakit: 'S', alpa: 'A' };
@@ -490,8 +498,12 @@ function setupAbsenWaliPanel(user) {
         if (waliBtnSubmit) waliBtnSubmit.classList.add('hidden');
 
         try {
-            const students = await ambilDaftarSiswa(user.kelasWali);
-            const existingRes = await getAbsenWaliExisting(user.kelasWali, tanggal);
+            // PATCH PERFORMA: sama seperti reloadStudents() di Panel Input --
+            // daftar siswa & data absensi existing independen, jalankan paralel.
+            const [students, existingRes] = await Promise.all([
+                ambilDaftarSiswa(user.kelasWali),
+                getAbsenWaliExisting(user.kelasWali, tanggal)
+            ]);
             const existingMap = (existingRes.success && existingRes.data) ? existingRes.data : {};
             renderStudentRows('waliStudentsBody', students, existingMap);
             if (waliBtnSubmit) waliBtnSubmit.classList.remove('hidden');
