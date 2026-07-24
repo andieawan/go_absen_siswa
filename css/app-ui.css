@@ -800,17 +800,29 @@
 
 /* ==================== Notifications / Toast ====================
    js/utils.js showNotification() memakai class-class ini, TIDAK
-   sama dengan .toast/.toast-container di components.css. */
+   sama dengan .toast/.toast-container di components.css.
+   PATCH UX: dipindah dari pojok kanan-atas ke TENGAH LAYAR (fixed,
+   center horizontal & vertikal) supaya notifikasi (mis. "Absensi
+   tersimpan!") tidak luput dari perhatian pengguna -- sebelumnya
+   posisi pojok atas sering tidak disadari, terutama di HP saat
+   pengguna sedang fokus mengisi tabel siswa yang panjang. */
 .notification-container {
   position: fixed;
-  top: var(--spacing-6);
-  right: var(--spacing-6);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   z-index: var(--z-tooltip);
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: var(--spacing-3);
   max-width: 380px;
   width: calc(100% - var(--spacing-8));
+  /* Container fixed ini sendiri tidak boleh menangkap klik (supaya celah
+     kosong di sekitar toast tidak memblokir interaksi ke halaman di
+     baliknya) -- tiap .notification di bawah mengaktifkan lagi pointer-events
+     miliknya sendiri supaya tombol close tetap bisa diklik. */
+  pointer-events: none;
 }
 
 .notification {
@@ -823,9 +835,10 @@
   box-shadow: var(--shadow-lg);
   background: var(--white);
   border-left: 4px solid var(--info-color);
-  animation: slideInRight var(--transition-normal);
+  animation: notifPopIn var(--transition-normal);
   font-size: var(--font-size-sm);
   color: var(--gray-700);
+  pointer-events: auto;
 }
 
 .notification-success { border-left-color: var(--success-color); }
@@ -835,7 +848,7 @@
 
 .notification.fade-out {
   opacity: 0;
-  transform: translateX(20px);
+  transform: scale(0.95);
   transition: all var(--transition-normal);
 }
 
@@ -850,11 +863,21 @@
   color: var(--gray-600);
 }
 
+@keyframes notifPopIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @media (max-width: 640px) {
   .notification-container {
-    left: var(--spacing-4);
-    right: var(--spacing-4);
-    max-width: none;
+    width: calc(100% - var(--spacing-8));
+    max-width: 340px;
   }
 }
 
