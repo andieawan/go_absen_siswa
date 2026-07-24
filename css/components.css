@@ -1,5 +1,22 @@
 /* =========================================
    Components - Komponen UI Reusable
+   ---------------------------------------
+   PATCH BERSIH-BERSIH: File ini sebelumnya berisi DUA sistem penamaan class
+   yang tumpang tindih -- versi BEM (mis. .btn--primary, .card__header,
+   .modal__body, .tab--active, .badge--success, .toast-container, .alert,
+   .form-input/.form-select/.form-textarea, .table/.table-container,
+   .modal-backdrop/.modal) yang TIDAK PERNAH dipakai satu pun oleh HTML/JS
+   manapun di aplikasi ini, dan versi single-dash (.btn-primary,
+   .notification, .modal-overlay/.modal-box, dst -- sebagian didefinisikan
+   di css/app-ui.css) yang BENAR-BENAR dipakai template. Ini sudah disinggung
+   di komentar lama app-ui.css: "Karena nama class tidak pernah cocok,
+   browser tidak menerapkan style apa pun ke elemen-elemen itu -> tombol
+   jadi teks polos, tab jadi list polos, dst" -- app-ui.css lahir sebagai
+   PATCH TAMBALAN, bukan pengganti, sehingga versi BEM yang mati di sini
+   tidak pernah ikut dibersihkan. Semua class BEM yang terbukti nol
+   pemakaian (dicek lewat pencarian di seluruh templates/, js/, index.html)
+   sudah dihapus dari file ini supaya tidak ada lagi dua "sumber kebenaran"
+   yang membingungkan untuk komponen yang sama.
    ========================================= */
 
 /* ==================== Cards ==================== */
@@ -16,211 +33,12 @@
   box-shadow: var(--shadow-lg);
 }
 
-.card__header {
-  margin-bottom: var(--spacing-4);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.card__title {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  color: var(--gray-800);
-}
-
-.card__body {
-  color: var(--gray-600);
-}
-
-/* ==================== Buttons ==================== */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-2);
-  padding: var(--spacing-3) var(--spacing-6);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
-  border-radius: var(--radius-lg);
-  transition: all var(--transition-fast);
-  cursor: pointer;
-  border: 2px solid transparent;
-  white-space: nowrap;
-}
-
-.btn--primary {
-  background: var(--primary-color);
-  color: var(--white);
-}
-
-.btn--primary:hover {
-  background: var(--primary-dark);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.btn--secondary {
-  background: var(--secondary-color);
-  color: var(--white);
-}
-
-.btn--secondary:hover {
-  background: var(--secondary-dark);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.btn--success {
-  background: var(--success-color);
-  color: var(--white);
-}
-
-.btn--success:hover {
-  filter: brightness(0.95);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.btn--danger {
-  background: var(--danger-color);
-  color: var(--white);
-}
-
-.btn--danger:hover {
-  filter: brightness(0.95);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.btn--outline {
-  background: transparent;
-  border-color: var(--gray-300);
-  color: var(--gray-700);
-}
-
-.btn--outline:hover {
-  background: var(--gray-50);
-  border-color: var(--gray-400);
-}
-
-.btn--sm {
-  padding: var(--spacing-2) var(--spacing-4);
-  font-size: var(--font-size-sm);
-}
-
-.btn--lg {
-  padding: var(--spacing-4) var(--spacing-8);
-  font-size: var(--font-size-lg);
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none !important;
-}
-
 /* ==================== Forms ==================== */
 .form-group {
   margin-bottom: var(--spacing-5);
 }
 
-.form-label {
-  display: block;
-  margin-bottom: var(--spacing-2);
-  font-weight: var(--font-weight-medium);
-  color: var(--gray-700);
-  font-size: var(--font-size-sm);
-}
-
-.form-input,
-.form-select,
-.form-textarea {
-  width: 100%;
-  padding: var(--spacing-3) var(--spacing-4);
-  font-size: var(--font-size-base);
-  border: 2px solid var(--gray-200);
-  border-radius: var(--radius-lg);
-  transition: all var(--transition-fast);
-  background: var(--white);
-}
-
-.form-input:focus,
-.form-select:focus,
-.form-textarea:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
-}
-
-.form-input::placeholder,
-.form-textarea::placeholder {
-  color: var(--gray-400);
-}
-
-.form-textarea {
-  min-height: 100px;
-  resize: vertical;
-}
-
-.form-error {
-  color: var(--danger-color);
-  font-size: var(--font-size-xs);
-  margin-top: var(--spacing-1);
-  display: none;
-}
-
-.form-group.error .form-input,
-.form-group.error .form-select {
-  border-color: var(--danger-color);
-}
-
-.form-group.error .form-error {
-  display: block;
-}
-
-/* ==================== Tables ==================== */
-.table-container {
-  overflow-x: auto;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--gray-200);
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--font-size-sm);
-}
-
-.table thead {
-  background: var(--gray-50);
-  border-bottom: 2px solid var(--gray-200);
-}
-
-.table th {
-  padding: var(--spacing-4);
-  font-weight: var(--font-weight-semibold);
-  color: var(--gray-700);
-  text-transform: uppercase;
-  font-size: var(--font-size-xs);
-  letter-spacing: 0.05em;
-}
-
-.table tbody tr {
-  border-bottom: 1px solid var(--gray-100);
-  transition: background var(--transition-fast);
-}
-
-.table tbody tr:hover {
-  background: var(--gray-50);
-}
-
-.table td {
-  padding: var(--spacing-4);
-  color: var(--gray-600);
-}
-
-/* Status badges in tables */
+/* ==================== Status badges ==================== */
 .badge {
   display: inline-block;
   padding: var(--spacing-1) var(--spacing-3);
@@ -229,26 +47,6 @@
   border-radius: var(--radius-full);
   text-transform: uppercase;
   letter-spacing: 0.05em;
-}
-
-.badge--success {
-  background: rgba(6, 214, 160, 0.1);
-  color: var(--success-color);
-}
-
-.badge--warning {
-  background: rgba(255, 209, 102, 0.1);
-  color: #d4a017;
-}
-
-.badge--danger {
-  background: rgba(239, 71, 111, 0.1);
-  color: var(--danger-color);
-}
-
-.badge--info {
-  background: rgba(17, 138, 178, 0.1);
-  color: var(--info-color);
 }
 
 /* ==================== Loading Spinner ==================== */
@@ -316,17 +114,10 @@
   margin: 0;
 }
 
-/* ==================== Alerts/Notifications ==================== */
-.alert {
-  padding: var(--spacing-4) var(--spacing-5);
-  border-radius: var(--radius-lg);
-  margin-bottom: var(--spacing-4);
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-3);
-  animation: slideIn var(--transition-normal);
-}
-
+/* @keyframes slideIn dipakai LIVE oleh css/app-ui.css (.tab-panel, dan
+   sebelumnya juga oleh .notification) -- TETAP DIPERTAHANKAN di sini
+   walau .alert yang dulu memakainya sudah dihapus, karena app-ui.css
+   tidak mendefinisikan ulang keyframe ini sendiri. */
 @keyframes slideIn {
   from {
     transform: translateY(-10px);
@@ -338,183 +129,7 @@
   }
 }
 
-.alert--success {
-  background: rgba(6, 214, 160, 0.1);
-  border-left: 4px solid var(--success-color);
-  color: #059170;
-}
-
-.alert--error {
-  background: rgba(239, 71, 111, 0.1);
-  border-left: 4px solid var(--danger-color);
-  color: #c73e5a;
-}
-
-.alert--warning {
-  background: rgba(255, 209, 102, 0.1);
-  border-left: 4px solid var(--warning-color);
-  color: #b8860b;
-}
-
-.alert--info {
-  background: rgba(17, 138, 178, 0.1);
-  border-left: 4px solid var(--info-color);
-  color: #0d6e8e;
-}
-
-/* Toast notifications container */
-.toast-container {
-  position: fixed;
-  top: var(--spacing-6);
-  right: var(--spacing-6);
-  z-index: var(--z-tooltip);
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-3);
-  max-width: 400px;
-}
-
-.toast {
-  padding: var(--spacing-4) var(--spacing-5);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  background: var(--white);
-  border-left: 4px solid;
-  animation: slideInRight var(--transition-normal);
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-3);
-}
-
-@keyframes slideInRight {
-  from {
-    transform: translateX(100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(0);
-    opacity: 1;
-  }
-}
-
-.toast--success {
-  border-color: var(--success-color);
-}
-
-.toast--error {
-  border-color: var(--danger-color);
-}
-
-.toast--warning {
-  border-color: var(--warning-color);
-}
-
-.toast--info {
-  border-color: var(--info-color);
-}
-
-/* ==================== Tabs ==================== */
-.tabs {
-  display: flex;
-  gap: var(--spacing-2);
-  border-bottom: 2px solid var(--gray-200);
-  margin-bottom: var(--spacing-6);
-}
-
-.tab {
-  padding: var(--spacing-3) var(--spacing-5);
-  font-weight: var(--font-weight-medium);
-  color: var(--gray-500);
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
-  transition: all var(--transition-fast);
-  cursor: pointer;
-}
-
-.tab:hover {
-  color: var(--primary-color);
-}
-
-.tab--active {
-  color: var(--primary-color);
-  border-bottom-color: var(--primary-color);
-}
-
-/* ==================== Modal ==================== */
-.modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: var(--z-modal-backdrop);
-  backdrop-filter: blur(4px);
-  opacity: 0;
-  visibility: hidden;
-  transition: all var(--transition-normal);
-}
-
-.modal-backdrop--active {
-  opacity: 1;
-  visibility: visible;
-}
-
-.modal {
-  background: var(--white);
-  border-radius: var(--radius-xl);
-  padding: var(--spacing-6);
-  max-width: 500px;
-  width: 90%;
-  max-height: 90vh;
-  overflow-y: auto;
-  transform: scale(0.9);
-  transition: transform var(--transition-normal);
-  box-shadow: var(--shadow-xl);
-}
-
-.modal-backdrop--active .modal {
-  transform: scale(1);
-}
-
-.modal__header {
-  margin-bottom: var(--spacing-5);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal__title {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
-  color: var(--gray-800);
-}
-
-.modal__close {
-  font-size: var(--font-size-xl);
-  color: var(--gray-400);
-  transition: color var(--transition-fast);
-}
-
-.modal__close:hover {
-  color: var(--gray-600);
-}
-
-.modal__body {
-  margin-bottom: var(--spacing-6);
-}
-
-.modal__footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--spacing-3);
-}
-
-/* ==================== Custom Alert & Confirm Modal (Legacy Support) ==================== */
-/* Untuk kompatibilitas dengan index.html yang menggunakan struktur lama */
+/* ==================== Custom Alert & Confirm Modal ==================== */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -677,6 +292,29 @@
   box-shadow: var(--shadow-lg);
 }
 
+/* PATCH: js/absensi.js renderRiwayatList() sudah lama menghasilkan elemen
+   dengan class ".riwayat-card-header" dan ".riwayat-detail" (lihat kartu
+   riwayat per tanggal di tab Riwayat), tapi CSS-nya belum pernah dibuat --
+   akibatnya judul tanggal & daftar nama Izin/Sakit/Alpa tampil menyatu
+   tanpa pemisah visual dengan bagian statistik di atasnya. */
+.riwayat-card-header {
+  margin-bottom: var(--spacing-2);
+  padding-bottom: var(--spacing-2);
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.riwayat-detail {
+  margin-top: var(--spacing-2);
+  padding-top: var(--spacing-2);
+  border-top: 1px solid var(--gray-100);
+  font-size: var(--font-size-sm);
+  color: var(--gray-600);
+}
+
+.riwayat-detail p {
+  margin: var(--spacing-1) 0;
+}
+
 .stat-card.stat-hadir {
   border-left-color: var(--success-color);
 }
@@ -750,6 +388,16 @@
 .icon-error {
   background: rgba(239, 71, 111, 0.1);
   color: var(--danger-color);
+}
+
+/* PATCH: js/modal.js showAlert() sudah mendukung tipe 'info' sejak awal
+   (iconClasses.info = 'icon-info'), tapi class CSS-nya belum pernah
+   dibuat -- kalau showAlert(..., 'info') dipanggil, ikon modal akan
+   tampil tanpa warna/background sama sekali. Ditambahkan supaya
+   konsisten dengan icon-success/warning/error di atas. */
+.icon-info {
+  background: rgba(17, 138, 178, 0.1);
+  color: var(--info-color);
 }
 
 .modal-title {
