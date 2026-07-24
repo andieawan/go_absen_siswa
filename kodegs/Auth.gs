@@ -110,54 +110,18 @@ function generateSalt() {
   return Utilities.getUuid().replace(/-/g, '');
 }
 
-// Dapatkan salt untuk user (simpan di kolom terpisah di sheet Akun_Guru)
-function getSaltForUser(username) {
-  const ss = getMasterSs();
-  const sheet = ss.getSheetByName('Akun_Guru');
-  const data = sheet.getDataRange().getValues();
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === username) {
-      // Kolom ke-7 (index 6) adalah kolom 'salt' - harus ditambahkan saat migrasi
-      let salt = data[i][6];
-      if (!salt || salt === '') {
-        // Generate salt baru jika belum ada
-        salt = generateSalt();
-        sheet.getRange(i + 1, 7).setValue(salt);
-      }
-      return salt;
-    }
-  }
-  return null;
-}
-
-// Simpan password yang sudah di-hash (untuk migrasi atau update password)
-function setPasswordHash(username, passwordHash) {
-  const ss = getMasterSs();
-  const sheet = ss.getSheetByName('Akun_Guru');
-  const data = sheet.getDataRange().getValues();
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === username) {
-      // Kolom ke-8 (index 7) adalah kolom 'password_hash'
-      sheet.getRange(i + 1, 8).setValue(passwordHash);
-      return true;
-    }
-  }
-  return false;
-}
-
-// Dapatkan password hash untuk user (kolom baru di sheet Akun_Guru)
-function getPasswordHashForUser(username) {
-  const ss = getMasterSs();
-  const sheet = ss.getSheetByName('Akun_Guru');
-  const data = sheet.getDataRange().getValues();
-  for (let i = 1; i < data.length; i++) {
-    if (data[i][0] === username) {
-      // Kolom ke-8 (index 7) adalah kolom 'password_hash'
-      return data[i][7];
-    }
-  }
-  return null;
-}
+// PATCH BERSIH-BERSIH: getSaltForUser(), setPasswordHash(), dan
+// getPasswordHashForUser() sebelumnya ada di sini tapi TIDAK PERNAH
+// dipanggil dari mana pun di seluruh kodebase (beda dengan
+// resetPasswordUser()/migrasiHashPassword() di kodegs/MigrasiHash.gs yang
+// memang didokumentasikan di TESTING_CHECKLIST.md sebagai tool admin yang
+// dijalankan manual dari editor Apps Script). getSaltForUser() jadi yatim
+// piatu sejak patch performa handleLogin() (salt sekarang digenerate
+// langsung dari baris yang sudah dimuat, tanpa scan ulang sheet).
+// setPasswordHash()/getPasswordHashForUser() tidak pernah dipakai sama
+// sekali sejak awal -- resetPasswordUser() menulis salt+hash langsung ke
+// sheet tanpa lewat helper ini. Dihapus supaya tidak ada kode mati yang
+// membingungkan kalau ada yang mengira fungsi ini masih dipakai.
 
 function handleLogin(username, password) {
   const cache = CacheService.getScriptCache();
