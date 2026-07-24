@@ -36,7 +36,7 @@ import { getDashboardData, getDashboardDataWali, getCurrentUser } from './api.js
 // terpanggil berulang kali di dalam .map()/.forEach() saat merender daftar
 // topAlpa & rekap kelas/mapel. Juga menghapus duplikasi kode yang sama
 // persis fungsinya dengan utils.js.
-import { showNotification, escapeHtml } from './utils.js';
+import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js';
 
 // Cache untuk data dashboard
 let dashboardCache = {
@@ -209,6 +209,7 @@ async function loadDashboardMapel() {
 
     if (loadingEl) loadingEl.classList.remove('hidden');
     if (contentEl) contentEl.classList.add('hidden');
+    showGlobalLoading('Memuat dashboard...');
 
     try {
         const userData = getCurrentUser() || {};
@@ -264,6 +265,7 @@ async function loadDashboardMapel() {
         if (contentEl) contentEl.classList.remove('hidden');
     } finally {
         if (loadingEl) loadingEl.classList.add('hidden');
+        hideGlobalLoading();
     }
 }
 
@@ -291,6 +293,7 @@ async function loadDashboardWali() {
 
     if (waliEmpty) waliEmpty.classList.add('hidden');
 
+    showGlobalLoading('Memuat dashboard wali kelas...');
     try {
         const response = await getDashboardDataWali(kelasWali);
 
@@ -337,6 +340,8 @@ async function loadDashboardWali() {
         console.error('Error loading dashboard wali:', error);
         showNotification('Gagal memuat dashboard wali: ' + error.message, 'error');
         if (waliContent) waliContent.classList.remove('hidden');
+    } finally {
+        hideGlobalLoading();
     }
 }
 
