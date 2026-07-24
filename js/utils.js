@@ -63,9 +63,12 @@ export function debounce(func, wait) {
     };
 }
 
-// Validasi NIS/NIP (hanya angka)
+// Validasi NIS -- format pemberian sekolah sendiri, BUKAN NISN resmi,
+// jadi boleh mengandung "/" dan "." (contoh nyata: "10408/771.111"),
+// bukan cuma angka murni. Selaras dengan validateInput(nis,'nis') di
+// kodegs/Utils.gs.
 export function validateNis(nis) {
-    return /^\d+$/.test(nis);
+    return /^[A-Za-z0-9./-]{3,30}$/.test(String(nis).trim());
 }
 
 // Capitalize string
