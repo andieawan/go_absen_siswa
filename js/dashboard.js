@@ -28,7 +28,7 @@
  * =========================================================
  */
 
-import { getDashboardData, getDashboardDataWali } from './api.js';
+import { getDashboardData, getDashboardDataWali, getCurrentUser } from './api.js';
 import { showNotification } from './utils.js';
 
 // Cache untuk data dashboard
@@ -206,7 +206,7 @@ function renderDistribusiStatus(rataRata, containerId) {
  */
 async function loadDashboardMapel() {
     const loadingEl = document.getElementById('dashboardLoading');
-    const contentEl = document.getElementById('dashboardContent');
+    const contentEl = document.getElementById('dashboardMapelContent');
     const rekapContainer = document.getElementById('rekapKelasMapelList');
     const topAlpaContainer = document.getElementById('topAlpaList');
 
@@ -214,7 +214,7 @@ async function loadDashboardMapel() {
     if (contentEl) contentEl.classList.add('hidden');
 
     try {
-        const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+        const userData = getCurrentUser() || {};
         const mapelList = userData.mapelList || [];
         const kelasList = userData.kelasList || [];
 
@@ -280,17 +280,19 @@ async function loadDashboardMapel() {
  * dashboard wali selalu tampil 0% / kosong.
  */
 async function loadDashboardWali() {
-    const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+    const userData = getCurrentUser() || {};
     const kelasWali = userData.kelasWali;
 
-    const waliSection = document.getElementById('dashboardWaliSection');
+    const waliContent = document.getElementById('dashboardWaliContent');
+    const waliEmpty = document.getElementById('dashboardWaliEmpty');
 
     if (!kelasWali) {
-        if (waliSection) waliSection.classList.add('hidden');
+        if (waliContent) waliContent.classList.add('hidden');
+        if (waliEmpty) waliEmpty.classList.remove('hidden');
         return;
     }
 
-    if (waliSection) waliSection.classList.remove('hidden');
+    if (waliEmpty) waliEmpty.classList.add('hidden');
 
     try {
         const response = await getDashboardDataWali(kelasWali);
@@ -333,10 +335,38 @@ async function loadDashboardWali() {
         }
 
         dashboardCache.wali = data;
+        if (waliContent) waliContent.classList.remove('hidden');
     } catch (error) {
         console.error('Error loading dashboard wali:', error);
         showNotification('Gagal memuat dashboard wali: ' + error.message, 'error');
+        if (waliContent) waliContent.classList.remove('hidden');
     }
+}
+
+/**
+ * PATCH (BARU): atur sub-tab default & visibilitas tombol "Wali Kelas".
+ * Default tampilan Dashboard adalah Wali Kelas -- tapi hanya kalau akun
+ * ini memang wali kelas. Kalau bukan wali kelas (guru mapel murni),
+ * tombol sub-tab Wali disembunyikan dan default otomatis jatuh ke
+ * sub-tab Per Mapel, supaya tidak ada tab kosong yang jadi default.
+ */
+function setupDashboardSubTabs() {
+    const userData = getCurrentUser() || {};
+    const btnWali = document.getElementById('subtabBtnDashboardWali');
+    const btnMapel = document.getElementById('subtabBtnDashboardMapel');
+    const panelWali = document.getElementById('subtabDashboardWali');
+    const panelMapel = document.getElementById('subtabDashboardMapel');
+
+    const adalahWaliKelas = !!userData.kelasWali;
+
+    if (btnWali) btnWali.classList.toggle('hidden', !adalahWaliKelas);
+
+    // Tentukan tab aktif default: Wali Kelas kalau berlaku, kalau tidak Per Mapel.
+    const aktifkanWali = adalahWaliKelas;
+    if (btnWali) btnWali.classList.toggle('active', aktifkanWali);
+    if (btnMapel) btnMapel.classList.toggle('active', !aktifkanWali);
+    if (panelWali) panelWali.classList.toggle('hidden', !aktifkanWali);
+    if (panelMapel) panelMapel.classList.toggle('hidden', aktifkanWali);
 }
 
 /**
@@ -346,6 +376,7 @@ async function loadDashboardWali() {
 export async function initDashboard() {
     console.log('Initializing dashboard...');
 
+    setupDashboardSubTabs();
     await loadDashboardMapel();
     await loadDashboardWali();
 
