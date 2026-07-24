@@ -14,8 +14,17 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <!-- PATCH PERFORMA: Chart.js (~200KB) dihapus -- library ini di-load di
+         setiap page load tapi TIDAK PERNAH dipakai. renderTrendChart() di
+         js/dashboard.js menggambar tren kehadiran dengan CSS bar buatan
+         sendiri, tidak pernah memanggil `new Chart(...)`. Menghapusnya
+         menghilangkan satu request network + parsing JS yang sama sekali
+         tidak berguna di setiap kunjungan.
+         xlsx.js TETAP dipakai (untuk unduh rekap .xlsx di api.js), tapi
+         diberi `defer` supaya tidak lagi memblokir render awal halaman --
+         library ini baru benar-benar dibutuhkan saat user klik tombol
+         unduh rekap, bukan saat halaman pertama dimuat. -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
     
     <link rel="stylesheet" href="css/main.css?v=20260724">
 </head>
