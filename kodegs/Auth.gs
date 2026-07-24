@@ -184,7 +184,16 @@ function handleLogin(username, password) {
 
       if (storedHash && storedHash !== '') {
         // Mode aman: gunakan password hashing
-        const salt = data[i][6] || getSaltForUser(username);
+        // PATCH PERFORMA: sebelumnya fallback memanggil getSaltForUser(username)
+        // yang MEMBACA ULANG SELURUH SHEET Akun_Guru dari awal kalau kolom
+        // salt kosong -- padahal baris ini (data[i]) sudah ada di memori dari
+        // pembacaan `data` di atas. Sekarang salt di-generate & ditulis
+        // langsung pakai baris yang sudah dimuat, tanpa scan ulang.
+        let salt = data[i][6];
+        if (!salt || salt === '') {
+          salt = generateSalt();
+          sheet.getRange(i + 1, 7).setValue(salt);
+        }
         const inputHash = hashPassword(password, salt);
         passwordValid = (inputHash === storedHash);
       } else {
