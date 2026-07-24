@@ -23,10 +23,23 @@
  *    window.handleLogout() sudah didefinisikan tapi tidak pernah
  *    dipanggil oleh listener manapun. Ditambahkan event delegation
  *    global untuk [data-action="logout"].
+ *
+ * 3. FIX (BARU): RACE CONDITION DI TOMBOL LOGOUT.
+ *    Sebelumnya window.handleLogout() memanggil logout() yang LANGSUNG
+ *    menavigasi halaman (window.location.href = 'index.html') sebelum
+ *    baris-baris berikutnya (renderLogin(), showAlert('Berhasil logout'))
+ *    sempat dieksekusi -- alert "Berhasil logout" sering tidak sempat
+ *    tampil sama sekali, tergantung timing browser.
+ *    Perbaikan: js/api.js sekarang memisahkan logout() (hanya membersihkan
+ *    sessionStorage/localStorage, TIDAK menavigasi) dari
+ *    redirectToLoginPage() (navigasi eksplisit). Di sini, alert
+ *    ditampilkan dan di-await SAMPAI SELESAI dulu, baru navigasi terjadi
+ *    di akhir -- sehingga urutan eksekusi terjamin, bukan lagi bergantung
+ *    pada timing reload browser.
  * =========================================================
  */
 
-import { isLoggedIn, getCurrentUser, logout } from './api.js';
+import { isLoggedIn, getCurrentUser, logout, redirectToLoginPage } from './api.js';
 import { initLoginForm } from './login.js';
 import { initDashboard } from './dashboard.js';
 import { showNotification } from './utils.js';
@@ -72,12 +85,12 @@ async function renderDashboard() {
     const template = await loadTemplate('dashboard');
     if (template) {
         appContainer.innerHTML = template;
-        
+
         // Set data user
         if (currentUser) {
             const greetingEl = document.getElementById('greeting');
             if (greetingEl) greetingEl.textContent = `Selamat Datang, ${currentUser.nama}!`;
-            
+
             const headerDateEl = document.getElementById('headerDate');
             if (headerDateEl) {
                 const now = new Date();
@@ -85,7 +98,7 @@ async function renderDashboard() {
                 headerDateEl.textContent = now.toLocaleDateString('id-ID', options);
             }
         }
-        
+
         initDashboard();
     }
 }
@@ -103,7 +116,10 @@ function clearSessionAndGoToLogin() {
  * (sebelum patch mapelList/kelasList di Auth.gs). Data lama tidak
  * punya field mapelList/kelasList sama sekali (bukan cuma array
  * kosong), jadi ini aman dibedakan dari akun yang memang belum
- * ditugaskan mapel/kelas apa pun oleh admin.
+ * ditugaskan mapel/kelas apa pun oleh admin (misal akun wali kelas
+ * murni yang tidak mengajar mata pelajaran apa pun -- itu kondisi
+ * VALID, bukan sesi basi, dan sudah ditangani terpisah di
+ * js/dashboard.js, bukan di sini).
  */
 function isStaleSessionData(user) {
     if (!user) return false;
@@ -126,7 +142,7 @@ async function route() {
         showNotification('Sistem baru saja diperbarui. Silakan login ulang.', 'warning');
         return;
     }
-    
+
     if (!isUserLoggedIn || !user) {
         currentUser = null;
         await renderLogin();
@@ -139,23 +155,30 @@ async function route() {
 // Inisialisasi aplikasi
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Aplikasi Absensi Sekolah dimuat');
-    
+
     // Inisialisasi modal handlers
     initModalHandlers();
-    
+
     // Routing awal
     route();
 });
 
-// Handle navigasi logout
+// PATCH: handleLogout sekarang menjamin urutan eksekusi yang benar --
+// alert ditampilkan dan ditunggu SAMPAI SELESAI sebelum navigasi terjadi,
+// karena logout() (api.js) TIDAK LAGI menavigasi halaman sendiri.
 window.handleLogout = async () => {
     const confirmed = await showConfirm('Apakah Anda yakin ingin keluar?', 'Konfirmasi Logout');
-    if (confirmed) {
-        await logout();
-        currentUser = null;
-        await renderLogin();
-        await showAlert('Berhasil logout', 'Logout Berhasil', 'success');
-    }
+    if (!confirmed) return;
+
+    // 1. Bersihkan sesi (tidak menavigasi apa pun)
+    await logout();
+    currentUser = null;
+
+    // 2. Tampilkan alert dan TUNGGU sampai user menutupnya / selesai
+    await showAlert('Berhasil logout', 'Logout Berhasil', 'success');
+
+    // 3. Baru navigasi terjadi di akhir, setelah semua langkah di atas pasti selesai
+    redirectToLoginPage();
 };
 
 // =========================================================
