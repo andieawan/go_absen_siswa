@@ -29,23 +29,20 @@
  */
 
 import { getDashboardData, getDashboardDataWali, getCurrentUser } from './api.js';
-import { showNotification } from './utils.js';
+// PATCH PERFORMA: escapeHtml dipakai dari utils.js (regex string-replace),
+// bukan implementasi lokal yang sebelumnya ada di file ini. Implementasi
+// lama membuat elemen <div> DOM baru pada SETIAP pemanggilan (lihat riwayat
+// versi file ini) -- jauh lebih lambat daripada regex sederhana, dan
+// terpanggil berulang kali di dalam .map()/.forEach() saat merender daftar
+// topAlpa & rekap kelas/mapel. Juga menghapus duplikasi kode yang sama
+// persis fungsinya dengan utils.js.
+import { showNotification, escapeHtml } from './utils.js';
 
 // Cache untuk data dashboard
 let dashboardCache = {
     mapel: null,
     wali: null
 };
-
-/**
- * Escape HTML untuk mencegah XSS
- */
-function escapeHtml(text) {
-    if (text === null || text === undefined) return '';
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
 
 /**
  * Render chart kehadiran per mapel/kelas
@@ -377,8 +374,12 @@ export async function initDashboard() {
     console.log('Initializing dashboard...');
 
     setupDashboardSubTabs();
-    await loadDashboardMapel();
-    await loadDashboardWali();
+    // PATCH PERFORMA: kedua fungsi ini independen (beda seksi DOM, beda
+    // endpoint API) -- sebelumnya di-await berurutan sehingga dashboard wali
+    // baru mulai dimuat SETELAH dashboard mapel selesai total. Dijalankan
+    // paralel dengan Promise.all supaya total waktu tunggu awal = waktu
+    // yang paling lambat di antara keduanya, bukan jumlah keduanya.
+    await Promise.all([loadDashboardMapel(), loadDashboardWali()]);
 
     const dashboardTabBtn = document.querySelector('[data-tab="panelDashboard"]');
     if (dashboardTabBtn) {
