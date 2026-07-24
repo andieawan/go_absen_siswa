@@ -84,9 +84,13 @@ function generateFullRecap() {
 
     const rowData = [];
     const colorData = [];
+    // PATCH: sama seperti getRekapKelasSaya() -- sheet absen harian wali
+    // kelas (mapel === MAPEL_ABSEN_WALI) pakai header TANGGAL SAJA supaya
+    // kolom tidak melebar karena diisi tiap hari.
+    const isAbsenWali = (mapel === MAPEL_ABSEN_WALI);
     const headerRow = ["NIS", "NAMA SISWA", "L/P"];
     uniqueDates.forEach((date, index) => {
-      headerRow.push(`PERTEMUAN ${index + 1}\n(${date})`);
+      headerRow.push(isAbsenWali ? date : `PERTEMUAN ${index + 1}\n(${date})`);
     });
     headerRow.push("JML HADIR", "JML IZIN", "JML SAKIT", "JML ALPA");
     rowData.push(headerRow);
@@ -266,8 +270,18 @@ function getRekapKelasSaya(mapelListStr, kelasListStr) {
         });
       }
 
+      // PATCH: untuk rekap ABSEN HARIAN WALI KELAS, header kolom pakai
+      // TANGGAL SAJA (bukan "Pertemuan N (tanggal)") -- karena wali kelas
+      // mengisi absensi SETIAP HARI (bisa puluhan/ratusan kolom per
+      // semester), format "Pertemuan N (tanggal)" bikin kolom jadi lebar
+      // dan tidak perlu, sedangkan untuk rekap per mata pelajaran (yang
+      // pertemuannya lebih jarang, mis. 1x/minggu) label "Pertemuan N"
+      // masih berguna jadi TETAP dipakai seperti sebelumnya.
+      const isAbsenWali = (mapel === MAPEL_ABSEN_WALI);
       const headerRow = ["NIS", "NAMA SISWA", "L/P"];
-      uniqueDates.forEach((date, index) => headerRow.push(`Pertemuan ${index + 1} (${date})`));
+      uniqueDates.forEach((date, index) => {
+        headerRow.push(isAbsenWali ? date : `Pertemuan ${index + 1} (${date})`);
+      });
       headerRow.push("JML HADIR", "JML IZIN", "JML SAKIT", "JML ALPA");
 
       const rows = [];
