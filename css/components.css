@@ -268,6 +268,13 @@
   }
 }
 
+/* PATCH UX: komponen ini sebelumnya SUDAH ADA di CSS tapi tidak pernah
+   dipakai di HTML/JS manapun. Sekarang diaktifkan sebagai overlay loading
+   GLOBAL (lihat #globalLoadingOverlay di index.html & showGlobalLoading()/
+   hideGlobalLoading() di js/utils.js) -- ditampilkan di TENGAH LAYAR dengan
+   backdrop, supaya pengguna pasti sadar ada proses sedang berjalan (mis.
+   mengambil data siswa dari server), bukan cuma teks kecil di atas tabel
+   yang gampang tidak disadari kalau pengguna sudah scroll ke bawah. */
 .loading-overlay {
   position: fixed;
   top: 0;
@@ -284,13 +291,29 @@
 
 .loading-overlay__content {
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-6) var(--spacing-8);
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  max-width: 280px;
 }
 
 .loading-overlay__spinner {
   width: 48px;
   height: 48px;
   border-width: 4px;
-  margin-bottom: var(--spacing-4);
+  margin-bottom: 0;
+}
+
+.loading-overlay__text {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--gray-700);
+  margin: 0;
 }
 
 /* ==================== Alerts/Notifications ==================== */
