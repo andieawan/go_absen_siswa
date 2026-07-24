@@ -143,28 +143,16 @@
             <h3>📊 Dashboard Analitik</h3>
             <p class="panel-subtitle">Analisis kehadiran siswa secara visual</p>
         </div>
+        <div class="sub-tab-nav" id="dashboardSubTabNav">
+            <button class="sub-tab-btn hidden" data-subtab="subtabDashboardWali" id="subtabBtnDashboardWali">👪 Wali Kelas</button>
+            <button class="sub-tab-btn" data-subtab="subtabDashboardMapel" id="subtabBtnDashboardMapel">📚 Per Mapel</button>
+        </div>
+
         <p id="dashboardLoading" class="hidden">Memuat data analitik...</p>
-        <div id="dashboardContent" class="hidden">
-            <div class="card">
-                <h4>📈 Persentase Kehadiran (Per Mapel)</h4>
-                <div id="rekapKelasMapelList"></div>
-            </div>
-            <div class="card">
-                <h4>📉 Tren Kehadiran</h4>
-                <div class="chart-wrapper"><canvas id="trendChart"></canvas></div>
-            </div>
-            <div class="card">
-                <h4>⚠️ Perlu Perhatian (Sering Alpa)</h4>
-                <p class="card-subtitle">Siswa dengan absensi Alpa terbanyak</p>
-                <div id="topAlpaList"></div>
-            </div>
-            
-            <div id="dashboardWaliSection" class="hidden">
-                <div class="section-divider">
-                    <span class="section-divider-line"></span>
-                    <span class="section-divider-text">👪 Dashboard Kelas Wali</span>
-                    <span class="section-divider-line"></span>
-                </div>
+
+        <!-- SUB-TAB: DASHBOARD WALI KELAS (default) -->
+        <div id="subtabDashboardWali" class="sub-tab-panel hidden">
+            <div id="dashboardWaliContent" class="hidden">
                 <div class="stats-grid">
                     <div class="stat-card stat-hadir"><div class="stat-icon">✓</div><div class="stat-info"><div class="stat-value" id="waliStatPertemuan">0</div><div class="stat-label">Total Pertemuan</div></div></div>
                     <div class="stat-card stat-izin"><div class="stat-icon">📊</div><div class="stat-info"><div class="stat-value" id="waliStatSiswa">0</div><div class="stat-label">Total Siswa</div></div></div>
@@ -185,6 +173,26 @@
                     <h4>⚠️ Siswa Perlu Perhatian (Kelas Wali)</h4>
                     <p class="card-subtitle">Siswa di kelas wali dengan Alpa terbanyak</p>
                     <div id="waliTopAlpaList"></div>
+                </div>
+            </div>
+            <p id="dashboardWaliEmpty" class="empty-state hidden">Anda bukan wali kelas, tidak ada dashboard untuk ditampilkan di sini.</p>
+        </div>
+
+        <!-- SUB-TAB: DASHBOARD PER MAPEL -->
+        <div id="subtabDashboardMapel" class="sub-tab-panel hidden">
+            <div id="dashboardMapelContent" class="hidden">
+                <div class="card">
+                    <h4>📈 Persentase Kehadiran (Per Mapel)</h4>
+                    <div id="rekapKelasMapelList"></div>
+                </div>
+                <div class="card">
+                    <h4>📉 Tren Kehadiran</h4>
+                    <div class="chart-wrapper"><canvas id="trendChart"></canvas></div>
+                </div>
+                <div class="card">
+                    <h4>⚠️ Perlu Perhatian (Sering Alpa)</h4>
+                    <p class="card-subtitle">Siswa dengan absensi Alpa terbanyak</p>
+                    <div id="topAlpaList"></div>
                 </div>
             </div>
         </div>
@@ -272,15 +280,5 @@
                 <div class="btn-progress hidden"><div class="btn-progress-bar"></div></div>
             </button>
         </form>
-        <div class="card" style="margin-top: 24px;">
-            <h4>📜 Riwayat Absensi Wali</h4>
-            <p id="waliRiwayatLoading" class="hidden">Mengambil riwayat...</p>
-            <div id="waliRiwayatList">
-                <div class="empty-state-illustration">
-                    <svg viewBox="0 0 200 150"><circle cx="100" cy="75" r="50" fill="#E0E7FF"/><text x="100" y="85" text-anchor="middle" font-size="40">📖</text></svg>
-                    <p>Riwayat akan muncul setelah ada absensi tersimpan</p>
-                </div>
-            </div>
-        </div>
     </div>
 </section>
