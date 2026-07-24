@@ -109,11 +109,13 @@ function handleSubmit(payload) {
   }
 
   if (targetRow !== -1) {
+    // PATCH PERFORMA: sebelumnya 5 panggilan setValue() terpisah (1 per sel).
+    // Kolom 6-9 (Hadir/Izin/Sakit/Alpa) berdampingan, jadi digabung jadi
+    // SATU panggilan setValues() -- kolom timestamp (kolom 1) tidak
+    // berdampingan dengan kolom 6-9 sehingga tetap panggilan terpisah.
+    // Total jadi 2 panggilan Range API, bukan 5.
     sheet.getRange(targetRow, 1).setValue(timestamp);
-    sheet.getRange(targetRow, 6).setValue(strHadir);
-    sheet.getRange(targetRow, 7).setValue(strIzin);
-    sheet.getRange(targetRow, 8).setValue(strSakit);
-    sheet.getRange(targetRow, 9).setValue(strAlpa);
+    sheet.getRange(targetRow, 6, 1, 4).setValues([[strHadir, strIzin, strSakit, strAlpa]]);
     return { success: true, message: "Data absensi diperbarui!" };
   } else {
     let rowData = [timestamp, payload.guru, payload.mapel, payload.kelas, payload.tanggal, strHadir, strIzin, strSakit, strAlpa];
