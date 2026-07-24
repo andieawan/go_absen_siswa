@@ -73,11 +73,11 @@ function simpanAbsenWali(kelas, tanggal, dataKehadiran) {
   }
 
   if (targetRow !== -1) {
+    // PATCH PERFORMA: gabung 4 setValue() kolom Hadir/Izin/Sakit/Alpa yang
+    // berdampingan jadi 1 panggilan setValues() -- lihat catatan sama di
+    // kodegs/Absensi.gs (handleSubmit).
     sheet.getRange(targetRow, 1).setValue(timestamp);
-    sheet.getRange(targetRow, 6).setValue(strHadir);
-    sheet.getRange(targetRow, 7).setValue(strIzin);
-    sheet.getRange(targetRow, 8).setValue(strSakit);
-    sheet.getRange(targetRow, 9).setValue(strAlpa);
+    sheet.getRange(targetRow, 6, 1, 4).setValues([[strHadir, strIzin, strSakit, strAlpa]]);
     return { success: true, message: "Data absensi kelas " + kelas + " tanggal " + tanggal + " diperbarui!" };
   } else {
     sheet.appendRow([timestamp, "Wali Kelas", MAPEL_ABSEN_WALI, kelas, tanggal, strHadir, strIzin, strSakit, strAlpa]);
