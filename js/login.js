@@ -1,23 +1,28 @@
 import { login } from './api.js';
-import { showLoading, hideLoading } from './utils.js';
 
 /**
  * Login Module
  * Mengelola form login dan autentikasi awal
+ *
+ * PATCH: Semua akses DOM (querySelector dkk) yang sebelumnya berada SEBELUM
+ * blok try/catch dipindah ke DALAM try. Sebelumnya kalau submitBtn atau
+ * elemen lain null (misal struktur HTML template berubah), error akan
+ * throw di luar try/catch -> uncaught exception, tombol bisa nyangkut
+ * disabled tanpa pesan error yang jelas ke user.
  */
 
 // Inisialisasi form login
 export function initLoginForm() {
     const form = document.getElementById('loginForm');
     if (!form) return;
-    
+
     setupFormListeners(form);
 }
 
 // Setup event listeners untuk form login
 function setupFormListeners(form) {
     form.addEventListener('submit', handleLoginSubmit);
-    
+
     // Auto-focus ke username field
     const usernameInput = document.getElementById('username');
     if (usernameInput) {
@@ -28,45 +33,52 @@ function setupFormListeners(form) {
 // Handle login submit
 async function handleLoginSubmit(e) {
     e.preventDefault();
-    
+
     const form = e.target;
     const submitBtn = form.querySelector('button[type="submit"]');
     const msgEl = document.getElementById('loginMsg');
-    
-    const username = document.getElementById('username')?.value.trim();
-    const password = document.getElementById('password')?.value;
-    
-    // Reset pesan
-    if (msgEl) msgEl.textContent = '';
-    
-    // Validasi input
-    if (!username || !password) {
-        if (msgEl) {
-            msgEl.textContent = 'Username dan password harus diisi';
-            msgEl.className = 'login-msg error';
-        }
-        return;
-    }
-    
-    // Show loading state
-    const btnText = submitBtn.querySelector('.btn-text');
-    const btnLoader = submitBtn.querySelector('.btn-loader');
-    if (btnText) btnText.classList.add('hidden');
-    if (btnLoader) btnLoader.classList.remove('hidden');
-    submitBtn.disabled = true;
-    
+
+    // PATCH: seluruh proses submit sekarang dibungkus try/catch,
+    // termasuk manipulasi tombol loading, supaya elemen yang hilang
+    // tidak menyebabkan uncaught error dan tombol nyangkut.
+    let btnText = null;
+    let btnLoader = null;
+
     try {
+        const username = document.getElementById('username')?.value.trim();
+        const password = document.getElementById('password')?.value;
+
+        // Reset pesan
+        if (msgEl) msgEl.textContent = '';
+
+        // Validasi input
+        if (!username || !password) {
+            if (msgEl) {
+                msgEl.textContent = 'Username dan password harus diisi';
+                msgEl.className = 'login-msg error';
+            }
+            return;
+        }
+
+        // Show loading state
+        if (submitBtn) {
+            btnText = submitBtn.querySelector('.btn-text');
+            btnLoader = submitBtn.querySelector('.btn-loader');
+            if (btnText) btnText.classList.add('hidden');
+            if (btnLoader) btnLoader.classList.remove('hidden');
+            submitBtn.disabled = true;
+        }
+
         const response = await login(username, password);
-        
+
         if (response.success) {
             if (msgEl) {
                 msgEl.textContent = 'Login berhasil! Mengalihkan...';
                 msgEl.className = 'login-msg success';
             }
-            
+
             // Delay sebentar agar user melihat notifikasi
             setTimeout(() => {
-                // Redirect akan dihandle oleh main.js router
                 window.location.reload();
             }, 1000);
         } else {
@@ -85,12 +97,18 @@ async function handleLoginSubmit(e) {
         if (msgEl) {
             msgEl.textContent = 'Error: ' + error.message;
             msgEl.className = 'login-msg error';
+        } else {
+            // Fallback kalau elemen pesan pun tidak ada, jangan biarkan error hilang diam-diam
+            console.error('Login error (tanpa elemen pesan di DOM):', error);
+            alert('Login gagal: ' + error.message);
         }
     } finally {
-        // Hide loading state
-        if (btnText) btnText.classList.remove('hidden');
-        if (btnLoader) btnLoader.classList.add('hidden');
-        submitBtn.disabled = false;
+        // Hide loading state -- dijalankan walau terjadi error di atas
+        if (submitBtn) {
+            if (btnText) btnText.classList.remove('hidden');
+            if (btnLoader) btnLoader.classList.add('hidden');
+            submitBtn.disabled = false;
+        }
     }
 }
 
