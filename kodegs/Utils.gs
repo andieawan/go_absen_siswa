@@ -46,7 +46,7 @@ function getOrCreateSheet(ss, sheetName) {
 /**
  * Validasi dan sanitasi input
  * @param {string|number} str - Input yang akan divalidasi
- * @param {string} type - Tipe validasi ('nip', 'nisn', 'nama', 'status_absen', 'tanggal')
+ * @param {string} type - Tipe validasi ('nis', 'nip', 'nisn', 'nama', 'status_absen', 'tanggal')
  * @return {boolean|string} - true jika valid, atau pesan error jika tidak
  */
 function validateInput(str, type) {
@@ -61,6 +61,27 @@ function validateInput(str, type) {
   }
 
   switch (type) {
+    // PATCH (BARU): 'nis' -- NIS yang diberikan SEKOLAH SENDIRI, bukan NISN
+    // resmi Kemendikbud. Formatnya bisa mengandung "/" dan "." (contoh nyata:
+    // "10408/771.111"), jadi TIDAK BOLEH dipaksa murni angka seperti NISN.
+    // Sebelumnya kode ini memakai validasi 'nisn' (regex /^\d+$/) untuk NIS
+    // sekolah, sehingga SEMUA submit absensi ditolak "NIS tidak valid" karena
+    // NIS asli sekolah memang bukan angka murni.
+    case 'nis':
+      if (strVal.length < 3) {
+        return 'NIS terlalu pendek';
+      }
+      if (strVal.length > 30) {
+        return 'NIS terlalu panjang';
+      }
+      if (!/^[A-Za-z0-9./-]+$/.test(strVal)) {
+        return 'NIS mengandung karakter tidak valid';
+      }
+      break;
+
+    // 'nip'/'nisn' TETAP ketat murni angka -- dipakai untuk NISN resmi
+    // (Kemendikbud) atau NIP guru kalau suatu saat dibutuhkan, BUKAN untuk
+    // NIS buatan sekolah sendiri seperti di atas.
     case 'nip':
     case 'nisn':
       if (!/^\d+$/.test(strVal)) {
