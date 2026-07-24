@@ -1,9 +1,20 @@
-import { CONFIG } from './config.js';
-
 /**
  * Utility Functions
  * Fungsi-fungsi bantu untuk formatting, validasi, dan manipulasi data
  */
+
+// Escape HTML untuk mencegah XSS
+export function escapeHtml(str) {
+    if (typeof str !== 'string') return str;
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return str.replace(/[&<>"']/g, m => map[m]);
+}
 
 // Format tanggal ke YYYY-MM-DD
 export function formatDate(date) {
@@ -105,7 +116,7 @@ export function showNotification(message, type = 'info') {
     const notification = document.createElement('div');
     notification.className = `notification notification-${type}`;
     notification.innerHTML = `
-        <span>${message}</span>
+        <span>${escapeHtml(message)}</span>
         <button class="close-btn" onclick="this.parentElement.remove()">×</button>
     `;
     
@@ -127,6 +138,7 @@ function createNotificationContainer() {
 }
 
 export default {
+    escapeHtml,
     formatDate,
     formatDateIndo,
     formatTime,

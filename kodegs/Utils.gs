@@ -81,9 +81,10 @@ function validateInput(str, type) {
       break;
       
     case 'status_absen':
-      const validStatus = ['Hadir', 'Izin', 'Sakit', 'Alpha'];
+      // PERBAIKAN: Status absensi yang valid adalah H/I/S/A (bukan Hadir/Izin/Sakit/Alpha)
+      const validStatus = ['H', 'I', 'S', 'A'];
       if (!validStatus.includes(strVal)) {
-        return 'Status absensi tidak valid';
+        return 'Status absensi tidak valid. Gunakan H (Hadir), I (Izin), S (Sakit), atau A (Alpha).';
       }
       break;
       
