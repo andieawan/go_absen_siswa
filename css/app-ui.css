@@ -409,6 +409,76 @@
   gap: var(--spacing-2);
 }
 
+/* ==================== Status Toggle Group (segmented button H/I/S/A) ====================
+   PATCH: menggantikan <select> per baris siswa. Radio native disembunyikan
+   secara visual (bukan display:none, supaya tetap terfokus lewat keyboard/
+   screen reader), label-nya yang di-styling jadi tombol segmented 4-pilihan
+   berwarna, supaya guru bisa 1x tap dan langsung lihat status dari warnanya
+   tanpa perlu membuka dropdown. */
+.status-toggle-group {
+  display: inline-flex;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--gray-200);
+}
+
+.status-toggle-input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.status-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  padding: var(--spacing-2) 0;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--gray-500);
+  background: var(--white);
+  border-right: 1px solid var(--gray-200);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--transition-fast, 0.15s), color var(--transition-fast, 0.15s);
+}
+
+.status-toggle:last-child {
+  border-right: none;
+}
+
+.status-toggle:hover {
+  background: var(--gray-50);
+}
+
+.status-toggle-input:focus-visible + .status-toggle {
+  outline: 2px solid var(--primary-color);
+  outline-offset: -2px;
+}
+
+.status-toggle-input:checked + .status-toggle--H {
+  background: var(--success-color);
+  color: var(--white);
+}
+
+.status-toggle-input:checked + .status-toggle--I {
+  background: var(--info-color);
+  color: var(--white);
+}
+
+.status-toggle-input:checked + .status-toggle--S {
+  background: #d4a017;
+  color: var(--white);
+}
+
+.status-toggle-input:checked + .status-toggle--A {
+  background: var(--danger-color);
+  color: var(--white);
+}
+
 /* ==================== Tables ==================== */
 .table-wrapper {
   overflow-x: auto;
