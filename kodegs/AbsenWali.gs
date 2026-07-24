@@ -30,7 +30,9 @@ function simpanAbsenWali(kelas, tanggal, dataKehadiran) {
     if (!nisKeNama[nis]) continue;
     
     // Validasi NIS
-    const nisValidation = validateInput(nis, 'nisn');
+    // PATCH: 'nis' (bukan 'nisn') -- lihat catatan di Utils.gs, format NIS
+    // sekolah ini boleh mengandung "/" dan "." (mis. "10408/771.111").
+    const nisValidation = validateInput(nis, 'nis');
     if (nisValidation !== true) {
       return { success: false, message: "NIS tidak valid: " + nisValidation };
     }
