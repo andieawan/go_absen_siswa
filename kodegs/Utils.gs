@@ -125,12 +125,9 @@ function validateInput(str, type) {
   return true;
 }
 
-/**
- * Sanitasi string sederhana
- * @param {string|number} str 
- * @return {string}
- */
-function sanitizeString(str) {
-  if (!str) return '';
-  return str.toString().trim().replace(/\s+/g, ' ');
-}
+// PATCH BERSIH-BERSIH: sanitizeString() sebelumnya ada di sini tapi TIDAK
+// PERNAH dipanggil dari fungsi manapun di seluruh kodebase (bukan cuma di
+// file ini). Semua input yang sebenarnya perlu di-trim sudah ditangani
+// masing-masing lewat validateInput() atau .trim() langsung di tempat
+// yang membutuhkan (mis. Auth.gs, Absensi.gs). Dihapus supaya tidak ada
+// kode mati yang membingungkan.
