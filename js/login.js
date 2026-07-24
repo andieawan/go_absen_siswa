@@ -1,4 +1,5 @@
 import { login } from './api.js';
+import { showGlobalLoading, hideGlobalLoading } from './utils.js';
 
 /**
  * Login Module
@@ -69,7 +70,13 @@ async function handleLoginSubmit(e) {
             submitBtn.disabled = true;
         }
 
-        const response = await login(username, password);
+        showGlobalLoading('Memeriksa akun...');
+        let response;
+        try {
+            response = await login(username, password);
+        } finally {
+            hideGlobalLoading();
+        }
 
         if (response.success) {
             if (msgEl) {
