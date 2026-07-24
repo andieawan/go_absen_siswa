@@ -17,6 +17,28 @@
 // 3. doGet() sengaja DIBIARKAN KOSONG-FUNGSIONAL (hanya pesan info) untuk
 //    backward-compat, supaya kalau ada request GET nyasar tidak error 500,
 //    tapi tidak lagi memproses action apa pun yang butuh otentikasi.
+// 4. FIX (BARU): Validasi otorisasi getRekapKelasSaya SEBELUMNYA memakai
+//    akun.mapelList.indexOf(data.mapel) -- padahal data.mapel/data.kelas
+//    di sini adalah STRING GABUNGAN KOMA (mis. "Matematika,IPA"), bukan
+//    satu nama mapel tunggal. getRekapKelasSaya() sendiri (Rekap.gs) sudah
+//    benar men-split string ini dengan koma. Karena indexOf() mencari
+//    kecocokan PERSIS satu elemen array dengan keseluruhan string gabungan
+//    itu, guru yang mengajar LEBIH DARI 1 mapel atau kelas akan SELALU
+//    ditolak ("Anda tidak berhak mengunduh rekap ini") walau itu data
+//    miliknya sendiri -- hanya guru dengan tepat 1 mapel & 1 kelas yang
+//    kebetulan lolos.
+//    Perbaikan: split dulu string gabungan itu (pakai splitList() yang
+//    sudah ada di Utils.gs), lalu pastikan SETIAP mapel & kelas yang
+//    diminta memang ada di daftar mapel/kelas guru tsb (akun.mapelList /
+//    akun.kelasList), baru izinkan.
+// 5. FIX (BARU): doPost() sebelumnya membiarkan `response` tetap generik
+//    {success:false, message:"Terjadi kesalahan sistem."} kalau action
+//    tidak cocok kondisi manapun (typo action, atau parameter wajib
+//    seperti data.mapel/data.kelas kosong) -- membuat masalah semacam ini
+//    sangat sulit dilacak dari sisi frontend/Network tab. Ditambahkan
+//    fallback else di akhir rantai if/else yang menyebutkan nama action
+//    yang diterima, supaya kesalahan ketik/parameter kurang lengkap
+//    langsung terlihat jelas di response.
 // =========================================================
 
 function doOptions(e) {
@@ -73,9 +95,20 @@ function doPost(e) {
         return getDashboardData(data.mapel, data.kelas);
       });
 
+    // ===== FIX: validasi per-item (bukan cek string gabungan utuh) =====
     } else if (data.action === 'getRekapKelasSaya' && data.mapel && data.kelas) {
       response = handleGetDenganValidasi(data.username, data.token, function(akun) {
-        if (akun.mapelList.indexOf(data.mapel) === -1 || akun.kelasList.indexOf(data.kelas) === -1) {
+        const mapelDiminta = splitList(data.mapel);
+        const kelasDiminta = splitList(data.kelas);
+
+        if (mapelDiminta.length === 0 || kelasDiminta.length === 0) {
+          return { success: false, message: "Mata pelajaran atau kelas tidak valid." };
+        }
+
+        const semuaMapelValid = mapelDiminta.every(m => akun.mapelList.indexOf(m) !== -1);
+        const semuaKelasValid = kelasDiminta.every(k => akun.kelasList.indexOf(k) !== -1);
+
+        if (!semuaMapelValid || !semuaKelasValid) {
           return { success: false, message: "Anda tidak berhak mengunduh rekap ini." };
         }
         return getRekapKelasSaya(data.mapel, data.kelas);
@@ -112,6 +145,10 @@ function doPost(e) {
         }
         return getDashboardDataWali(data.kelas);
       });
+
+    // ===== FIX: fallback eksplisit untuk action tak dikenal / parameter kurang =====
+    } else {
+      response.message = "Aksi tidak dikenali atau parameter tidak lengkap: " + (data.action || '(kosong)');
     }
     // ===== SELESAI PATCH =====
 
