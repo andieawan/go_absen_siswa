@@ -28,10 +28,26 @@
  * 3. FIX: downloadRekapExcel sekarang benar-benar generate file .xlsx asli
  *    (multi-sheet, sesuai jumlah kelas/mapel) menggunakan SheetJS yang
  *    sudah di-load di index.html, bukan CSV berlabel .xlsx palsu.
+ *
+ * 4. FIX (BARU): SESSION EXPIRED SEKARANG MEMICU LOGOUT OTOMATIS.
+ *    Backend (Router.gs/Auth.gs) selalu mengembalikan
+ *    { success:false, sessionExpired:true, message:"..." } saat token
+ *    invalid/kadaluarsa, TAPI sebelumnya tidak ada satupun kode frontend
+ *    yang mengecek flag ini. Akibatnya kalau token 12 jam habis, user
+ *    cuma melihat notifikasi error generik berulang-ulang setiap kali
+ *    mencoba aksi apa pun, tanpa pernah diarahkan otomatis ke halaman
+ *    login.
+ *    Perbaikan: pengecekan dipusatkan di postJson() (satu titik untuk
+ *    SEMUA request POST), bukan diulang manual di tiap fungsi endpoint.
+ *    Kalau backend mengirim sessionExpired:true, sesi langsung dibersihkan
+ *    dan halaman di-reload paksa ke login, disertai notifikasi yang jelas.
+ *    Login (action:'login') tidak pernah mengembalikan sessionExpired,
+ *    jadi aman untuk dicek di semua request tanpa pengecualian.
  * =========================================================
  */
 
 import { CONFIG } from './config.js';
+import { showNotification } from './utils.js';
 
 // Helper untuk fetch dengan timeout dan error handling khusus Google Apps Script
 async function fetchWithTimeout(url, options = {}, timeout = CONFIG.DEFAULT_TIMEOUT) {
@@ -66,9 +82,29 @@ async function fetchWithTimeout(url, options = {}, timeout = CONFIG.DEFAULT_TIME
     }
 }
 
+// PATCH: paksa bersihkan sesi & reload ke halaman login.
+// Dipanggil otomatis oleh postJson() begitu backend menandai sessionExpired.
+let sedangHandleSessionExpired = false; // guard supaya tidak reload berkali-kali kalau ada beberapa request paralel
+function handleSessionExpired(message) {
+    if (sedangHandleSessionExpired) return;
+    sedangHandleSessionExpired = true;
+
+    sessionStorage.removeItem(CONFIG.SESSION_KEY);
+    localStorage.removeItem('user_data');
+
+    showNotification(message || 'Sesi Anda sudah habis. Silakan login ulang.', 'warning');
+
+    // Beri jeda singkat supaya notifikasi sempat terlihat sebelum reload
+    setTimeout(() => {
+        window.location.reload();
+    }, 1200);
+}
+
 // PATCH: helper POST terpusat, selalu pakai text/plain agar tidak memicu preflight OPTIONS
+// SEKARANG JUGA menjadi satu-satunya titik pengecekan sessionExpired untuk SEMUA
+// endpoint ber-token, supaya tidak perlu diulang manual di tiap fungsi di bawah.
 async function postJson(body) {
-    return fetchWithTimeout(CONFIG.BACKEND_URL, {
+    const response = await fetchWithTimeout(CONFIG.BACKEND_URL, {
         method: 'POST',
         headers: {
             // PENTING: JANGAN ganti ke 'application/json'.
@@ -78,6 +114,15 @@ async function postJson(body) {
         },
         body: JSON.stringify(body)
     });
+
+    // PATCH: deteksi sessionExpired dari SEMUA response POST.
+    // action:'login' tidak pernah mengirim flag ini, jadi aman untuk dicek
+    // secara universal di sini tanpa terkecuali.
+    if (response && response.sessionExpired === true) {
+        handleSessionExpired(response.message);
+    }
+
+    return response;
 }
 
 // Login user
@@ -105,9 +150,19 @@ export async function login(username, password) {
 }
 
 // Logout user
+// PATCH: dibuat async & mengembalikan Promise yang resolve SEBELUM navigasi,
+// supaya pemanggil (main.js handleLogout) bisa menunggu proses ini selesai
+// terlebih dahulu sebelum menampilkan alert / redirect -- lihat perbaikan
+// race condition di js/main.js.
 export function logout() {
     sessionStorage.removeItem(CONFIG.SESSION_KEY);
     localStorage.removeItem('user_data');
+    return Promise.resolve();
+}
+
+// PATCH: navigasi dipisah dari proses pembersihan sesi, supaya pemanggil
+// bisa mengatur sendiri kapan navigasi terjadi (misal setelah alert selesai).
+export function redirectToLoginPage() {
     window.location.href = 'index.html';
 }
 
@@ -176,7 +231,6 @@ export async function submitAbsenWali(data) {
 }
 
 // Ambil data siswa per kelas
-// PATCH: dipindah dari GET query-string -> POST body (token tidak lagi di URL)
 export async function getSiswaByKelas(kelas) {
     try {
         const { token, username } = requireAuth();
@@ -193,7 +247,6 @@ export async function getSiswaByKelas(kelas) {
 }
 
 // Ambil data existing attendance
-// PATCH: dipindah dari GET query-string -> POST body
 export async function getExistingAttendance(guru, mapel, kelas, tanggal) {
     try {
         const { token, username } = requireAuth();
@@ -213,7 +266,6 @@ export async function getExistingAttendance(guru, mapel, kelas, tanggal) {
 }
 
 // Ambil riwayat absensi
-// PATCH: dipindah dari GET query-string -> POST body
 export async function getRiwayatAbsensi(mapel, kelas) {
     try {
         const { token, username } = requireAuth();
@@ -231,7 +283,6 @@ export async function getRiwayatAbsensi(mapel, kelas) {
 }
 
 // Ambil data dashboard (per mapel)
-// PATCH: dipindah dari GET query-string -> POST body
 export async function getDashboardData(mapel, kelas) {
     try {
         const { token, username } = requireAuth();
@@ -249,7 +300,6 @@ export async function getDashboardData(mapel, kelas) {
 }
 
 // Ambil data dashboard wali kelas
-// PATCH: dipindah dari GET query-string -> POST body
 export async function getDashboardDataWali(kelas) {
     try {
         const { token, username } = requireAuth();
@@ -266,7 +316,6 @@ export async function getDashboardDataWali(kelas) {
 }
 
 // Ambil rekap absensi untuk download
-// PATCH: dipindah dari GET query-string -> POST body
 export async function getRekapKelasSaya(mapel, kelas) {
     try {
         const { token, username } = requireAuth();
@@ -284,7 +333,6 @@ export async function getRekapKelasSaya(mapel, kelas) {
 }
 
 // Ambil data absen wali existing
-// PATCH: dipindah dari GET query-string -> POST body
 export async function getAbsenWaliExisting(kelas, tanggal) {
     try {
         const { token, username } = requireAuth();
@@ -302,7 +350,6 @@ export async function getAbsenWaliExisting(kelas, tanggal) {
 }
 
 // Ambil riwayat absen wali
-// PATCH: dipindah dari GET query-string -> POST body
 export async function getRiwayatAbsenWali(kelas) {
     try {
         const { token, username } = requireAuth();
@@ -343,15 +390,13 @@ export async function downloadRekapExcel(jenis, mapel, kelas) {
 }
 
 // PATCH: generate file .xlsx ASLI (multi-sheet) menggunakan SheetJS (window.XLSX)
-// yang sudah di-load lewat <script> di index.html. Sebelumnya fungsi ini cuma
-// membuat CSV tapi diberi nama file .xlsx (menyesatkan user).
+// yang sudah di-load lewat <script> di index.html.
 async function generateExcelFromData(sheetsData, jenis) {
     if (!sheetsData || sheetsData.length === 0) {
         throw new Error('Data rekap kosong');
     }
 
     if (typeof XLSX === 'undefined') {
-        // Fallback aman kalau library SheetJS gagal dimuat (mis. CDN diblokir)
         console.warn('Library XLSX tidak ditemukan, fallback ke CSV.');
         return generateCsvFallback(sheetsData, jenis);
     }
@@ -362,7 +407,6 @@ async function generateExcelFromData(sheetsData, jenis) {
         const aoa = [sheet.headerRow, ...sheet.rows];
         const worksheet = XLSX.utils.aoa_to_sheet(aoa);
 
-        // Lebar kolom otomatis sederhana biar enak dibaca
         const colWidths = sheet.headerRow.map((_, colIdx) => {
             let maxLen = String(sheet.headerRow[colIdx] || '').length;
             sheet.rows.forEach(row => {
@@ -373,7 +417,6 @@ async function generateExcelFromData(sheetsData, jenis) {
         });
         worksheet['!cols'] = colWidths;
 
-        // Nama tab Excel maksimal 31 karakter & tidak boleh karakter aneh
         const safeTabName = (sheet.tabName || 'Sheet')
             .replace(/[\\/?*[\]:]/g, '_')
             .substring(0, 31);
@@ -420,6 +463,7 @@ function generateCsvFallback(sheetsData, jenis) {
 export default {
     login,
     logout,
+    redirectToLoginPage,
     isLoggedIn,
     getCurrentUser,
     submitAbsensi,
