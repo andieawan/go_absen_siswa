@@ -70,7 +70,9 @@ function handleSubmit(payload) {
     const status = String(student.status).trim().toUpperCase();
     
     // Validasi NIS
-    const nisValidation = validateInput(nis, 'nisn');
+    // PATCH: 'nis' (bukan 'nisn') -- lihat catatan di Utils.gs, format NIS
+    // sekolah ini boleh mengandung "/" dan "." (mis. "10408/771.111").
+    const nisValidation = validateInput(nis, 'nis');
     if (nisValidation !== true) {
       return { success: false, message: "NIS tidak valid: " + nisValidation };
     }
