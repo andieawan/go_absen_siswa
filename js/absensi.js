@@ -74,12 +74,30 @@ function setupTabNavigation() {
         btn.addEventListener('click', () => switchTab(btn.dataset.tab));
     });
 
+    // =====================================================================
+    // FIX BUG: Sebelumnya query & toggle di bawah ini dilakukan secara
+    // GLOBAL ke SEMUA elemen `.sub-tab-btn[data-subtab]` dan `.sub-tab-panel`
+    // di seluruh dokumen. Padahal ada DUA grup sub-tab yang independen di
+    // halaman yang sama:
+    //   - Panel Riwayat  : subtabMapel / subtabWali
+    //   - Panel Dashboard: subtabDashboardWali / subtabDashboardMapel
+    // Karena ke-2 grup itu berbagi class CSS yang sama, mengklik salah satu
+    // sub-tab di panel Riwayat ikut menambahkan class "hidden" ke SEMUA
+    // sub-tab-panel milik Dashboard (dan berlaku juga sebaliknya) -- akibatnya
+    // panel Dashboard bisa tampil KOSONG TOTAL (kedua sub-panelnya
+    // ter-hidden sekaligus) begitu pengguna sempat membuka tab Riwayat lalu
+    // kembali ke tab Dashboard, walau data & tombol sub-tab-nya terlihat aktif.
+    // Perbaikan: batasi query hanya pada elemen di dalam `.tab-panel` (leluhur
+    // bersama tiap grup) yang sama dengan tombol yang diklik, supaya kedua
+    // grup sub-tab benar-benar independen satu sama lain.
+    // =====================================================================
     document.querySelectorAll('.sub-tab-btn[data-subtab]').forEach(btn => {
         btn.addEventListener('click', () => {
-            document.querySelectorAll('.sub-tab-btn[data-subtab]').forEach(b => {
+            const scope = btn.closest('.tab-panel') || document;
+            scope.querySelectorAll('.sub-tab-btn[data-subtab]').forEach(b => {
                 b.classList.toggle('active', b === btn);
             });
-            document.querySelectorAll('.sub-tab-panel').forEach(panel => {
+            scope.querySelectorAll('.sub-tab-panel').forEach(panel => {
                 panel.classList.toggle('hidden', panel.id !== btn.dataset.subtab);
             });
         });
