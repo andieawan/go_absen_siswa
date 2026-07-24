@@ -205,9 +205,9 @@ document.addEventListener('click', (e) => {
     if (action === 'logout') {
         window.handleLogout();
     }
-    // Action lain seperti "quickBukaRekap", "downloadRekapKelasSaya", dan
-    // "downloadRekapAbsenWali" ditangani oleh listener spesifik di
-    // js/absensi.js (dipasang saat initAbsensi() dipanggil dari renderDashboard()).
+    // Action lain seperti "downloadRekapKelasSaya" dan "downloadRekapAbsenWali"
+    // ditangani oleh listener spesifik di js/absensi.js (dipasang saat
+    // initAbsensi() dipanggil dari renderDashboard()).
 });
 
 // Global error handler
