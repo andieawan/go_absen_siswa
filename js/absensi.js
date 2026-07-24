@@ -348,10 +348,7 @@ function setupRiwayatPanel(user) {
         if (subtabBtnWali) subtabBtnWali.classList.remove('hidden');
         if (riwayatWaliKelasLabel) riwayatWaliKelasLabel.textContent = user.kelasWali;
 
-        let sudahDimuat = false;
-        subtabBtnWali?.addEventListener('click', async () => {
-            if (sudahDimuat) return; // cukup sekali per sesi buka dashboard
-            sudahDimuat = true;
+        async function loadRiwayatWali() {
             if (riwayatWaliLoading) riwayatWaliLoading.classList.remove('hidden');
             try {
                 const res = await getRiwayatAbsenWali(user.kelasWali);
@@ -361,7 +358,12 @@ function setupRiwayatPanel(user) {
             } finally {
                 if (riwayatWaliLoading) riwayatWaliLoading.classList.add('hidden');
             }
-        });
+        }
+
+        // PATCH: dimuat ulang setiap kali sub-tab dibuka (bukan cuma sekali per
+        // sesi) supaya data terbaru langsung tampil setelah guru submit absensi
+        // di panel "Wali" -- kartu riwayat di panel itu sudah dipindah ke sini.
+        subtabBtnWali?.addEventListener('click', loadRiwayatWali);
     }
 }
 
@@ -428,7 +430,6 @@ function setupAbsenWaliPanel(user) {
     const waliLoading = document.getElementById('waliLoading');
     const waliBtnSubmit = document.getElementById('waliBtnSubmit');
     const form = document.getElementById('waliAbsenForm');
-    const riwayatLoading = document.getElementById('waliRiwayatLoading');
 
     if (tabBtnWali) tabBtnWali.classList.remove('hidden');
     if (waliKelasLabel) waliKelasLabel.textContent = user.kelasWali;
@@ -454,18 +455,6 @@ function setupAbsenWaliPanel(user) {
         }
     }
 
-    async function loadWaliRiwayat() {
-        if (riwayatLoading) riwayatLoading.classList.remove('hidden');
-        try {
-            const res = await getRiwayatAbsenWali(user.kelasWali);
-            renderRiwayatList(res, 'waliRiwayatList');
-        } catch (err) {
-            showNotification('Gagal memuat riwayat: ' + err.message, 'error');
-        } finally {
-            if (riwayatLoading) riwayatLoading.classList.add('hidden');
-        }
-    }
-
     if (waliTanggal) waliTanggal.addEventListener('change', reloadWaliStudents);
 
     if (form) {
@@ -485,7 +474,6 @@ function setupAbsenWaliPanel(user) {
             try {
                 const res = await submitAbsenWali({ kelas: user.kelasWali, tanggal, dataKehadiran });
                 showNotification(res.message || (res.success ? 'Absensi tersimpan' : 'Gagal menyimpan absensi'), res.success ? 'success' : 'error');
-                if (res.success) loadWaliRiwayat();
             } catch (err) {
                 showNotification('Gagal menyimpan absensi: ' + err.message, 'error');
             } finally {
@@ -495,7 +483,6 @@ function setupAbsenWaliPanel(user) {
     }
 
     reloadWaliStudents();
-    loadWaliRiwayat();
 }
 
 export default { initAbsensi };
