@@ -414,12 +414,24 @@
    secara visual (bukan display:none, supaya tetap terfokus lewat keyboard/
    screen reader), label-nya yang di-styling jadi tombol segmented 4-pilihan
    berwarna, supaya guru bisa 1x tap dan langsung lihat status dari warnanya
-   tanpa perlu membuka dropdown. */
+   tanpa perlu membuka dropdown.
+
+   PATCH (BARU): opsi yang TIDAK terpilih sebelumnya nyaris tak terlihat
+   sebagai tombol (background putih + border abu sangat tipis nyaris tidak
+   kontras dengan latar halaman yang juga putih -- di layar HP terlihat
+   seperti huruf lepas berspasi, bukan grup tombol). Diperbaiki dengan:
+   latar grup abu muda (gray-100) supaya kotak putih tiap opsi kontras
+   jelas terhadapnya, border lebih gelap (gray-300), dan ukuran kotak
+   dinaikkan supaya nyaman disentuh jari (target sentuh minimal 40px,
+   full 44px di breakpoint mobile -- lihat media query di bawah). */
 .status-toggle-group {
   display: inline-flex;
+  width: 100%;
+  max-width: 220px;
   border-radius: var(--radius-md);
   overflow: hidden;
-  border: 1px solid var(--gray-200);
+  border: 1px solid var(--gray-300);
+  background: var(--gray-100);
 }
 
 .status-toggle-input {
@@ -431,16 +443,18 @@
 }
 
 .status-toggle {
+  flex: 1 1 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 34px;
-  padding: var(--spacing-2) 0;
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
+  min-width: 38px;
+  min-height: 38px;
+  padding: var(--spacing-2) var(--spacing-1);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
   color: var(--gray-500);
   background: var(--white);
-  border-right: 1px solid var(--gray-200);
+  border-right: 1px solid var(--gray-300);
   cursor: pointer;
   user-select: none;
   transition: background var(--transition-fast, 0.15s), color var(--transition-fast, 0.15s);
@@ -455,6 +469,8 @@
 }
 
 .status-toggle-input:focus-visible + .status-toggle {
+  position: relative;
+  z-index: 1;
   outline: 2px solid var(--primary-color);
   outline-offset: -2px;
 }
@@ -529,6 +545,79 @@
 
 .empty-row td {
   padding: var(--spacing-8) !important;
+}
+
+/* ==================== PATCH (BARU): Tabel Siswa di Layar Mobile ====================
+   Aplikasi ini dipakai mayoritas dari HP saat guru presensi di kelas.
+   Tabel 3 kolom (NIS/Nama/Kehadiran) berdampingan jadi sempit di layar
+   kecil -- kolom Kehadiran ketiban sisa ruang paling sedikit padahal
+   itu kontrol yang paling sering disentuh. Di bawah 640px, tiap baris
+   direstruktur jadi kartu vertikal: Nama di atas (lebih mudah dibaca
+   sekilas), NIS kecil di bawahnya, lalu tombol status H/I/S/A di baris
+   sendiri selebar penuh kartu supaya target sentuhnya besar (min. 44px,
+   sesuai standar target sentuh mobile) dan nyaman dijempol. */
+@media (max-width: 640px) {
+  #studentsTable thead,
+  #waliStudentsTable thead {
+    display: none;
+  }
+
+  #studentsTable tbody,
+  #waliStudentsTable tbody,
+  #studentsTable tr,
+  #waliStudentsTable tr,
+  #studentsTable td,
+  #waliStudentsTable td {
+    display: block;
+    width: 100%;
+  }
+
+  #studentsTable tr,
+  #waliStudentsTable tr {
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-3) var(--spacing-4);
+    border-bottom: 1px solid var(--gray-100);
+  }
+
+  #studentsTable td,
+  #waliStudentsTable td {
+    padding: 0;
+    border-bottom: none;
+  }
+
+  /* Nama siswa ditampilkan paling atas -- lebih penting dibaca sekilas
+     daripada NIS saat guru menyisir daftar sambil presensi. */
+  #studentsTable td:nth-child(2),
+  #waliStudentsTable td:nth-child(2) {
+    order: 1;
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--gray-800);
+  }
+
+  #studentsTable td:nth-child(1),
+  #waliStudentsTable td:nth-child(1) {
+    order: 2;
+    font-size: var(--font-size-xs);
+    color: var(--gray-400);
+    margin-bottom: var(--spacing-2);
+  }
+
+  #studentsTable td:nth-child(3),
+  #waliStudentsTable td:nth-child(3) {
+    order: 3;
+  }
+
+  .status-toggle-group {
+    max-width: none;
+    width: 100%;
+  }
+
+  .status-toggle {
+    min-height: 44px;
+    font-size: var(--font-size-base);
+  }
 }
 
 /* ==================== Empty States ==================== */
