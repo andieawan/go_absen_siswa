@@ -35,6 +35,21 @@
         <main id="app"></main>
     </div>
 
+    <!-- OVERLAY LOADING GLOBAL -->
+    <!-- PATCH UX: overlay ini ditampilkan di TENGAH LAYAR (lihat
+         .loading-overlay di css/components.css) setiap kali aplikasi sedang
+         memuat/mengirim data ke server (login, ambil daftar siswa, submit
+         absensi, muat dashboard/riwayat, unduh rekap, dll). Dikontrol lewat
+         showGlobalLoading()/hideGlobalLoading() di js/utils.js. Sebelumnya
+         indikator "Mengambil data..." hanya berupa teks kecil di atas tabel
+         yang gampang terlewat kalau pengguna sudah scroll ke bawah. -->
+    <div id="globalLoadingOverlay" class="loading-overlay hidden" role="status" aria-live="polite">
+        <div class="loading-overlay__content">
+            <span class="spinner loading-overlay__spinner"></span>
+            <p id="globalLoadingText" class="loading-overlay__text">Memproses...</p>
+        </div>
+    </div>
+
     <!-- MODAL ALERT -->
     <div id="customAlert" class="modal-overlay" role="dialog" aria-modal="true">
         <div class="modal-box">
