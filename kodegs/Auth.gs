@@ -194,14 +194,31 @@ function handleLogin(username, password) {
       if (passwordValid) {
         cache.remove(cacheKey);
         let kelasWali = data[i][5] ? String(data[i][5]).trim() : '';
+
+        // ===== PATCH =====
+        // SEBELUM: mengembalikan field "mapel" dan "kelas" sebagai string
+        // mentah dari spreadsheet (mis. "Matematika, IPA"), padahal frontend
+        // (js/dashboard.js, js/absensi.js) membaca userData.mapelList dan
+        // userData.kelasList sebagai ARRAY. Akibatnya array selalu kosong
+        // -> dropdown Kelas/Mapel kosong -> error "Tidak ada mata pelajaran
+        // atau kelas yang diajar".
+        // SESUDAH: parsing jadi array di sini (sama seperti getAkunGuru())
+        // supaya field yang dikirim ke frontend konsisten: mapelList & kelasList.
+        let mapelList = String(data[i][3] || '').split(',').map(s => s.trim()).filter(s => s !== '');
+        let kelasList = String(data[i][4] || '').split(',').map(s => s.trim()).filter(s => s !== '');
+
         return {
           success: true,
           data: {
             username: username,
             token: buatToken(username),
-            nama: data[i][2], mapel: data[i][3], kelas: data[i][4], kelasWali: kelasWali
+            nama: data[i][2],
+            mapelList: mapelList,
+            kelasList: kelasList,
+            kelasWali: kelasWali
           }
         };
+        // ===== SELESAI PATCH =====
       }
     }
   }
