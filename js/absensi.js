@@ -55,7 +55,6 @@ export function initAbsensi() {
     setupRiwayatPanel(user);
     setupRekapPanel(user);
     setupAbsenWaliPanel(user);
-    setupHeaderRekapShortcut();
 }
 
 // =========================================================
@@ -84,12 +83,6 @@ function setupTabNavigation() {
                 panel.classList.toggle('hidden', panel.id !== btn.dataset.subtab);
             });
         });
-    });
-}
-
-function setupHeaderRekapShortcut() {
-    document.querySelectorAll('[data-action="quickBukaRekap"]').forEach(btn => {
-        btn.addEventListener('click', () => switchTab('panelRekap'));
     });
 }
 
