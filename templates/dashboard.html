@@ -194,6 +194,29 @@
                     </div>
                 </div>
             </div>
+
+            <!-- FITUR: Delegasi Input ke Ketua Kelas (sementara) -->
+            <div class="card delegasi-card">
+                <h4>🔗 Delegasi Input ke Ketua Kelas</h4>
+                <p class="card-subtitle">
+                    Bagikan link ini ke ketua kelas supaya bisa ikut mengisi absensi
+                    HARI INI kalau Anda berhalangan. Bersifat sementara -- link hanya
+                    bisa dipakai selama Anda aktifkan, dan bisa dinonaktifkan kapan saja.
+                </p>
+
+                <p id="delegasiStatus" class="delegasi-status">Memeriksa status...</p>
+
+                <div id="delegasiLinkBox" class="delegasi-link-box hidden">
+                    <input type="text" id="delegasiLinkInput" class="delegasi-link-input" readonly>
+                    <button type="button" id="btnSalinLinkDelegasi" class="btn-outline btn-sm">📋 Salin Link</button>
+                </div>
+
+                <div class="delegasi-actions">
+                    <button type="button" id="btnAktifkanDelegasi" class="btn-primary btn-sm hidden">Aktifkan & Buat Link</button>
+                    <button type="button" id="btnNonaktifkanDelegasi" class="btn-danger btn-sm hidden">Nonaktifkan Link</button>
+                </div>
+            </div>
+
             <form id="waliAbsenForm" class="card">
                 <div class="form-group">
                     <label for="waliTanggal">Tanggal</label>
