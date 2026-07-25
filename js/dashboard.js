@@ -111,19 +111,45 @@ function renderTrendChart(data, canvasId) {
         return;
     }
 
-    // Simplified visual representation menggunakan bar CSS
     const container = canvas.parentElement;
     if (!container) return;
 
-    let html = '<div class="trend-bars">';
-    data.forEach((item, idx) => {
+    // PATCH GRAFIK:
+    // 1. Label di bawah tiap bar SEBELUMNYA cuma nomor urut (1, 2, 3, ...)
+    //    -- tidak menunjukkan tanggal apa pun, jadi grafik "Tren Kehadiran"
+    //    tidak berguna untuk melihat KAPAN kehadiran naik/turun. Sekarang
+    //    pakai tanggal singkat (dd/MM).
+    // 2. Persentase SEBELUMNYA cuma ada di tooltip (atribut title, muncul
+    //    saat hover) -- di HP tidak ada hover sama sekali, jadi pengguna
+    //    mobile tidak pernah lihat angkanya. Sekarang ditampilkan sebagai
+    //    teks di atas tiap bar.
+    // 3. Data dari backend TIDAK dibatasi jumlahnya (bisa sebanyak jumlah
+    //    hari yang sudah diabsen, bisa puluhan/ratusan untuk wali kelas
+    //    yang absen tiap hari). Kalau ditampilkan semua, bar jadi
+    //    berdesakan & label tanggal jadi tidak terbaca. Dibatasi ke 14
+    //    data terakhir (paling relevan untuk melihat tren terkini).
+    const MAKS_BAR = 14;
+    const dataDitampilkan = data.length > MAKS_BAR ? data.slice(-MAKS_BAR) : data;
+
+    let html = '';
+    if (data.length > MAKS_BAR) {
+        html += `<p class="chart-note">Menampilkan ${MAKS_BAR} pertemuan/hari terakhir dari ${data.length} total.</p>`;
+    }
+    html += '<div class="trend-bars">';
+    dataDitampilkan.forEach((item) => {
         const persen = item.persenHadir || 0;
-        const height = Math.max(10, persen * 1.5);
-        const tanggalLabel = item.tanggal || '';
+        // PATCH: skala tinggi bar disesuaikan (dari 1.5 ke 1.2) supaya di
+        // 100% tinggi bar maksimal ~120px, menyisakan ruang yang cukup di
+        // dalam kontainer 190px untuk label persentase yang baru
+        // ditambahkan di atas bar + label tanggal di bawahnya.
+        const height = Math.max(10, persen * 1.2);
+        const tanggalIso = item.tanggal || '';
+        const tanggalLabel = formatTanggalSingkat(tanggalIso);
         html += `
             <div class="trend-bar-item">
-                <div class="trend-bar" style="height: ${height}px;" title="${escapeHtml(tanggalLabel)}: ${persen.toFixed(1)}%"></div>
-                <div class="trend-bar-label">${idx + 1}</div>
+                <div class="trend-bar-value">${persen.toFixed(0)}%</div>
+                <div class="trend-bar" style="height: ${height}px;" title="${escapeHtml(tanggalIso)}: ${persen.toFixed(1)}%"></div>
+                <div class="trend-bar-label">${escapeHtml(tanggalLabel)}</div>
             </div>
         `;
     });
@@ -131,9 +157,23 @@ function renderTrendChart(data, canvasId) {
 
     // Replace canvas dengan visual bars
     canvas.style.display = 'none';
+    const existingNote = container.querySelector('.chart-note');
+    if (existingNote) existingNote.remove();
     const existingBars = container.querySelector('.trend-bars');
     if (existingBars) existingBars.remove();
     container.insertAdjacentHTML('beforeend', html);
+}
+
+/**
+ * Format tanggal ISO ("yyyy-MM-dd") jadi format singkat "dd/MM" untuk
+ * label di bawah bar grafik tren -- ringkas tapi tetap menunjukkan
+ * tanggal sesungguhnya (bukan sekadar nomor urut).
+ */
+function formatTanggalSingkat(tanggalIso) {
+    if (!tanggalIso) return '-';
+    const bagian = tanggalIso.split('-'); // [yyyy, MM, dd]
+    if (bagian.length !== 3) return tanggalIso;
+    return `${bagian[2]}/${bagian[1]}`;
 }
 
 /**
