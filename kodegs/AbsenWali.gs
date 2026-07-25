@@ -2,7 +2,15 @@
 // ABSEN HARIAN WALI KELAS
 // =========================================================
 
-function simpanAbsenWali(kelas, tanggal, dataKehadiran) {
+function simpanAbsenWali(kelas, tanggal, dataKehadiran, pengirim) {
+  // PATCH: parameter `pengirim` (opsional) -- dipakai untuk membedakan
+  // baris yang disimpan langsung oleh wali kelas ("Wali Kelas", default)
+  // vs yang disimpan lewat link delegasi ketua kelas ("Ketua Kelas
+  // (Delegasi)"), sebagai jejak audit di kolom "Nama Guru" pada sheet
+  // mentah -- tidak mengubah perilaku existing caller yang tidak mengisi
+  // parameter ini.
+  const namaPengirim = pengirim || "Wali Kelas";
+
   // Validasi input dasar
   if (!kelas || !tanggal || !dataKehadiran) {
     return { success: false, message: "Data kelas, tanggal, atau kehadiran tidak boleh kosong." };
@@ -80,7 +88,7 @@ function simpanAbsenWali(kelas, tanggal, dataKehadiran) {
     sheet.getRange(targetRow, 6, 1, 4).setValues([[strHadir, strIzin, strSakit, strAlpa]]);
     return { success: true, message: "Data absensi kelas " + kelas + " tanggal " + tanggal + " diperbarui!" };
   } else {
-    sheet.appendRow([timestamp, "Wali Kelas", MAPEL_ABSEN_WALI, kelas, tanggal, strHadir, strIzin, strSakit, strAlpa]);
+    sheet.appendRow([timestamp, namaPengirim, MAPEL_ABSEN_WALI, kelas, tanggal, strHadir, strIzin, strSakit, strAlpa]);
     return { success: true, message: "Data absensi kelas " + kelas + " tanggal " + tanggal + " disimpan!" };
   }
 }
