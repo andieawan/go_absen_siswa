@@ -389,6 +389,91 @@ export async function downloadRekapExcel(jenis, mapel, kelas) {
     }
 }
 
+// =========================================================
+// FITUR: Delegasi Input Absen ke Ketua Kelas (sementara)
+// ---------------------------------------------------------
+// 3 fungsi pertama BUTUH login wali kelas (sama seperti fungsi wali kelas
+// lain di atas). 2 fungsi terakhir SENGAJA TIDAK memanggil requireAuth()
+// sama sekali dan TIDAK pernah mengirim username/token session -- itu
+// yang dipakai dari halaman publik link ketua kelas (lihat js/ketuaKelas.js),
+// keamanannya divalidasi backend lewat ketuaToken saja.
+// =========================================================
+
+// Buat/perbarui & aktifkan link ketua kelas untuk kelas wali sendiri
+export async function generateKetuaKelasLink(kelas) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({
+            action: 'generateKetuaKelasLink',
+            kelas: kelas,
+            username: username,
+            token: token
+        });
+    } catch (error) {
+        console.error('Generate ketua kelas link error:', error);
+        throw error;
+    }
+}
+
+// Cek status link ketua kelas (aktif/tidak) untuk kelas wali sendiri
+export async function getStatusKetuaKelasLink(kelas) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({
+            action: 'getStatusKetuaKelasLink',
+            kelas: kelas,
+            username: username,
+            token: token
+        });
+    } catch (error) {
+        console.error('Get status ketua kelas link error:', error);
+        throw error;
+    }
+}
+
+// Nonaktifkan link ketua kelas untuk kelas wali sendiri
+export async function nonaktifkanKetuaKelasLink(kelas) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({
+            action: 'nonaktifkanKetuaKelasLink',
+            kelas: kelas,
+            username: username,
+            token: token
+        });
+    } catch (error) {
+        console.error('Nonaktifkan ketua kelas link error:', error);
+        throw error;
+    }
+}
+
+// PUBLIK -- dipanggil dari halaman link ketua kelas, tanpa login sama sekali
+export async function getInfoKetuaKelas(ketuaToken) {
+    try {
+        return await postJson({
+            action: 'getInfoKetuaKelas',
+            ketuaToken: ketuaToken
+        });
+    } catch (error) {
+        console.error('Get info ketua kelas error:', error);
+        throw error;
+    }
+}
+
+// PUBLIK -- submit absensi lewat link ketua kelas, tanpa login sama sekali
+export async function submitAbsenKetuaKelas(ketuaToken, dataKehadiran) {
+    try {
+        return await postJson({
+            action: 'submitAbsenKetuaKelas',
+            ketuaToken: ketuaToken,
+            dataKehadiran: dataKehadiran
+        });
+    } catch (error) {
+        console.error('Submit absen ketua kelas error:', error);
+        throw error;
+    }
+}
+
 // PATCH: generate file .xlsx ASLI (multi-sheet) menggunakan SheetJS (window.XLSX)
 // yang sudah di-load lewat <script> di index.html.
 async function generateExcelFromData(sheetsData, jenis) {
