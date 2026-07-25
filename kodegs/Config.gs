@@ -55,6 +55,11 @@ function invalidateConfigCache(key) {
   cache.remove('config_' + key);
 }
 
+// ID Spreadsheet & Folder Drive di bawah ini BISA DIGANTI sesuai kebutuhan
+// Anda -- tinggal timpa nilai string-nya dengan ID Spreadsheet/Folder Drive
+// milik Anda sendiri (ambil dari URL Spreadsheet/Folder yang bersangkutan),
+// atau override lewat Script Properties dengan key yang sama (lihat
+// getConfigValue() di atas) tanpa perlu mengubah kode ini sama sekali.
 const SPREADSHEET_MASTER_ID = getConfigValue('SPREADSHEET_MASTER_ID', '1YYWe9qgwP5v4FvO9xR2vWOtu9NA89EHwa7xaTOqeVuI');
 const SPREADSHEET_ABSEN_ID = getConfigValue('SPREADSHEET_ABSEN_ID', '1_ZIp2nAEp__atYI_b6D37nmpAdAOE510l6vLTtFdXHI');
 const DRIVE_FOLDER_REKAP_ID = getConfigValue('DRIVE_FOLDER_REKAP_ID', '1rZSN7CD93XIUAozSc0zmJuqq5on3u1RN');
