@@ -536,8 +536,17 @@ function setupDelegasiKetuaKelas(kelasWali) {
         return `${base}?ketua=${token}`;
     }
 
-    function tampilkanAktif(token) {
-        statusEl.textContent = '✅ Link sedang AKTIF -- bisa dipakai ketua kelas untuk mengisi absensi hari ini.';
+    function tampilkanAktif(token, modePerTanggal) {
+        // PATCH: kalau pengelola aplikasi sudah mengaktifkan mode per
+        // tanggal untuk kelas ini lewat Apps Script (lihat
+        // kodegs/ketuakelas.gs), tampilkan info tambahan supaya wali kelas
+        // tahu ketua kelas sekarang bisa pilih tanggal apa saja -- ini
+        // murni informasional, wali kelas tidak bisa mengubah pengaturan
+        // ini sendiri dari sini.
+        const infoModeTanggal = modePerTanggal
+            ? ' Mode rekap AKTIF untuk kelas ini -- ketua kelas bisa mengisi absensi tanggal apa saja (dikelola pengurus aplikasi).'
+            : '';
+        statusEl.textContent = '✅ Link sedang AKTIF -- bisa dipakai ketua kelas untuk mengisi absensi hari ini.' + infoModeTanggal;
         statusEl.classList.add('delegasi-status-aktif');
         linkInput.value = buatUrlLink(token);
         linkBox.classList.remove('hidden');
@@ -559,7 +568,7 @@ function setupDelegasiKetuaKelas(kelasWali) {
         try {
             const res = await getStatusKetuaKelasLink(kelasWali);
             if (res.success && res.data && res.data.aktif) {
-                tampilkanAktif(res.data.token);
+                tampilkanAktif(res.data.token, res.data.modePerTanggal);
             } else {
                 tampilkanNonaktif();
             }
