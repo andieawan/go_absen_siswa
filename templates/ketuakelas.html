@@ -1,30 +1,54 @@
 <!-- Template Halaman Ketua Kelas (fitur sementara: delegasi input absen) -->
 <!-- CATATAN: halaman ini SENGAJA tidak punya tab/menu navigasi apa pun ke
-     bagian lain aplikasi -- hanya form isi absensi hari ini untuk 1 kelas,
-     diakses lewat link token dari wali kelas. -->
-<section id="ketuaKelasSection" class="login-section">
-    <div class="login-card" style="max-width: 480px;">
-        <span class="login-logo">👪</span>
-        <h2 class="login-title">Mode Ketua Kelas</h2>
-        <p class="login-subtitle">Isi absensi harian sebagai delegasi dari wali kelas</p>
+     bagian lain aplikasi -- hanya form isi absensi untuk 1 kelas, diakses
+     lewat link token dari wali kelas.
+     PATCH MOBILE: sebelumnya halaman ini pakai .login-section/.login-card
+     (didesain untuk form login PENDEK yang di-tengah-tengahkan vertikal).
+     Begitu isinya jadi tabel siswa yang panjang, pola "center vertikal
+     di tengah viewport" itu jadi terlihat berantakan di HP (konten
+     terpotong/tidak sejajar). Sekarang pakai .container biasa (sama
+     seperti dashboard.html) -- konten mengalir normal dari atas ke
+     bawah, sudah teruji rapi di mobile untuk halaman berisi tabel. -->
+<div class="container">
+    <div class="card" style="text-align:center; margin-bottom: var(--spacing-4);">
+        <span style="font-size: 3rem; display:block; margin-bottom: var(--spacing-2);">👪</span>
+        <h2 style="margin-bottom: var(--spacing-1);">Mode Ketua Kelas</h2>
+        <p class="card-subtitle">Isi absensi harian sebagai delegasi dari wali kelas</p>
+    </div>
 
-        <div id="ketuaKelasLoading" class="card">
-            <p style="text-align:center;">Memeriksa link...</p>
-        </div>
+    <div id="ketuaKelasLoading" class="card">
+        <p style="text-align:center;">Memeriksa link...</p>
+    </div>
 
-        <div id="ketuaKelasError" class="card hidden">
-            <p class="empty-state" id="ketuaKelasErrorMessage">Link tidak valid.</p>
-        </div>
+    <div id="ketuaKelasError" class="card hidden">
+        <p class="empty-state" id="ketuaKelasErrorMessage">Link tidak valid.</p>
+    </div>
 
-        <form id="ketuaKelasForm" class="card hidden" style="text-align:left;">
+    <form id="ketuaKelasForm" class="hidden">
+        <div class="card">
             <div class="info-banner">
                 <span class="info-icon">📅</span>
                 <div>
                     <strong>Kelas: <span id="ketuaKelasNamaKelas">-</span></strong>
-                    <p>Tanggal: <span id="ketuaKelasTanggal">-</span> (hari ini, tidak bisa diubah)</p>
+                    <p id="ketuaKelasTanggalTetapWrapper">Tanggal: <span id="ketuaKelasTanggal">-</span> (hari ini, tidak bisa diubah)</p>
                 </div>
             </div>
 
+            <!-- PATCH (mode per tanggal): hanya ditampilkan kalau pengelola
+                 aplikasi sudah mengaktifkan mode ini untuk kelas ini lewat
+                 Apps Script (lihat kodegs/ketuakelas.gs). Kalau tidak
+                 aktif, elemen ini tetap hidden dan tanggal tetap terkunci
+                 ke hari ini seperti biasa (lihat wrapper di atas). -->
+            <div id="ketuaKelasDatePickerWrapper" class="form-group hidden" style="margin-top: var(--spacing-4); margin-bottom: 0;">
+                <label for="ketuaKelasDateInput">Pilih Tanggal Absensi</label>
+                <input type="date" id="ketuaKelasDateInput">
+                <p class="card-subtitle" style="margin-top: var(--spacing-2);">
+                    Mode rekap: Anda bisa memilih tanggal apa saja untuk membantu wali kelas melengkapi absensi yang belum sempat diisi.
+                </p>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top: var(--spacing-4);">
             <div class="students-section">
                 <div class="section-header">
                     <h4>👥 Daftar Siswa</h4>
@@ -42,14 +66,14 @@
                 </div>
             </div>
 
-            <button type="submit" id="ketuaKelasBtnSubmit" class="btn-primary btn-full btn-submit">
-                <span class="btn-text">💾 Simpan Absensi Hari Ini</span>
+            <button type="submit" id="ketuaKelasBtnSubmit" class="btn-primary btn-full btn-submit" style="margin-top: var(--spacing-4);">
+                <span class="btn-text">💾 Simpan Absensi</span>
                 <span class="btn-loader hidden">⏳ Menyimpan...</span>
             </button>
-        </form>
+        </div>
+    </form>
 
-        <p class="login-subtitle" style="margin-top: 24px; font-size: var(--font-size-xs);">
-            Link ini bersifat sementara dan bisa dinonaktifkan kapan saja oleh wali kelas Anda.
-        </p>
-    </div>
-</section>
+    <p class="empty-state" style="margin-top: var(--spacing-4); font-size: var(--font-size-xs);">
+        Link ini bersifat sementara dan bisa dinonaktifkan kapan saja oleh wali kelas Anda.
+    </p>
+</div>
