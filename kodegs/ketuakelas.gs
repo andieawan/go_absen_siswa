@@ -13,20 +13,20 @@
 //    TANGGAL HARI INI -- tanggal SELALU diambil dari waktu server (bukan
 //    dari input/URL), supaya ketua kelas tidak bisa mengubah data
 //    hari-hari sebelumnya atau menandai hari yang belum terjadi.
-// 2. PATCH (mode per tanggal, opsional & per-kelas): kalau wali kelas
-//    butuh bantuan ketua kelas untuk MEREKAP absensi hari-hari
-//    sebelumnya (mis. setelah 2 minggu absensi manual belum sempat
-//    diinput), pengelola aplikasi (developer/IT sekolah) bisa
-//    mengaktifkan "mode per tanggal" khusus untuk kelas tertentu lewat
-//    fungsi aktifkanModePerTanggalKetuaKelas(kelas) yang dijalankan
-//    MANUAL dari editor Apps Script (sama seperti resetPasswordUser()/
+// 2. PATCH (mode per tanggal, opsional & GLOBAL untuk semua kelas):
+//    kalau wali kelas butuh bantuan ketua kelas untuk MEREKAP absensi
+//    hari-hari sebelumnya (mis. setelah 2 minggu absensi manual belum
+//    sempat diinput), pengelola aplikasi (developer/IT sekolah) bisa
+//    mengaktifkan "mode per tanggal" untuk SEMUA KELAS SEKALIGUS lewat
+//    fungsi aktifkanModePerTanggalKetuaKelas() yang dijalankan MANUAL
+//    dari editor Apps Script (sama seperti resetPasswordUser()/
 //    setupConfig()) -- BUKAN lewat tombol di aplikasi web, supaya
 //    kemampuan mengedit tanggal bebas ini tetap di bawah kendali orang
 //    yang punya akses ke project Apps Script, bukan wali kelas atau
-//    ketua kelas sendiri. Begitu mode ini aktif untuk kelas X, halaman
-//    ketua kelas kelas X akan menampilkan date-picker (bebas pilih
-//    tanggal apa saja); kalau tidak aktif, perilaku tetap seperti
-//    semula (hari ini saja, tidak bisa diubah).
+//    ketua kelas sendiri. Begitu mode ini aktif, SEMUA halaman ketua
+//    kelas (semua kelas) akan menampilkan date-picker (bebas pilih
+//    tanggal apa saja); kalau tidak aktif, perilaku tetap seperti semula
+//    (hari ini saja, tidak bisa diubah) untuk semua kelas.
 // 3. Link HANYA bisa submit absensi -- tidak ada akses ke dashboard,
 //    rekap, riwayat, atau kelas/mapel lain sama sekali.
 // 4. Token bersifat rahasia (UUID acak) dan hanya berlaku selama status
@@ -46,9 +46,7 @@ function getSheetTokenKetuaKelas() {
   let sheet = ss.getSheetByName(SHEET_TOKEN_KETUA_KELAS);
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_TOKEN_KETUA_KELAS);
-    // PATCH: kolom ke-6 "ModePerTanggalAktif" -- lihat catatan poin 2 di
-    // atas. Default FALSE untuk kelas baru.
-    sheet.appendRow(['Kelas', 'Token', 'Aktif', 'DibuatOleh', 'TanggalDibuat', 'ModePerTanggalAktif']);
+    sheet.appendRow(['Kelas', 'Token', 'Aktif', 'DibuatOleh', 'TanggalDibuat']);
   }
   return sheet;
 }
@@ -73,14 +71,9 @@ function generateKetuaKelasToken(kelas, dibuatOleh) {
   const baris = cariBarisTokenKelas(sheet, kelas);
 
   if (baris !== -1) {
-    // PATCH: hanya timpa kolom Token/Aktif/DibuatOleh/TanggalDibuat (B-E).
-    // Kolom F (ModePerTanggalAktif) SENGAJA TIDAK disentuh di sini supaya
-    // pengaturan mode per tanggal yang sudah diset manual lewat Apps
-    // Script tidak ikut ke-reset setiap kali wali kelas generate ulang
-    // link-nya.
     sheet.getRange(baris, 2, 1, 4).setValues([[token, true, dibuatOleh, sekarang]]);
   } else {
-    sheet.appendRow([kelas, token, true, dibuatOleh, sekarang, false]);
+    sheet.appendRow([kelas, token, true, dibuatOleh, sekarang]);
   }
 
   return { success: true, data: { token: token, aktif: true } };
@@ -90,7 +83,7 @@ function generateKetuaKelasToken(kelas, dibuatOleh) {
  * Cek status token aktif untuk 1 kelas (dipanggil wali kelas saat buka
  * panel Input > sub-menu Wali Kelas, supaya UI tahu apakah link sedang
  * aktif atau tidak tanpa perlu generate token baru). Ikut mengembalikan
- * status mode-per-tanggal supaya wali kelas juga tahu (read-only,
+ * status mode-per-tanggal GLOBAL supaya wali kelas juga tahu (read-only,
  * informasional -- wali kelas TIDAK bisa mengubahnya sendiri dari sini).
  */
 function getStatusKetuaKelasToken(kelas) {
@@ -99,11 +92,10 @@ function getStatusKetuaKelasToken(kelas) {
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] === kelas) {
       const aktif = data[i][2] === true;
-      const modePerTanggal = data[i][5] === true;
-      return { success: true, data: { aktif: aktif, token: aktif ? data[i][1] : null, modePerTanggal: modePerTanggal } };
+      return { success: true, data: { aktif: aktif, token: aktif ? data[i][1] : null, modePerTanggal: getModePerTanggalGlobal_() } };
     }
   }
-  return { success: true, data: { aktif: false, token: null, modePerTanggal: false } };
+  return { success: true, data: { aktif: false, token: null, modePerTanggal: getModePerTanggalGlobal_() } };
 }
 
 /**
@@ -121,88 +113,69 @@ function nonaktifkanKetuaKelasToken(kelas) {
 }
 
 // =========================================================
-// PATCH: MODE PER TANGGAL -- KONTROL MANUAL LEWAT APPS SCRIPT
+// PATCH: MODE PER TANGGAL -- SAKLAR GLOBAL, KONTROL MANUAL LEWAT APPS SCRIPT
 // ---------------------------------------------------------
-// Fungsi-fungsi di bawah ini TIDAK dipanggil dari aplikasi web sama
-// sekali -- dijalankan MANUAL dari editor Apps Script oleh siapa pun
-// yang mengelola project ini (developer/IT sekolah), sama seperti
-// setupConfig()/resetPasswordUser(). Ini sengaja dibuat begini (bukan
-// tombol di UI wali kelas ataupun akun admin terpisah) supaya kemampuan
-// mengedit absensi tanggal bebas -- yang punya risiko lebih tinggi
-// dibanding mode "hari ini saja" -- tetap di bawah kendali orang yang
-// punya akses langsung ke backend, bukan bisa diaktifkan sendiri oleh
-// wali kelas atau ketua kelas.
+// Berlaku untuk SEMUA KELAS SEKALIGUS (bukan per kelas). Disimpan lewat
+// Script Properties, BUKAN sheet -- konsisten dengan pola konfigurasi
+// global lain di aplikasi ini (mis. SESSION_SECRET_KEY, SPREADSHEET_*_ID
+// di kodegs/Config.gs). Fungsi-fungsi di bawah TIDAK dipanggil dari
+// aplikasi web sama sekali -- dijalankan MANUAL dari editor Apps Script
+// oleh siapa pun yang mengelola project ini (developer/IT sekolah), sama
+// seperti setupConfig()/resetPasswordUser(). Ini sengaja dibuat begini
+// (bukan tombol di UI wali kelas ataupun akun admin terpisah) supaya
+// kemampuan mengedit absensi tanggal bebas -- yang punya risiko lebih
+// tinggi dibanding mode "hari ini saja" -- tetap di bawah kendali orang
+// yang punya akses langsung ke backend.
 // =========================================================
+
+const KUNCI_MODE_PER_TANGGAL_GLOBAL = 'MODE_PER_TANGGAL_KETUA_KELAS_AKTIF';
 
 /**
  * Jalankan manual dari editor Apps Script untuk MENGAKTIFKAN mode per
- * tanggal untuk 1 kelas -- setelah ini, ketua kelas kelas tsb bisa pilih
- * tanggal APA SAJA (masa lalu maupun masa depan) saat mengisi absensi
- * lewat link delegasinya, bukan cuma hari ini.
+ * tanggal untuk SEMUA KELAS -- setelah ini, ketua kelas di kelas mana pun
+ * bisa pilih tanggal APA SAJA (masa lalu maupun masa depan) saat mengisi
+ * absensi lewat link delegasinya, bukan cuma hari ini.
  *
- * Contoh pemakaian (ketik di editor Apps Script lalu klik Run):
- *   aktifkanModePerTanggalKetuaKelas('XI DKV 1');
+ * Cara pakai: ketik di editor Apps Script lalu klik Run:
+ *   aktifkanModePerTanggalKetuaKelas();
  */
-function aktifkanModePerTanggalKetuaKelas(kelas) {
-  return setModePerTanggalKetuaKelas_(kelas, true);
+function aktifkanModePerTanggalKetuaKelas() {
+  return setModePerTanggalGlobal_(true);
 }
 
 /**
- * Jalankan manual dari editor Apps Script untuk MENGEMBALIKAN kelas ke
- * mode default (hari ini saja) setelah proses rekap selesai.
+ * Jalankan manual dari editor Apps Script untuk MENGEMBALIKAN semua
+ * kelas ke mode default (hari ini saja) setelah proses rekap selesai.
  *
- * Contoh pemakaian:
- *   nonaktifkanModePerTanggalKetuaKelas('XI DKV 1');
+ * Cara pakai:
+ *   nonaktifkanModePerTanggalKetuaKelas();
  */
-function nonaktifkanModePerTanggalKetuaKelas(kelas) {
-  return setModePerTanggalKetuaKelas_(kelas, false);
+function nonaktifkanModePerTanggalKetuaKelas() {
+  return setModePerTanggalGlobal_(false);
 }
 
-function setModePerTanggalKetuaKelas_(kelas, aktif) {
-  if (!kelas) throw new Error('Isi nama kelas, contoh: aktifkanModePerTanggalKetuaKelas("XI DKV 1")');
-
-  const sheet = getSheetTokenKetuaKelas();
-  const baris = cariBarisTokenKelas(sheet, kelas);
-
-  if (baris !== -1) {
-    sheet.getRange(baris, 6).setValue(aktif);
-  } else {
-    // Kelas ini belum pernah generate link sama sekali -- tetap buat
-    // barisnya supaya pengaturan mode per tanggal tersimpan duluan,
-    // link-nya (Token/Aktif) menyusul dibuat wali kelas dari aplikasi.
-    sheet.appendRow([kelas, '', false, '', '', aktif]);
-  }
-
-  const pesan = 'Mode per tanggal untuk kelas "' + kelas + '" sekarang: ' + (aktif ? 'AKTIF' : 'NONAKTIF');
+function setModePerTanggalGlobal_(aktif) {
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty(KUNCI_MODE_PER_TANGGAL_GLOBAL, aktif ? 'true' : 'false');
+  const pesan = 'Mode per tanggal ketua kelas (SEMUA KELAS) sekarang: ' + (aktif ? 'AKTIF' : 'NONAKTIF');
   Logger.log(pesan);
   return { success: true, message: pesan };
 }
 
 /**
  * Jalankan manual dari editor Apps Script untuk melihat status mode per
- * tanggal SEMUA kelas yang tercatat di sheet Token_KetuaKelas sekaligus
- * (cek hasilnya di tab "Executions" atau lewat Logger.log setelah Run).
+ * tanggal saat ini (cek hasilnya di tab "Executions" setelah Run, atau
+ * lewat nilai balik fungsi ini).
  */
-function lihatStatusModePerTanggalSemuaKelas() {
-  const sheet = getSheetTokenKetuaKelas();
-  const data = sheet.getDataRange().getValues();
-  const laporan = [];
-  for (let i = 1; i < data.length; i++) {
-    laporan.push({
-      kelas: data[i][0],
-      linkAktif: data[i][2] === true,
-      modePerTanggalAktif: data[i][5] === true
-    });
-  }
-  Logger.log(JSON.stringify(laporan, null, 2));
-  return laporan;
+function lihatStatusModePerTanggal() {
+  const aktif = getModePerTanggalGlobal_();
+  Logger.log('Mode per tanggal ketua kelas (semua kelas): ' + (aktif ? 'AKTIF' : 'NONAKTIF'));
+  return aktif;
 }
 
-function getModePerTanggalKelas_(kelas) {
-  const sheet = getSheetTokenKetuaKelas();
-  const baris = cariBarisTokenKelas(sheet, kelas);
-  if (baris === -1) return false;
-  return sheet.getRange(baris, 6).getValue() === true;
+function getModePerTanggalGlobal_() {
+  const props = PropertiesService.getScriptProperties();
+  return props.getProperty(KUNCI_MODE_PER_TANGGAL_GLOBAL) === 'true';
 }
 
 /**
@@ -228,8 +201,8 @@ function verifikasiTokenKetuaKelas(token) {
 /**
  * Validasi format tanggal "yyyy-MM-dd" sederhana (tanpa membatasi
  * rentang -- sesuai keputusan: mode per tanggal boleh pilih tanggal
- * apa saja, masa lalu maupun masa depan, begitu diaktifkan untuk kelas
- * tsb). Ini hanya memastikan formatnya benar, bukan membatasi rentang.
+ * apa saja, masa lalu maupun masa depan, begitu diaktifkan). Ini hanya
+ * memastikan formatnya benar, bukan membatasi rentang.
  */
 function formatTanggalValid_(tanggal) {
   return typeof tanggal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(tanggal) && !isNaN(new Date(tanggal + 'T00:00:00').getTime());
@@ -243,7 +216,7 @@ function formatTanggalValid_(tanggal) {
  *
  * @param {string} token - Token dari link ketua kelas
  * @param {string} [tanggalDiminta] - Opsional, format "yyyy-MM-dd".
- *   HANYA dipakai kalau mode-per-tanggal AKTIF untuk kelas ini; kalau
+ *   HANYA dipakai kalau mode-per-tanggal GLOBAL sedang aktif; kalau
  *   tidak aktif atau tidak diisi/format salah, selalu pakai tanggal
  *   server hari ini (perilaku default/aman).
  */
@@ -252,7 +225,7 @@ function getInfoUntukKetuaKelas(token, tanggalDiminta) {
   if (!cek.valid) return { success: false, message: cek.message };
 
   const kelas = cek.kelas;
-  const modePerTanggal = getModePerTanggalKelas_(kelas);
+  const modePerTanggal = getModePerTanggalGlobal_();
   const tanggalHariIni = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd');
 
   const tanggalDipakai = (modePerTanggal && formatTanggalValid_(tanggalDiminta))
@@ -279,19 +252,18 @@ function getInfoUntukKetuaKelas(token, tanggalDiminta) {
  * kelas.
  *
  * PERILAKU TANGGAL:
- * - Kalau mode-per-tanggal TIDAK aktif untuk kelas ini (default): tanggal
- *   SELALU dipaksa ke tanggal server hari ini -- parameter tanggal dari
- *   klien diabaikan sepenuhnya, sama seperti sebelumnya.
- * - Kalau mode-per-tanggal AKTIF (lewat aktifkanModePerTanggalKetuaKelas()
- *   di atas): tanggal dari klien dipakai (bebas, tanpa batas rentang),
- *   selama formatnya valid.
+ * - Kalau mode-per-tanggal GLOBAL TIDAK aktif (default): tanggal SELALU
+ *   dipaksa ke tanggal server hari ini -- parameter tanggal dari klien
+ *   diabaikan sepenuhnya, sama seperti sebelumnya.
+ * - Kalau mode-per-tanggal GLOBAL AKTIF (lewat
+ *   aktifkanModePerTanggalKetuaKelas() di atas): tanggal dari klien
+ *   dipakai (bebas, tanpa batas rentang), selama formatnya valid.
  */
 function submitAbsenViaKetuaKelas(token, tanggalDiminta, dataKehadiran) {
   const cek = verifikasiTokenKetuaKelas(token);
   if (!cek.valid) return { success: false, message: cek.message };
 
-  const kelas = cek.kelas;
-  const modePerTanggal = getModePerTanggalKelas_(kelas);
+  const modePerTanggal = getModePerTanggalGlobal_();
   const tanggalHariIni = Utilities.formatDate(new Date(), 'GMT+7', 'yyyy-MM-dd');
 
   let tanggalDipakai = tanggalHariIni;
@@ -302,5 +274,5 @@ function submitAbsenViaKetuaKelas(token, tanggalDiminta, dataKehadiran) {
     tanggalDipakai = tanggalDiminta;
   }
 
-  return simpanAbsenWali(kelas, tanggalDipakai, dataKehadiran, 'Ketua Kelas (Delegasi)');
+  return simpanAbsenWali(cek.kelas, tanggalDipakai, dataKehadiran, 'Ketua Kelas (Delegasi)');
 }
