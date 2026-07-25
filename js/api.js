@@ -48,6 +48,7 @@
 
 import { CONFIG } from './config.js';
 import { showNotification } from './utils.js';
+import { setSsoCookie, getSsoCookie, deleteSsoCookie } from './ssoCookie.js';
 
 // Helper untuk fetch dengan timeout dan error handling khusus Google Apps Script
 async function fetchWithTimeout(url, options = {}, timeout = CONFIG.DEFAULT_TIMEOUT) {
@@ -89,8 +90,8 @@ function handleSessionExpired(message) {
     if (sedangHandleSessionExpired) return;
     sedangHandleSessionExpired = true;
 
-    // PATCH SSO: satu key localStorage gabungan (lihat CONFIG.SESSION_KEY)
-    localStorage.removeItem(CONFIG.SESSION_KEY);
+    // PATCH SSO (revisi): cookie lintas subdomain (lihat js/ssoCookie.js)
+    deleteSsoCookie();
 
     showNotification(message || 'Sesi Anda sudah habis. Silakan login ulang.', 'warning');
 
@@ -135,12 +136,12 @@ export async function login(username, password) {
         });
 
         if (response.success) {
-            // PATCH SSO: token & profil disimpan BERSAMA dalam SATU key
-            // di localStorage (bukan lagi terpisah sessionStorage+localStorage)
-            // supaya bisa terbaca oleh aplikasi lain di origin yang sama
-            // begitu pengguna login di sini (lihat CONFIG.SESSION_KEY).
-            // response.data sudah berisi token+username+profil lengkap.
-            localStorage.setItem(CONFIG.SESSION_KEY, JSON.stringify(response.data));
+            // PATCH SSO (revisi): disimpan lewat cookie ber-Domain induk
+            // (lihat js/ssoCookie.js) supaya bisa dibaca aplikasi lain di
+            // SUBDOMAIN BERBEDA, bukan lagi localStorage (yang tidak bisa
+            // dibagi antar subdomain). response.data sudah berisi
+            // token+username+profil lengkap.
+            setSsoCookie(response.data);
         }
 
         return response;
@@ -156,13 +157,14 @@ export async function login(username, password) {
 // terlebih dahulu sebelum menampilkan alert / redirect -- lihat perbaikan
 // race condition di js/main.js.
 export function logout() {
-    // PATCH SSO: satu key localStorage gabungan (lihat CONFIG.SESSION_KEY).
-    // CATATAN: ini hanya logout dari aplikasi INI. Kalau ada aplikasi lain
-    // dalam ekosistem SSO yang sama-sama membaca key ini, pengguna juga
-    // otomatis ter-logout dari aplikasi itu begitu localStorage ini
-    // dihapus (karena berbagi origin & key yang sama) -- ini perilaku
-    // yang diinginkan untuk SSO (logout sekali, logout semua aplikasi).
-    localStorage.removeItem(CONFIG.SESSION_KEY);
+    // PATCH SSO (revisi): hapus cookie ber-Domain induk (lihat
+    // js/ssoCookie.js). CATATAN: ini hanya logout dari aplikasi INI --
+    // tapi karena cookie-nya di-set dengan Domain induk yang sama,
+    // menghapusnya di sini JUGA membuat pengguna ter-logout dari semua
+    // aplikasi lain dalam ekosistem SSO ini (browser tidak lagi mengirim
+    // cookie tersebut ke subdomain mana pun setelah dihapus) -- ini
+    // perilaku yang diinginkan untuk SSO (logout sekali, logout semua).
+    deleteSsoCookie();
     return Promise.resolve();
 }
 
@@ -174,24 +176,19 @@ export function redirectToLoginPage() {
 
 // Cek apakah user sudah login
 export function isLoggedIn() {
-    return !!localStorage.getItem(CONFIG.SESSION_KEY);
+    return !!getSsoCookie();
 }
 
 // Dapatkan data user yang login
 export function getCurrentUser() {
-    const sessionData = localStorage.getItem(CONFIG.SESSION_KEY);
-    return sessionData ? JSON.parse(sessionData) : null;
+    return getSsoCookie();
 }
 
 // Dapatkan token dan username dari session
 function getSessionAuth() {
-    const sessionData = localStorage.getItem(CONFIG.SESSION_KEY);
+    const sessionData = getSsoCookie();
     if (!sessionData) return { token: null, username: null };
-    try {
-        return JSON.parse(sessionData);
-    } catch (e) {
-        return { token: null, username: null };
-    }
+    return sessionData;
 }
 
 function requireAuth() {
