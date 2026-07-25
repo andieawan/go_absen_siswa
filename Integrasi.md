@@ -45,14 +45,27 @@ ada perubahan perilaku untuk kelas yang belum disentuh).
 
 ## 3. Aktifkan SSO (login sekali, dipakai semua aplikasi)
 
-Karena semua aplikasi rencananya di-hosting di origin GitHub Pages yang
-sama (`andieawan.github.io/nama-app`), SSO berbasis `localStorage` bisa
-dipakai (localStorage terbagi ke semua path dalam origin yang sama).
+**REVISI:** setiap aplikasi (absensi, nilai, dst) ternyata akan pakai
+**subdomain sendiri-sendiri** di bawah 1 domain induk yang sama (mis.
+`absensi-siswa.smkibupakusari.sch.id` vs
+`nilai-siswa.smkibupakusari.sch.id`), BUKAN 1 origin yang sama persis.
+Subdomain berbeda dianggap ORIGIN BERBEDA oleh browser, jadi
+`localStorage` **tidak bisa** dipakai untuk SSO di sini (localStorage
+di-scope per origin, tidak per domain induk).
+
+Sesi sekarang disimpan lewat **cookie** dengan atribut `Domain` yang
+di-set ke domain induk (`.smkibupakusari.sch.id`) — cookie memang
+satu-satunya storage browser yang didesain untuk bisa dibagi ke semua
+subdomain dari 1 domain induk. Lihat `js/ssoCookie.js` untuk
+implementasinya.
 
 **Yang perlu dilakukan di SETIAP aplikasi (absensi, nilai, dst):**
 
-1. Pastikan `js/config.js` di semua aplikasi pakai nama key yang **SAMA
-   PERSIS**: `SESSION_KEY: 'sso_session'`.
+1. Pastikan `js/config.js` di semua aplikasi pakai nilai yang **SAMA
+   PERSIS**:
+   - `SESSION_KEY: 'sso_session'`
+   - `SSO_COOKIE_DOMAIN: '.smkibupakusari.sch.id'` (titik di depan penting
+     — artinya berlaku untuk SEMUA subdomain, bukan cuma domain persis itu)
 2. Di **Script Properties** SETIAP project Apps Script (bukan cuma yang
    ini), tambahkan property `SESSION_SECRET_KEY` dengan **nilai string
    acak yang SAMA PERSIS** di semua aplikasi. Contoh cara generate nilai
@@ -64,10 +77,16 @@ dipakai (localStorage terbagi ke semua path dalam origin yang sama).
      token dari 1 aplikasi tidak akan valid diverifikasi aplikasi lain.
 3. Semua aplikasi sebaiknya membaca dari **spreadsheet Master Guru yang
    sama** (`SPREADSHEET_MASTER_GURU_ID` yang sama) untuk validasi akun.
+4. Pastikan semua subdomain aplikasi diakses lewat **HTTPS** (bukan
+   HTTP) — cookie sesi diberi atribut `Secure`, jadi hanya akan
+   ter-set/terbaca lewat koneksi HTTPS. GitHub Pages dengan custom domain
+   biasanya otomatis dapat HTTPS via Let's Encrypt, tapi pastikan opsi
+   "Enforce HTTPS" di pengaturan repo GitHub Pages sudah dicentang.
 
-Setelah ketiga hal di atas disamakan di semua aplikasi, pengguna yang
+Setelah keempat hal di atas disamakan di semua aplikasi, pengguna yang
 login di salah satu aplikasi otomatis dianggap sudah login juga di
-aplikasi lain (selama tokennya belum kedaluwarsa / belum logout).
+aplikasi lain (selama cookie-nya belum kedaluwarsa / belum logout),
+walau tiap aplikasi ada di subdomain yang berbeda-beda.
 
 ## 4. Kalau nanti pindah dari Spreadsheet ke database sungguhan
 
