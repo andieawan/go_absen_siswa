@@ -40,7 +40,7 @@
  */
 
 import { isLoggedIn, getCurrentUser, logout, redirectToLoginPage } from './api.js';
-import { CONFIG } from './config.js';
+import { deleteSsoCookie } from './ssoCookie.js';
 import { initLoginForm } from './login.js';
 import { initDashboard } from './dashboard.js';
 // PATCH (FIX BUG KRITIS): js/absensi.js sebelumnya tidak pernah di-import sama
@@ -138,13 +138,11 @@ async function renderDashboard() {
 
 // PATCH: helper untuk membersihkan sesi & kembali ke login,
 // dipakai baik oleh guard sesi-lama maupun oleh logout normal.
-// PATCH SSO: sebelumnya blanket sessionStorage.clear()+localStorage.clear()
-// -- ini AMAN untuk aplikasi berdiri sendiri, tapi BERBAHAYA dalam
-// ekosistem SSO (bisa menghapus data localStorage milik aplikasi LAIN yang
-// berbagi origin GitHub Pages yang sama). Sekarang hanya menghapus key sesi
-// milik kita sendiri (CONFIG.SESSION_KEY), tidak menyentuh apa pun yang lain.
+// PATCH SSO (revisi): sesi sekarang disimpan lewat cookie ber-Domain
+// induk (js/ssoCookie.js), bukan lagi localStorage -- lihat catatan di
+// deleteSsoCookie() soal kenapa atribut Domain/Path harus sama persis.
 function clearSessionAndGoToLogin() {
-    localStorage.removeItem(CONFIG.SESSION_KEY);
+    deleteSsoCookie();
     currentUser = null;
 }
 
