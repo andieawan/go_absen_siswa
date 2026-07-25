@@ -3,7 +3,9 @@
 // =========================================================
 
 function getStudents(kelas) {
-  let ss = getMasterSs();
+  // PATCH INTEGRASI: data siswa sekarang di spreadsheet Master Siswa
+  // terpisah (read-only untuk aplikasi ini -- lihat kodegs/Config.gs).
+  let ss = getMasterSiswaSs();
   let sheet = ss.getSheetByName(kelas);
   if (!sheet) return { success: false, message: "Data kelas " + kelas + " tidak ditemukan." };
 
@@ -11,6 +13,19 @@ function getStudents(kelas) {
   let students = [];
   for (let i = 1; i < data.length; i++) {
     if (data[i][1] !== "" && data[i][2] !== "") {
+      // PATCH: kolom ke-5 (index 4) "Status" -- diisi oleh Aplikasi
+      // Manajemen Siswa kalau siswa pindah/berhenti ("Pindah"/"Berhenti"/
+      // "Nonaktif"), supaya baris siswa TIDAK dihapus (data absensi lama
+      // yang mereferensikan NIS ini tetap utuh), cukup disembunyikan dari
+      // daftar siswa aktif di aplikasi ini. Kalau kolom Status kosong/
+      // belum ada (data lama/kelas yang belum disentuh Aplikasi
+      // Manajemen Siswa), dianggap Aktif -- supaya tidak ada perubahan
+      // perilaku untuk kelas yang belum pakai kolom Status.
+      const status = (data[i][4] || '').toString().trim().toLowerCase();
+      const statusTidakAktif = ['pindah', 'berhenti', 'nonaktif', 'keluar'];
+      if (status && statusTidakAktif.includes(status)) {
+        continue;
+      }
       students.push({ nis: data[i][1], nama: data[i][2], jk: data[i][3] });
     }
   }
