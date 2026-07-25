@@ -3,7 +3,8 @@
 // =========================================================
 
 function generateFullRecap() {
-  const ssMaster = getMasterSs();
+  // PATCH INTEGRASI: data siswa di spreadsheet Master Siswa terpisah.
+  const ssMaster = getMasterSiswaSs();
   const ssAbsen = getAbsenSs();
   const folderMaster = DriveApp.getFolderById(DRIVE_FOLDER_REKAP_ID);
   const folderBackup = DriveApp.getFolderById(DRIVE_FOLDER_BACKUP_ID);
@@ -197,7 +198,8 @@ function getRekapKelasSaya(mapelListStr, kelasListStr) {
   const mapelList = mapelListStr.split(',').map(s => s.trim()).filter(s => s !== "");
   const kelasList = kelasListStr.split(',').map(s => s.trim()).filter(s => s !== "");
 
-  const ssMaster = getMasterSs();
+  // PATCH INTEGRASI: data siswa di spreadsheet Master Siswa terpisah.
+  const ssMaster = getMasterSiswaSs();
   const ssAbsen = getAbsenSs();
 
   const sheetsRekap = [];
