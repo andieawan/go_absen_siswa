@@ -34,9 +34,13 @@ import {
     getRiwayatAbsensi,
     getRiwayatAbsenWali,
     downloadRekapExcel,
-    getCurrentUser
+    getCurrentUser,
+    generateKetuaKelasLink,
+    getStatusKetuaKelasLink,
+    nonaktifkanKetuaKelasLink
 } from './api.js';
 import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js';
+import { showConfirm } from './modal.js';
 
 // Cache daftar siswa per kelas supaya tidak fetch berulang kali
 // dalam satu sesi dashboard yang sama.
@@ -507,6 +511,123 @@ function setupRekapPanel(user) {
 }
 
 // =========================================================
+// FITUR: Delegasi Input Absen ke Ketua Kelas (sementara)
+// ---------------------------------------------------------
+// Kartu di sub-menu Wali Kelas yang memungkinkan wali kelas
+// mengaktifkan/menonaktifkan link sekali-pakai untuk kelasnya sendiri.
+// Link ini TIDAK memakai token session biasa -- lihat kodegs/KetuaKelas.gs
+// dan js/ketuaKelas.js untuk sisi penerima link (ketua kelas).
+// =========================================================
+function setupDelegasiKetuaKelas(kelasWali) {
+    const statusEl = document.getElementById('delegasiStatus');
+    const linkBox = document.getElementById('delegasiLinkBox');
+    const linkInput = document.getElementById('delegasiLinkInput');
+    const btnAktifkan = document.getElementById('btnAktifkanDelegasi');
+    const btnNonaktifkan = document.getElementById('btnNonaktifkanDelegasi');
+    const btnSalin = document.getElementById('btnSalinLinkDelegasi');
+
+    if (!statusEl || !btnAktifkan || !btnNonaktifkan) return;
+
+    // PATCH: link dibangun dari lokasi halaman saat ini (bukan hardcode
+    // domain) supaya tetap benar baik di URL produksi (GitHub Pages)
+    // maupun kalau di-deploy ulang ke domain/subpath lain.
+    function buatUrlLink(token) {
+        const base = window.location.origin + window.location.pathname;
+        return `${base}?ketua=${token}`;
+    }
+
+    function tampilkanAktif(token) {
+        statusEl.textContent = '✅ Link sedang AKTIF -- bisa dipakai ketua kelas untuk mengisi absensi hari ini.';
+        statusEl.classList.add('delegasi-status-aktif');
+        linkInput.value = buatUrlLink(token);
+        linkBox.classList.remove('hidden');
+        btnAktifkan.classList.add('hidden');
+        btnNonaktifkan.classList.remove('hidden');
+    }
+
+    function tampilkanNonaktif() {
+        statusEl.textContent = 'Nonaktif -- ketua kelas belum bisa mengisi absensi lewat link.';
+        statusEl.classList.remove('delegasi-status-aktif');
+        linkBox.classList.add('hidden');
+        linkInput.value = '';
+        btnAktifkan.classList.remove('hidden');
+        btnNonaktifkan.classList.add('hidden');
+    }
+
+    // Cek status saat panel pertama kali dibuka
+    (async () => {
+        try {
+            const res = await getStatusKetuaKelasLink(kelasWali);
+            if (res.success && res.data && res.data.aktif) {
+                tampilkanAktif(res.data.token);
+            } else {
+                tampilkanNonaktif();
+            }
+        } catch (err) {
+            statusEl.textContent = 'Gagal memeriksa status link: ' + err.message;
+        }
+    })();
+
+    btnAktifkan.addEventListener('click', async () => {
+        btnAktifkan.disabled = true;
+        showGlobalLoading('Membuat link...');
+        try {
+            const res = await generateKetuaKelasLink(kelasWali);
+            if (res.success) {
+                tampilkanAktif(res.data.token);
+                showNotification('Link ketua kelas berhasil diaktifkan.', 'success');
+            } else {
+                showNotification(res.message || 'Gagal membuat link.', 'error');
+            }
+        } catch (err) {
+            showNotification('Gagal membuat link: ' + err.message, 'error');
+        } finally {
+            btnAktifkan.disabled = false;
+            hideGlobalLoading();
+        }
+    });
+
+    btnNonaktifkan.addEventListener('click', async () => {
+        const konfirmasi = await showConfirm(
+            'Link yang sudah dibagikan ke ketua kelas akan langsung tidak berlaku. Lanjutkan?',
+            'Nonaktifkan Link Ketua Kelas'
+        );
+        if (!konfirmasi) return;
+
+        btnNonaktifkan.disabled = true;
+        showGlobalLoading('Menonaktifkan link...');
+        try {
+            const res = await nonaktifkanKetuaKelasLink(kelasWali);
+            if (res.success) {
+                tampilkanNonaktif();
+                showNotification('Link ketua kelas berhasil dinonaktifkan.', 'success');
+            } else {
+                showNotification(res.message || 'Gagal menonaktifkan link.', 'error');
+            }
+        } catch (err) {
+            showNotification('Gagal menonaktifkan link: ' + err.message, 'error');
+        } finally {
+            btnNonaktifkan.disabled = false;
+            hideGlobalLoading();
+        }
+    });
+
+    if (btnSalin) {
+        btnSalin.addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(linkInput.value);
+                showNotification('Link berhasil disalin.', 'success');
+            } catch (err) {
+                // Fallback untuk browser yang tidak mendukung Clipboard API
+                linkInput.select();
+                document.execCommand('copy');
+                showNotification('Link berhasil disalin.', 'success');
+            }
+        });
+    }
+}
+
+// =========================================================
 // PANEL: INPUT ABSENSI -- SUB-TAB WALI KELAS (Absen Harian)
 // =========================================================
 function setupAbsenWaliPanel(user) {
@@ -520,6 +641,8 @@ function setupAbsenWaliPanel(user) {
 
     if (waliKelasLabel) waliKelasLabel.textContent = user.kelasWali;
     if (waliTanggal && !waliTanggal.value) waliTanggal.valueAsDate = new Date();
+
+    setupDelegasiKetuaKelas(user.kelasWali);
 
     async function reloadWaliStudents() {
         const tanggal = waliTanggal?.value;
