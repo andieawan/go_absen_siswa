@@ -50,7 +50,16 @@
   transition: all var(--transition-fast);
   cursor: pointer;
   border: 2px solid transparent;
-  white-space: nowrap;
+  /* PATCH MOBILE: white-space:nowrap DIHAPUS dari sini. Sebelumnya semua
+     tombol (termasuk tombol lebar-penuh berteks panjang seperti "📥 Unduh
+     Rekap Mata Pelajaran (.xlsx)") dipaksa 1 baris -- di layar sempit
+     (HP), teks itu MELEBER KELUAR tombolnya sendiri bahkan sampai keluar
+     lebar viewport, membuat SELURUH HALAMAN bisa di-scroll horizontal.
+     Sekarang teks tombol boleh wrap ke baris ke-2 kalau memang tidak
+     cukup ruang -- .btn-quick (chip pendek) di bawah tetap nowrap karena
+     labelnya memang selalu pendek & pasti muat 1 baris. */
+  text-align: center;
+  line-height: 1.3;
 }
 
 .btn-primary {
@@ -109,6 +118,7 @@
   padding: var(--spacing-2) var(--spacing-4);
   font-size: var(--font-size-sm);
   border: 1px solid var(--gray-200);
+  white-space: nowrap;
 }
 .btn-quick:hover {
   background: var(--gray-200);
@@ -117,6 +127,7 @@
 .btn-sm {
   padding: var(--spacing-2) var(--spacing-4) !important;
   font-size: var(--font-size-sm) !important;
+  white-space: nowrap;
 }
 
 .btn-full {
@@ -293,13 +304,18 @@
 /* PATCH UX: ruang ekstra di bawah supaya konten terakhir tiap panel (mis.
    tombol "Simpan Absensi" di ujung tabel siswa yang panjang) tidak
    ketutupan oleh .tab-nav yang sekarang fixed di bawah layar. */
+/* PATCH MOBILE: padding sebelumnya (88px/84px) pas-pasan dengan tinggi
+   .tab-nav yang sebenarnya (ikon + label + padding ≈ 85-95px), sehingga
+   konten terakhir tiap panel (mis. kotak "Tips:" di panel Rekap) bisa
+   mepet/tertutup sebagian oleh nav yang fixed di bawah -- terlihat di
+   pengujian tampilan mobile. Ditambah jadi lebih longgar. */
 #dashboardSection {
-  padding-bottom: 88px;
+  padding-bottom: 112px;
 }
 
 @media (max-width: 640px) {
   #dashboardSection {
-    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px));
   }
 }
 
