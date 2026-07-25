@@ -26,7 +26,9 @@
 const SHEET_TOKEN_KETUA_KELAS = 'Token_KetuaKelas';
 
 function getSheetTokenKetuaKelas() {
-  const ss = getMasterSs();
+  // PATCH INTEGRASI: sheet token ini terkait otorisasi wali kelas (guru),
+  // jadi disimpan di spreadsheet Master Guru, bukan Master Siswa.
+  const ss = getMasterGuruSs();
   let sheet = ss.getSheetByName(SHEET_TOKEN_KETUA_KELAS);
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_TOKEN_KETUA_KELAS);
