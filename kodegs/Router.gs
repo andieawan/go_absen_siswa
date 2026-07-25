@@ -179,10 +179,12 @@ function doPost(e) {
 
     // ===== PUBLIK -- tanpa login, hanya divalidasi lewat data.ketuaToken =====
     } else if (data.action === 'getInfoKetuaKelas' && data.ketuaToken) {
-      response = getInfoUntukKetuaKelas(data.ketuaToken);
+      // PATCH: data.tanggal opsional -- hanya berpengaruh kalau mode per
+      // tanggal aktif untuk kelas tsb (lihat kodegs/ketuakelas.gs).
+      response = getInfoUntukKetuaKelas(data.ketuaToken, data.tanggal);
 
     } else if (data.action === 'submitAbsenKetuaKelas' && data.ketuaToken && data.dataKehadiran) {
-      response = submitAbsenViaKetuaKelas(data.ketuaToken, data.dataKehadiran);
+      response = submitAbsenViaKetuaKelas(data.ketuaToken, data.tanggal, data.dataKehadiran);
 
     // ===== FIX: fallback eksplisit untuk action tak dikenal / parameter kurang =====
     } else {
