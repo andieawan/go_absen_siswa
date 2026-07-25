@@ -40,7 +40,7 @@
  */
 
 import { isLoggedIn, getCurrentUser, logout, redirectToLoginPage } from './api.js';
-import { deleteSsoCookie } from './ssoCookie.js';
+import { deleteSsoCookie } from './ssocookie.js';
 import { initLoginForm } from './login.js';
 import { initDashboard } from './dashboard.js';
 // PATCH (FIX BUG KRITIS): js/absensi.js sebelumnya tidak pernah di-import sama
