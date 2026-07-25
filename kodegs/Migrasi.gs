@@ -8,7 +8,8 @@
 
 function migrateAbsenNamaKeNis() {
   const ssAbsen = getAbsenSs();
-  const ssMaster = getMasterSs();
+  // PATCH INTEGRASI: data siswa di spreadsheet Master Siswa terpisah.
+  const ssMaster = getMasterSiswaSs();
   const sheets = ssAbsen.getSheets();
   const laporan = [];
   const masterMapCache = {};
