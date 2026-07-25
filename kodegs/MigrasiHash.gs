@@ -8,7 +8,8 @@
 // =========================================================
 
 function migrasiHashPassword() {
-  const ss = getMasterSs();
+  // PATCH INTEGRASI: akun guru di spreadsheet Master Guru terpisah.
+  const ss = getMasterGuruSs();
   const sheet = ss.getSheetByName('Akun_Guru');
   const data = sheet.getDataRange().getValues();
   
@@ -74,7 +75,8 @@ function resetPasswordUser(username, newPassword) {
   const salt = generateSalt();
   const passwordHash = hashPassword(newPassword, salt);
   
-  const ss = getMasterSs();
+  // PATCH INTEGRASI: akun guru di spreadsheet Master Guru terpisah.
+  const ss = getMasterGuruSs();
   const sheet = ss.getSheetByName('Akun_Guru');
   const data = sheet.getDataRange().getValues();
   
