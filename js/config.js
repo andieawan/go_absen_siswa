@@ -9,19 +9,30 @@ export const CONFIG = {
     
     // Konfigurasi lainnya
     APP_NAME: 'Sistem Absensi Sekolah',
-    // PATCH SSO: sebelumnya sesi login (token) disimpan terpisah dari
-    // profil user ('auth_token' di sessionStorage + 'user_data' di
-    // localStorage), dan sessionStorage TIDAK terbagi antar tab/kunjungan
-    // baru meski origin-nya sama -- jadi tidak bisa dipakai untuk SSO
-    // lintas aplikasi. Sekarang digabung jadi SATU key di localStorage
-    // (localStorage terbagi ke semua tab/halaman dalam origin yang sama,
-    // mis. semua aplikasi di andieawan.github.io/*).
-    // PENTING UNTUK SSO: kalau Anda punya aplikasi lain (nilai, dst) di
-    // origin GitHub Pages yang sama, SEMUA aplikasi itu HARUS pakai nama
-    // key localStorage yang SAMA PERSIS ('sso_session') supaya begitu
-    // pengguna login di salah satu aplikasi, aplikasi lain langsung
-    // menganggapnya sudah login juga (tanpa login ulang).
+    // PATCH SSO (revisi ke-2): setiap aplikasi ternyata pakai SUBDOMAIN
+    // sendiri-sendiri (mis. absensi-siswa.smkibupakusari.sch.id vs
+    // nilai-siswa.smkibupakusari.sch.id) di bawah 1 domain induk yang
+    // sama, BUKAN 1 origin yang sama persis -- jadi localStorage (yang
+    // di-scope per origin) tidak bisa dipakai untuk SSO di sini. Sesi
+    // sekarang disimpan lewat COOKIE dengan atribut Domain yang di-set
+    // ke domain induk (lihat js/ssoCookie.js) -- cookie memang satu-
+    // satunya storage browser yang didesain bisa dibagi antar subdomain.
     SESSION_KEY: 'sso_session',
+
+    // PENTING: isi dengan domain INDUK sekolah Anda (diawali titik),
+    // supaya cookie sesi berlaku untuk SEMUA subdomain aplikasi, bukan
+    // cuma subdomain aplikasi ini. Contoh: kalau aplikasi ini di
+    // "absensi-siswa.smkibupakusari.sch.id" dan aplikasi nilai nanti di
+    // "nilai-siswa.smkibupakusari.sch.id", isi dengan
+    // ".smkibupakusari.sch.id" (titik di depan = berlaku untuk semua
+    // subdomain). HARUS SAMA PERSIS di semua aplikasi dalam ekosistem SSO.
+    SSO_COOKIE_DOMAIN: '.smkibupakusari.sch.id',
+
+    // Umur cookie sesi (detik). Disamakan dengan SESSION_DURATION_MS di
+    // kodegs/Config.gs (12 jam) supaya tidak ada perbedaan durasi yang
+    // membingungkan antara cookie di browser vs token di backend.
+    SSO_COOKIE_MAX_AGE_SECONDS: 12 * 60 * 60,
+
     DEFAULT_TIMEOUT: 30000, // 30 detik
     
     // Status Absensi
