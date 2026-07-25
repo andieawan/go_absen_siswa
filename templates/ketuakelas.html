@@ -1,0 +1,55 @@
+<!-- Template Halaman Ketua Kelas (fitur sementara: delegasi input absen) -->
+<!-- CATATAN: halaman ini SENGAJA tidak punya tab/menu navigasi apa pun ke
+     bagian lain aplikasi -- hanya form isi absensi hari ini untuk 1 kelas,
+     diakses lewat link token dari wali kelas. -->
+<section id="ketuaKelasSection" class="login-section">
+    <div class="login-card" style="max-width: 480px;">
+        <span class="login-logo">👪</span>
+        <h2 class="login-title">Mode Ketua Kelas</h2>
+        <p class="login-subtitle">Isi absensi harian sebagai delegasi dari wali kelas</p>
+
+        <div id="ketuaKelasLoading" class="card">
+            <p style="text-align:center;">Memeriksa link...</p>
+        </div>
+
+        <div id="ketuaKelasError" class="card hidden">
+            <p class="empty-state" id="ketuaKelasErrorMessage">Link tidak valid.</p>
+        </div>
+
+        <form id="ketuaKelasForm" class="card hidden" style="text-align:left;">
+            <div class="info-banner">
+                <span class="info-icon">📅</span>
+                <div>
+                    <strong>Kelas: <span id="ketuaKelasNamaKelas">-</span></strong>
+                    <p>Tanggal: <span id="ketuaKelasTanggal">-</span> (hari ini, tidak bisa diubah)</p>
+                </div>
+            </div>
+
+            <div class="students-section">
+                <div class="section-header">
+                    <h4>👥 Daftar Siswa</h4>
+                    <div class="quick-status-buttons">
+                        <button type="button" class="btn-quick" data-quick-status="H">✓ Semua Hadir</button>
+                        <button type="button" class="btn-quick" data-quick-status="reset">↺ Reset</button>
+                    </div>
+                </div>
+
+                <div class="table-wrapper">
+                    <table id="ketuaKelasStudentsTable">
+                        <thead><tr><th>NIS</th><th>Nama Siswa</th><th>Kehadiran</th></tr></thead>
+                        <tbody id="ketuaKelasStudentsBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <button type="submit" id="ketuaKelasBtnSubmit" class="btn-primary btn-full btn-submit">
+                <span class="btn-text">💾 Simpan Absensi Hari Ini</span>
+                <span class="btn-loader hidden">⏳ Menyimpan...</span>
+            </button>
+        </form>
+
+        <p class="login-subtitle" style="margin-top: 24px; font-size: var(--font-size-xs);">
+            Link ini bersifat sementara dan bisa dinonaktifkan kapan saja oleh wali kelas Anda.
+        </p>
+    </div>
+</section>
