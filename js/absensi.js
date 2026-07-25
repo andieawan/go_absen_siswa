@@ -538,13 +538,13 @@ function setupDelegasiKetuaKelas(kelasWali) {
 
     function tampilkanAktif(token, modePerTanggal) {
         // PATCH: kalau pengelola aplikasi sudah mengaktifkan mode per
-        // tanggal untuk kelas ini lewat Apps Script (lihat
-        // kodegs/ketuakelas.gs), tampilkan info tambahan supaya wali kelas
-        // tahu ketua kelas sekarang bisa pilih tanggal apa saja -- ini
-        // murni informasional, wali kelas tidak bisa mengubah pengaturan
-        // ini sendiri dari sini.
+        // tanggal SECARA GLOBAL (semua kelas sekaligus) lewat Apps Script
+        // (lihat kodegs/ketuakelas.gs), tampilkan info tambahan supaya
+        // wali kelas tahu ketua kelas sekarang bisa pilih tanggal apa
+        // saja -- ini murni informasional, wali kelas tidak bisa
+        // mengubah pengaturan ini sendiri dari sini.
         const infoModeTanggal = modePerTanggal
-            ? ' Mode rekap AKTIF untuk kelas ini -- ketua kelas bisa mengisi absensi tanggal apa saja (dikelola pengurus aplikasi).'
+            ? ' Mode rekap sedang AKTIF untuk semua kelas -- ketua kelas bisa mengisi absensi tanggal apa saja (dikelola pengurus aplikasi).'
             : '';
         statusEl.textContent = '✅ Link sedang AKTIF -- bisa dipakai ketua kelas untuk mengisi absensi hari ini.' + infoModeTanggal;
         statusEl.classList.add('delegasi-status-aktif');
