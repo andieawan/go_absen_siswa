@@ -19,7 +19,8 @@ function splitList(str) {
 }
 
 function getNisKeNamaMap(kelas) {
-  const ss = getMasterSs();
+  // PATCH INTEGRASI: data siswa di spreadsheet Master Siswa terpisah.
+  const ss = getMasterSiswaSs();
   const sheet = ss.getSheetByName(kelas);
   const map = {};
   if (!sheet) return map;
