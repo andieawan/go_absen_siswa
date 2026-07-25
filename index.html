@@ -2,7 +2,15 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- PATCH MOBILE: maximum-scale=1.0 & user-scalable=no dihapus.
+         Mematikan pinch-to-zoom sepenuhnya adalah anti-pattern aksesibilitas
+         mobile (menyulitkan pengguna dengan penglihatan terbatas untuk
+         memperbesar teks), dan tidak diperlukan di sini -- semua
+         input/select di aplikasi sudah pakai font-size dasar 16px (lihat
+         css/variables.css --font-size-base & css/reset.css `font: inherit`),
+         jadi tidak ada masalah auto-zoom-saat-fokus di iOS yang perlu
+         diakali dengan mematikan zoom. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
