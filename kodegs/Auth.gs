@@ -45,7 +45,9 @@ function verifikasiToken(token, usernameDiharapkan) {
 }
 
 function getAkunGuru(username) {
-  const ss = getMasterSs();
+  // PATCH INTEGRASI: identitas & akun guru sekarang di spreadsheet Master
+  // Guru terpisah, dipakai bersama lintas aplikasi (lihat kodegs/Config.gs).
+  const ss = getMasterGuruSs();
   const sheet = ss.getSheetByName('Akun_Guru');
   const data = sheet.getDataRange().getValues();
   for (let i = 1; i < data.length; i++) {
@@ -134,7 +136,7 @@ function handleLogin(username, password) {
     return { success: false, message: "Terlalu banyak percobaan login gagal. Coba lagi dalam 15 menit." };
   }
 
-  let ss = getMasterSs();
+  let ss = getMasterGuruSs();
   let sheet = ss.getSheetByName('Akun_Guru');
   let data = sheet.getDataRange().getValues();
 
