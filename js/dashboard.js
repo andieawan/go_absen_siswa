@@ -101,73 +101,195 @@ function renderTopAlpaList(data, containerId) {
     container.innerHTML = html;
 }
 
-/**
- * Render trend chart (simplified - tanpa library chart eksternal)
- * PATCH: backend mengirim field `persenHadir`, bukan `persen`.
- */
-function renderTrendChart(data, canvasId) {
+// =========================================================
+// GRAFIK TREN KEHADIRAN -- LINE CHART (SVG, tanpa library eksternal)
+// ---------------------------------------------------------
+// PATCH: sebelumnya grafik tren pakai bar chart CSS. Diganti ke line chart
+// karena lebih pas untuk data berbasis waktu ("tren" = arah naik/turun,
+// lebih jelas sebagai satu alur garis daripada perbandingan tinggi antar
+// bar berdampingan) dan lebih ringan ditampilkan kalau titik datanya banyak.
+//
+// Ditambahkan juga toggle periode Minggu/Bulan/Semester:
+//  - Minggu  : 7 data mentah terakhir (paling detail, harian/per pertemuan)
+//  - Bulan   : dikelompokkan per minggu (rata-rata persenHadir), 8 minggu terakhir
+//  - Semester: dikelompokkan per bulan (rata-rata persenHadir), seluruh data yang ada
+// Data mentah (dari getDashboardData()/getDashboardDataWali(), TIDAK
+// dibatasi jumlahnya oleh backend) disimpan di trendDataStore per
+// canvasId, supaya ganti periode tidak perlu fetch ulang ke server --
+// cukup diagregasi ulang di sisi frontend dari data yang sudah ada.
+// =========================================================
+const trendDataStore = {};
+const trendPeriodStore = {};
+
+function renderTrendChart(rawData, canvasId) {
     const canvas = document.getElementById(canvasId);
-    if (!canvas || !data || data.length === 0) {
+    if (!canvas || !rawData || rawData.length === 0) {
         return;
     }
-
     const container = canvas.parentElement;
     if (!container) return;
 
-    // PATCH GRAFIK:
-    // 1. Label di bawah tiap bar SEBELUMNYA cuma nomor urut (1, 2, 3, ...)
-    //    -- tidak menunjukkan tanggal apa pun, jadi grafik "Tren Kehadiran"
-    //    tidak berguna untuk melihat KAPAN kehadiran naik/turun. Sekarang
-    //    pakai tanggal singkat (dd/MM).
-    // 2. Persentase SEBELUMNYA cuma ada di tooltip (atribut title, muncul
-    //    saat hover) -- di HP tidak ada hover sama sekali, jadi pengguna
-    //    mobile tidak pernah lihat angkanya. Sekarang ditampilkan sebagai
-    //    teks di atas tiap bar.
-    // 3. Data dari backend TIDAK dibatasi jumlahnya (bisa sebanyak jumlah
-    //    hari yang sudah diabsen, bisa puluhan/ratusan untuk wali kelas
-    //    yang absen tiap hari). Kalau ditampilkan semua, bar jadi
-    //    berdesakan & label tanggal jadi tidak terbaca. Dibatasi ke 14
-    //    data terakhir (paling relevan untuk melihat tren terkini).
-    const MAKS_BAR = 14;
-    const dataDitampilkan = data.length > MAKS_BAR ? data.slice(-MAKS_BAR) : data;
+    trendDataStore[canvasId] = rawData;
+    if (!trendPeriodStore[canvasId]) trendPeriodStore[canvasId] = 'minggu';
 
-    let html = '';
-    if (data.length > MAKS_BAR) {
-        html += `<p class="chart-note">Menampilkan ${MAKS_BAR} pertemuan/hari terakhir dari ${data.length} total.</p>`;
-    }
-    html += '<div class="trend-bars">';
-    dataDitampilkan.forEach((item) => {
-        const persen = item.persenHadir || 0;
-        // PATCH: skala tinggi bar disesuaikan (dari 1.5 ke 1.2) supaya di
-        // 100% tinggi bar maksimal ~120px, menyisakan ruang yang cukup di
-        // dalam kontainer 190px untuk label persentase yang baru
-        // ditambahkan di atas bar + label tanggal di bawahnya.
-        const height = Math.max(10, persen * 1.2);
-        const tanggalIso = item.tanggal || '';
-        const tanggalLabel = formatTanggalSingkat(tanggalIso);
-        html += `
-            <div class="trend-bar-item">
-                <div class="trend-bar-value">${persen.toFixed(0)}%</div>
-                <div class="trend-bar" style="height: ${height}px;" title="${escapeHtml(tanggalIso)}: ${persen.toFixed(1)}%"></div>
-                <div class="trend-bar-label">${escapeHtml(tanggalLabel)}</div>
-            </div>
-        `;
+    ensureTrendPeriodToggle(container, canvasId);
+    drawTrendChart(canvasId);
+}
+
+function ensureTrendPeriodToggle(container, canvasId) {
+    if (container.querySelector('.trend-period-toggle')) return; // sudah ada, jangan duplikasi
+
+    const toggle = document.createElement('div');
+    toggle.className = 'trend-period-toggle';
+    toggle.innerHTML = `
+        <button type="button" class="trend-period-btn active" data-period="minggu">Minggu</button>
+        <button type="button" class="trend-period-btn" data-period="bulan">Bulan</button>
+        <button type="button" class="trend-period-btn" data-period="semester">Semester</button>
+    `;
+    container.insertBefore(toggle, container.firstChild);
+
+    toggle.querySelectorAll('.trend-period-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            toggle.querySelectorAll('.trend-period-btn').forEach(b => b.classList.toggle('active', b === btn));
+            trendPeriodStore[canvasId] = btn.dataset.period;
+            drawTrendChart(canvasId);
+        });
     });
-    html += '</div>';
+}
 
-    // Replace canvas dengan visual bars
+function drawTrendChart(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    const container = canvas.parentElement;
+    const rawData = trendDataStore[canvasId] || [];
+    const period = trendPeriodStore[canvasId] || 'minggu';
+
+    let points;
+    if (period === 'minggu') {
+        points = rawData.slice(-7).map(item => ({
+            label: formatTanggalSingkat(item.tanggal),
+            value: item.persenHadir || 0
+        }));
+    } else if (period === 'bulan') {
+        points = aggregateTrendByWeek(rawData).slice(-8);
+    } else {
+        points = aggregateTrendByMonth(rawData);
+    }
+
+    renderSvgLineChart(points, canvas, container);
+}
+
+/** Kelompokkan data harian jadi rata-rata per minggu (Senin sebagai awal minggu). */
+function aggregateTrendByWeek(rawData) {
+    const buckets = {};
+    rawData.forEach(item => {
+        const d = new Date(item.tanggal + 'T00:00:00');
+        const day = d.getDay(); // 0=Minggu..6=Sabtu
+        const diffKeSenin = (day === 0 ? -6 : 1) - day;
+        const senin = new Date(d);
+        senin.setDate(d.getDate() + diffKeSenin);
+        const key = toDateKey(senin);
+        if (!buckets[key]) buckets[key] = { sum: 0, count: 0 };
+        buckets[key].sum += (item.persenHadir || 0);
+        buckets[key].count += 1;
+    });
+    return Object.keys(buckets).sort().map(key => ({
+        label: formatTanggalSingkat(key),
+        value: Math.round((buckets[key].sum / buckets[key].count) * 10) / 10
+    }));
+}
+
+/** Kelompokkan data harian jadi rata-rata per bulan (untuk tampilan 1 semester). */
+function aggregateTrendByMonth(rawData) {
+    const namaBulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+    const buckets = {};
+    rawData.forEach(item => {
+        const d = new Date(item.tanggal + 'T00:00:00');
+        const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        if (!buckets[key]) buckets[key] = { sum: 0, count: 0, bulanIdx: d.getMonth(), tahun: d.getFullYear() };
+        buckets[key].sum += (item.persenHadir || 0);
+        buckets[key].count += 1;
+    });
+    return Object.keys(buckets).sort().map(key => {
+        const b = buckets[key];
+        return {
+            label: namaBulan[b.bulanIdx] + " '" + String(b.tahun).slice(2),
+            value: Math.round((b.sum / b.count) * 10) / 10
+        };
+    });
+}
+
+function toDateKey(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+/**
+ * Gambar line chart SVG dari titik-titik { label, value(0-100) }.
+ * viewBox tetap (600x200), diregangkan mengisi lebar kontainer lewat CSS
+ * (width:100%) -- jadi otomatis responsif tanpa perlu hitung ulang lebar.
+ */
+function renderSvgLineChart(points, canvas, container) {
     canvas.style.display = 'none';
-    const existingNote = container.querySelector('.chart-note');
-    if (existingNote) existingNote.remove();
-    const existingBars = container.querySelector('.trend-bars');
-    if (existingBars) existingBars.remove();
-    container.insertAdjacentHTML('beforeend', html);
+    const existing = container.querySelector('.trend-line-svg, .trend-empty');
+    if (existing) existing.remove();
+
+    if (!points || points.length === 0) {
+        container.insertAdjacentHTML('beforeend', '<p class="trend-empty empty-state">Belum ada data untuk periode ini</p>');
+        return;
+    }
+
+    const W = 600, H = 200;
+    const padTop = 24, padBottom = 28, padX = 28;
+    const plotW = W - padX * 2;
+    const plotH = H - padTop - padBottom;
+    const n = points.length;
+    const stepX = n > 1 ? plotW / (n - 1) : 0;
+
+    const coords = points.map((p, i) => {
+        const x = padX + (n > 1 ? i * stepX : plotW / 2);
+        const v = Math.max(0, Math.min(100, p.value));
+        const y = padTop + plotH - (v / 100) * plotH;
+        return { x, y, label: p.label, value: p.value };
+    });
+
+    const linePath = coords.map((c, i) => (i === 0 ? 'M' : 'L') + c.x.toFixed(1) + ',' + c.y.toFixed(1)).join(' ');
+    const areaPath = n > 1
+        ? linePath + ` L${coords[n - 1].x.toFixed(1)},${(padTop + plotH).toFixed(1)} L${coords[0].x.toFixed(1)},${(padTop + plotH).toFixed(1)} Z`
+        : '';
+
+    const gridLines = [0, 50, 100].map(pct => {
+        const y = padTop + plotH - (pct / 100) * plotH;
+        return `<line x1="${padX}" y1="${y.toFixed(1)}" x2="${W - padX}" y2="${y.toFixed(1)}" class="trend-gridline" />` +
+               `<text x="2" y="${(y + 4).toFixed(1)}" class="trend-gridlabel">${pct}%</text>`;
+    }).join('');
+
+    const dots = coords.map(c =>
+        `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3.5" class="trend-dot"><title>${escapeHtml(c.label)}: ${c.value.toFixed(1)}%</title></circle>`
+    ).join('');
+
+    const valueLabels = coords.map(c =>
+        `<text x="${c.x.toFixed(1)}" y="${(c.y - 8).toFixed(1)}" text-anchor="middle" class="trend-value-label">${c.value.toFixed(0)}%</text>`
+    ).join('');
+
+    const xLabels = coords.map(c =>
+        `<text x="${c.x.toFixed(1)}" y="${H - 8}" text-anchor="middle" class="trend-x-label">${escapeHtml(c.label)}</text>`
+    ).join('');
+
+    const svg = `
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="trend-line-svg">
+            ${gridLines}
+            ${areaPath ? `<path d="${areaPath}" class="trend-area"></path>` : ''}
+            <path d="${linePath}" class="trend-line" fill="none"></path>
+            ${dots}
+            ${valueLabels}
+            ${xLabels}
+        </svg>
+    `;
+    container.insertAdjacentHTML('beforeend', svg);
 }
 
 /**
  * Format tanggal ISO ("yyyy-MM-dd") jadi format singkat "dd/MM" untuk
- * label di bawah bar grafik tren -- ringkas tapi tetap menunjukkan
- * tanggal sesungguhnya (bukan sekadar nomor urut).
+ * label sumbu-x -- ringkas tapi tetap menunjukkan tanggal sesungguhnya.
  */
 function formatTanggalSingkat(tanggalIso) {
     if (!tanggalIso) return '-';
