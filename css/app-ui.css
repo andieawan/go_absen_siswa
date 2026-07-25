@@ -1,966 +1,569 @@
-/* =========================================================
-   APP UI — PATCH FILE
-   ---------------------------------------------------------
-   MASALAH YANG DIPERBAIKI FILE INI:
-
-   1. components.css mendefinisikan tombol/tab/badge dengan
-      konvensi BEM dua-strip (.btn--primary, .tab--active,
-      .badge--danger), TAPI seluruh template HTML/JS aplikasi
-      (login.html, dashboard.html, dashboard.js, utils.js)
-      memakai satu-strip (.btn-primary, .tab-btn.active,
-      .badge-danger). Karena nama class tidak pernah cocok,
-      browser tidak menerapkan style apa pun ke elemen-elemen
-      itu -> tombol jadi teks polos, tab jadi list polos, dst.
-
-   2. Banyak class yang dipakai template TIDAK PERNAH
-      didefinisikan sama sekali di file CSS manapun:
-      .header-card, .tab-nav, .students-section, .rekap-card,
-      .notification, .hidden, dll.
-
-   File ini TIDAK mengubah file CSS lain — cukup ditambahkan
-   sebagai import baru di css/main.css (paling akhir, supaya
-   bisa melengkapi tanpa merusak yang sudah ada).
-   ========================================================= */
-
-/* ==================== Utility: .hidden ====================
-   Dipakai di HAMPIR SEMUA template untuk show/hide (tab panel,
-   loading state, section wali, dll) tapi tidak pernah
-   didefinisikan sebelumnya (utilities.css cuma punya .d-none). */
-.hidden {
-  display: none !important;
-}
-
-/* ==================== Buttons (single-dash) ====================
-   Alias lengkap dari .btn--primary dkk di components.css, memakai
-   nama class yang benar-benar dipakai di template. */
-.btn-primary,
-.btn-secondary,
-.btn-success,
-.btn-danger,
-.btn-outline,
-.btn-quick {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--spacing-2);
-  padding: var(--spacing-3) var(--spacing-6);
-  font-size: var(--font-size-base);
-  font-weight: var(--font-weight-medium);
-  border-radius: var(--radius-lg);
-  transition: all var(--transition-fast);
-  cursor: pointer;
-  border: 2px solid transparent;
-  /* PATCH MOBILE: white-space:nowrap DIHAPUS dari sini. Sebelumnya semua
-     tombol (termasuk tombol lebar-penuh berteks panjang seperti "📥 Unduh
-     Rekap Mata Pelajaran (.xlsx)") dipaksa 1 baris -- di layar sempit
-     (HP), teks itu MELEBER KELUAR tombolnya sendiri bahkan sampai keluar
-     lebar viewport, membuat SELURUH HALAMAN bisa di-scroll horizontal.
-     Sekarang teks tombol boleh wrap ke baris ke-2 kalau memang tidak
-     cukup ruang -- .btn-quick (chip pendek) di bawah tetap nowrap karena
-     labelnya memang selalu pendek & pasti muat 1 baris. */
-  text-align: center;
-  line-height: 1.3;
-}
-
-.btn-primary {
-  background: var(--primary-color);
-  color: var(--white);
-}
-.btn-primary:hover {
-  background: var(--primary-dark);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.btn-secondary {
-  background: var(--secondary-color);
-  color: var(--white);
-}
-.btn-secondary:hover {
-  background: var(--secondary-dark);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.btn-success {
-  background: var(--success-color);
-  color: var(--white);
-}
-.btn-success:hover {
-  filter: brightness(0.95);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.btn-danger {
-  background: var(--danger-color);
-  color: var(--white);
-}
-.btn-danger:hover {
-  filter: brightness(0.95);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.btn-outline {
-  background: transparent;
-  border-color: var(--gray-300);
-  color: var(--gray-700);
-}
-.btn-outline:hover {
-  background: var(--gray-50);
-  border-color: var(--gray-400);
-}
-
-.btn-quick {
-  background: var(--gray-100);
-  color: var(--gray-700);
-  padding: var(--spacing-2) var(--spacing-4);
-  font-size: var(--font-size-sm);
-  border: 1px solid var(--gray-200);
-  white-space: nowrap;
-}
-.btn-quick:hover {
-  background: var(--gray-200);
-}
-
-.btn-sm {
-  padding: var(--spacing-2) var(--spacing-4) !important;
-  font-size: var(--font-size-sm) !important;
-  white-space: nowrap;
-}
-
-.btn-full {
-  width: 100%;
-}
-
-.btn-primary:disabled,
-.btn-secondary:disabled,
-.btn-success:disabled,
-.btn-danger:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none !important;
-}
-
-/* Tombol submit form (login & absensi) dengan area progress bar */
-.btn-submit {
-  position: relative;
-  margin-top: var(--spacing-4);
-  overflow: hidden;
-}
-
-.btn-progress {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: 100%;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.3);
-}
-.btn-progress-bar {
-  height: 100%;
-  width: 0%;
-  background: var(--white);
-  transition: width var(--transition-normal);
-}
-
-/* ==================== Badges (single-dash) ====================
-   Dipakai oleh js/utils.js getStatusBadge() dan js/dashboard.js */
-.badge-success,
-.badge-warning,
-.badge-danger,
-.badge-info,
-.badge-secondary {
-  display: inline-block;
-  padding: var(--spacing-1) var(--spacing-3);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  border-radius: var(--radius-full);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.badge-success { background: rgba(6, 214, 160, 0.1); color: var(--success-color); }
-.badge-warning { background: rgba(255, 209, 102, 0.1); color: #d4a017; }
-.badge-danger  { background: rgba(239, 71, 111, 0.1); color: var(--danger-color); }
-.badge-info    { background: rgba(17, 138, 178, 0.1); color: var(--info-color); }
-.badge-secondary { background: var(--gray-100); color: var(--gray-600); }
-
-/* ==================== Header Card (dashboard) ==================== */
-.header-card {
-  background: var(--white);
-  border-radius: var(--radius-xl);
-  padding: var(--spacing-5) var(--spacing-6);
-  margin-bottom: var(--spacing-5);
-  box-shadow: var(--shadow-md);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--spacing-4);
-}
-
-.header-content {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-4);
-}
-
-.header-avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: var(--radius-full);
-  background: rgba(67, 97, 238, 0.1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.75rem;
-  flex-shrink: 0;
-}
-
-.header-info-text h2 {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--gray-800);
-  margin-bottom: 2px;
-}
-
-.header-date {
-  font-size: var(--font-size-sm);
-  color: var(--gray-500);
-}
-
-.header-actions {
-  display: flex;
-  gap: var(--spacing-2);
-  flex-wrap: wrap;
-}
-
-/* ==================== Tabs (dashboard nav) ====================
-   Template pakai class="active" polos (bukan "tab--active" BEM). */
-/* PATCH UX: menu utama (Dashboard/Input/Riwayat/Rekap) dipindah dari
-   posisi inline di ATAS halaman menjadi bar navigasi TETAP (fixed) di
-   BAWAH layar -- supaya pengguna tidak perlu scroll ke atas lagi untuk
-   pindah menu ketika sedang berada di bagian bawah halaman (mis. sudah
-   mengisi tabel siswa yang panjang lalu ingin pindah ke tab lain).
-   env(safe-area-inset-bottom) menambah jarak aman di HP dengan gesture
-   bar/notch di bawah (mis. iPhone tanpa tombol Home). */
-.tab-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  gap: var(--spacing-1);
-  background: var(--white);
-  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-  padding: var(--spacing-2) var(--spacing-3);
-  padding-bottom: calc(var(--spacing-2) + env(safe-area-inset-bottom, 0px));
-  margin: 0;
-  box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.12);
-  overflow-x: auto;
-  z-index: var(--z-fixed);
-}
-
-.tab-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  flex: 1;
-  min-width: 72px;
-  padding: var(--spacing-3) var(--spacing-2);
-  border-radius: var(--radius-lg);
-  color: var(--gray-500);
-  font-weight: var(--font-weight-medium);
-  font-size: var(--font-size-xs);
-  transition: all var(--transition-fast);
-  cursor: pointer;
-  background: transparent;
-}
-
-.tab-btn:hover {
-  background: var(--gray-50);
-  color: var(--primary-color);
-}
-
-.tab-btn.active {
-  background: rgba(67, 97, 238, 0.1);
-  color: var(--primary-color);
-}
-
-.tab-icon {
-  font-size: var(--font-size-lg);
-}
-
-.tab-label {
-  font-size: var(--font-size-xs);
-}
-
-.tab-panel {
-  animation: slideIn var(--transition-normal);
-}
-
-/* PATCH UX: ruang ekstra di bawah supaya konten terakhir tiap panel (mis.
-   tombol "Simpan Absensi" di ujung tabel siswa yang panjang) tidak
-   ketutupan oleh .tab-nav yang sekarang fixed di bawah layar. */
-/* PATCH MOBILE: padding sebelumnya (88px/84px) pas-pasan dengan tinggi
-   .tab-nav yang sebenarnya (ikon + label + padding ≈ 85-95px), sehingga
-   konten terakhir tiap panel (mis. kotak "Tips:" di panel Rekap) bisa
-   mepet/tertutup sebagian oleh nav yang fixed di bawah -- terlihat di
-   pengujian tampilan mobile. Ditambah jadi lebih longgar. */
-#dashboardSection {
-  padding-bottom: 112px;
-}
-
-@media (max-width: 640px) {
-  #dashboardSection {
-    padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px));
-  }
-}
-
-/* Sub-tabs (di dalam panel Riwayat) */
-.sub-tab-nav {
-  display: flex;
-  gap: var(--spacing-2);
-  margin-bottom: var(--spacing-4);
-  border-bottom: 2px solid var(--gray-200);
-}
-
-.sub-tab-btn {
-  padding: var(--spacing-2) var(--spacing-4);
-  font-weight: var(--font-weight-medium);
-  color: var(--gray-500);
-  border-bottom: 2px solid transparent;
-  margin-bottom: -2px;
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.sub-tab-btn:hover {
-  color: var(--primary-color);
-}
-
-.sub-tab-btn.active {
-  color: var(--primary-color);
-  border-bottom-color: var(--primary-color);
-}
-
-.sub-tab-panel {
-  animation: slideIn var(--transition-normal);
-}
-
-/* ==================== Panel Header ==================== */
-.panel-header {
-  margin-bottom: var(--spacing-5);
-}
-
-.panel-header h3 {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
-  color: var(--gray-800);
-  margin-bottom: var(--spacing-1);
-}
-
-.panel-subtitle {
-  font-size: var(--font-size-sm);
-  color: var(--gray-500);
-}
-
-.card-subtitle {
-  font-size: var(--font-size-sm);
-  color: var(--gray-500);
-  margin-bottom: var(--spacing-3);
-}
-
-/* ==================== Forms ==================== */
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-4);
-}
-
-@media (max-width: 640px) {
-  .form-row {
-    grid-template-columns: 1fr;
-  }
-}
-
-.form-row .form-group,
-.card > .form-group {
-  margin-bottom: var(--spacing-4);
-}
-
-.card label,
-.form-group label {
-  display: block;
-  margin-bottom: var(--spacing-2);
-  font-weight: var(--font-weight-medium);
-  color: var(--gray-700);
-  font-size: var(--font-size-sm);
-}
-
-.card input[type="text"],
-.card input[type="password"],
-.card input[type="date"],
-.card select,
-.login-form input {
-  width: 100%;
-  padding: var(--spacing-3) var(--spacing-4);
-  font-size: var(--font-size-base);
-  border: 2px solid var(--gray-200);
-  border-radius: var(--radius-lg);
-  background: var(--white);
-  transition: all var(--transition-fast);
-}
-
-.card input:focus,
-.card select:focus,
-.login-form input:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
-}
-
-.label-icon {
-  margin-right: var(--spacing-1);
-}
-
-/* ==================== Students Section ==================== */
-.students-section {
-  margin-top: var(--spacing-5);
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: var(--spacing-3);
-  margin-bottom: var(--spacing-4);
-}
-
-.section-header h4 {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  color: var(--gray-800);
-}
-
-.quick-status-buttons {
-  display: flex;
-  gap: var(--spacing-2);
-}
-
-/* ==================== Status Toggle Group (segmented button H/I/S/A) ====================
-   PATCH: menggantikan <select> per baris siswa. Radio native disembunyikan
-   secara visual (bukan display:none, supaya tetap terfokus lewat keyboard/
-   screen reader), label-nya yang di-styling jadi tombol segmented 4-pilihan
-   berwarna, supaya guru bisa 1x tap dan langsung lihat status dari warnanya
-   tanpa perlu membuka dropdown.
-
-   PATCH (BARU): opsi yang TIDAK terpilih sebelumnya nyaris tak terlihat
-   sebagai tombol (background putih + border abu sangat tipis nyaris tidak
-   kontras dengan latar halaman yang juga putih -- di layar HP terlihat
-   seperti huruf lepas berspasi, bukan grup tombol). Diperbaiki dengan:
-   latar grup abu muda (gray-100) supaya kotak putih tiap opsi kontras
-   jelas terhadapnya, border lebih gelap (gray-300), dan ukuran kotak
-   dinaikkan supaya nyaman disentuh jari (target sentuh minimal 40px,
-   full 44px di breakpoint mobile -- lihat media query di bawah). */
-.status-toggle-group {
-  display: inline-flex;
-  width: 100%;
-  max-width: 220px;
-  border-radius: var(--radius-md);
-  overflow: hidden;
-  border: 1px solid var(--gray-300);
-  background: var(--gray-100);
-}
-
-.status-toggle-input {
-  position: absolute;
-  opacity: 0;
-  width: 1px;
-  height: 1px;
-  pointer-events: none;
-}
-
-.status-toggle {
-  flex: 1 1 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 38px;
-  min-height: 38px;
-  padding: var(--spacing-2) var(--spacing-1);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-bold);
-  color: var(--gray-500);
-  background: var(--white);
-  border-right: 1px solid var(--gray-300);
-  cursor: pointer;
-  user-select: none;
-  transition: background var(--transition-fast, 0.15s), color var(--transition-fast, 0.15s);
-}
-
-.status-toggle:last-child {
-  border-right: none;
-}
-
-.status-toggle:hover {
-  background: var(--gray-50);
-}
-
-.status-toggle-input:focus-visible + .status-toggle {
-  position: relative;
-  z-index: 1;
-  outline: 2px solid var(--primary-color);
-  outline-offset: -2px;
-}
-
-.status-toggle-input:checked + .status-toggle--H {
-  background: var(--success-color);
-  color: var(--white);
-}
-
-.status-toggle-input:checked + .status-toggle--I {
-  background: var(--info-color);
-  color: var(--white);
-}
-
-.status-toggle-input:checked + .status-toggle--S {
-  background: #d4a017;
-  color: var(--white);
-}
-
-.status-toggle-input:checked + .status-toggle--A {
-  background: var(--danger-color);
-  color: var(--white);
-}
-
-/* ==================== Tables ==================== */
-.table-wrapper {
-  overflow-x: auto;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--gray-200);
-}
-
-#studentsTable,
-#waliStudentsTable,
-.simple-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--font-size-sm);
-}
-
-#studentsTable thead,
-#waliStudentsTable thead,
-.simple-table thead {
-  background: var(--gray-50);
-  border-bottom: 2px solid var(--gray-200);
-}
-
-#studentsTable th,
-#waliStudentsTable th,
-.simple-table th {
-  padding: var(--spacing-3) var(--spacing-4);
-  font-weight: var(--font-weight-semibold);
-  color: var(--gray-700);
-  text-transform: uppercase;
-  font-size: var(--font-size-xs);
-  letter-spacing: 0.05em;
-  text-align: left;
-}
-
-#studentsTable td,
-#waliStudentsTable td,
-.simple-table td {
-  padding: var(--spacing-3) var(--spacing-4);
-  color: var(--gray-600);
-  border-bottom: 1px solid var(--gray-100);
-}
-
-#studentsTable tbody tr:hover,
-#waliStudentsTable tbody tr:hover,
-.simple-table tbody tr:hover {
-  background: var(--gray-50);
-}
-
-.empty-row td {
-  padding: var(--spacing-8) !important;
-}
-
-/* ==================== PATCH (BARU): Tabel Siswa di Layar Mobile ====================
-   Aplikasi ini dipakai mayoritas dari HP saat guru presensi di kelas.
-   Tabel 3 kolom (NIS/Nama/Kehadiran) berdampingan jadi sempit di layar
-   kecil -- kolom Kehadiran ketiban sisa ruang paling sedikit padahal
-   itu kontrol yang paling sering disentuh. Di bawah 640px, tiap baris
-   direstruktur jadi kartu vertikal: Nama di atas (lebih mudah dibaca
-   sekilas), NIS kecil di bawahnya, lalu tombol status H/I/S/A di baris
-   sendiri selebar penuh kartu supaya target sentuhnya besar (min. 44px,
-   sesuai standar target sentuh mobile) dan nyaman dijempol. */
-@media (max-width: 640px) {
-  #studentsTable thead,
-  #waliStudentsTable thead {
-    display: none;
-  }
-
-  #studentsTable tbody,
-  #waliStudentsTable tbody,
-  #studentsTable tr,
-  #waliStudentsTable tr,
-  #studentsTable td,
-  #waliStudentsTable td {
-    display: block;
-    width: 100%;
-  }
-
-  #studentsTable tr,
-  #waliStudentsTable tr {
-    display: flex;
-    flex-direction: column;
-    padding: var(--spacing-3) var(--spacing-4);
-    border-bottom: 1px solid var(--gray-100);
-  }
-
-  #studentsTable td,
-  #waliStudentsTable td {
-    padding: 0;
-    border-bottom: none;
-  }
-
-  /* Nama siswa ditampilkan paling atas -- lebih penting dibaca sekilas
-     daripada NIS saat guru menyisir daftar sambil presensi. */
-  #studentsTable td:nth-child(2),
-  #waliStudentsTable td:nth-child(2) {
-    order: 1;
-    font-size: var(--font-size-base);
-    font-weight: var(--font-weight-semibold);
-    color: var(--gray-800);
-  }
-
-  #studentsTable td:nth-child(1),
-  #waliStudentsTable td:nth-child(1) {
-    order: 2;
-    font-size: var(--font-size-xs);
-    color: var(--gray-400);
-    margin-bottom: var(--spacing-2);
-  }
-
-  #studentsTable td:nth-child(3),
-  #waliStudentsTable td:nth-child(3) {
-    order: 3;
-  }
-
-  .status-toggle-group {
-    max-width: none;
-    width: 100%;
-  }
-
-  .status-toggle {
-    min-height: 44px;
-    font-size: var(--font-size-base);
-  }
-}
-
-/* ==================== Empty States ==================== */
-.empty-state-illustration {
-  text-align: center;
-  padding: var(--spacing-6);
-  color: var(--gray-500);
-}
-
-.empty-state-illustration svg {
-  width: 120px;
-  height: auto;
-  margin: 0 auto var(--spacing-3);
-}
-
-.empty-state-illustration.large svg {
-  width: 160px;
-}
-
-.empty-state {
-  text-align: center;
-  color: var(--gray-500);
-  padding: var(--spacing-6);
-  font-size: var(--font-size-sm);
-}
-
-/* ==================== Rekap Cards ==================== */
-.rekap-card {
-  background: var(--white);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-md);
-  padding: var(--spacing-6);
-  display: flex;
-  gap: var(--spacing-4);
-  margin-bottom: var(--spacing-5);
-}
-
-.rekap-card-icon {
-  font-size: 2.5rem;
-  flex-shrink: 0;
-}
-
-.rekap-card-content {
-  flex: 1;
-}
-
-.rekap-card-content h4 {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  color: var(--gray-800);
-  margin-bottom: var(--spacing-2);
-}
-
-.rekap-card-desc {
-  color: var(--gray-600);
-  font-size: var(--font-size-sm);
-  margin-bottom: var(--spacing-3);
-}
-
-.rekap-card-info {
-  display: flex;
-  gap: var(--spacing-2);
-  flex-wrap: wrap;
-}
-
-.info-chip {
-  display: inline-block;
-  padding: var(--spacing-1) var(--spacing-3);
-  background: var(--gray-100);
-  color: var(--gray-700);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-}
-
-.info-chip-primary {
-  background: rgba(67, 97, 238, 0.1);
-  color: var(--primary-color);
-}
-
-/* ==================== Info Banner / Info Box ==================== */
-.info-banner {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-3);
-  padding: var(--spacing-3) var(--spacing-4);
-  background: rgba(67, 97, 238, 0.06);
-  border-radius: var(--radius-lg);
-}
-
-.info-icon {
-  font-size: var(--font-size-2xl);
-  flex-shrink: 0;
-}
-
-.info-box {
-  display: flex;
-  gap: var(--spacing-3);
-  padding: var(--spacing-4) var(--spacing-5);
-  background: rgba(255, 209, 102, 0.1);
-  border-left: 4px solid var(--warning-color);
-  border-radius: var(--radius-lg);
-  margin-top: var(--spacing-5);
-}
-
-.info-box-icon {
-  font-size: var(--font-size-xl);
-  flex-shrink: 0;
-}
-
-.info-box-content strong {
-  color: var(--gray-800);
-}
-
-.info-box-content p {
-  color: var(--gray-600);
-  font-size: var(--font-size-sm);
-  margin-top: var(--spacing-1);
-}
-
-/* ==================== Section Divider ==================== */
-.section-divider {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-3);
-  margin: var(--spacing-6) 0;
-}
-
-.section-divider-line {
-  flex: 1;
-  height: 1px;
-  background: var(--gray-200);
-}
-
-.section-divider-text {
-  font-weight: var(--font-weight-semibold);
-  color: var(--gray-600);
-  font-size: var(--font-size-sm);
-  white-space: nowrap;
-}
-
-/* ==================== Chart / Trend Bars ==================== */
-.chart-wrapper {
-  position: relative;
-  min-height: 190px;
-}
-
-.chart-wrapper canvas {
-  max-width: 100%;
-}
-
-.trend-bars {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--spacing-2);
-  height: 190px;
-  padding: var(--spacing-2) 0;
-  /* PATCH GRAFIK: kalau data dibatasi ke 14 titik tapi container sempit
-     (mis. HP), bar tetap punya lebar minimum yang bisa dibaca -- kelebihan
-     lebar di-scroll horizontal dalam kotak chart-nya sendiri, bukan
-     memaksa seluruh halaman melebar. */
-  overflow-x: auto;
-  overflow-y: hidden;
-}
-
-.trend-bar-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--spacing-1);
-  flex: 1;
-  min-width: 36px;
-}
-
-.trend-bar {
-  width: 100%;
-  max-width: 28px;
-  background: var(--primary-color);
-  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
-  transition: height var(--transition-normal);
-}
-
-.trend-bar-label {
-  font-size: var(--font-size-xs);
-  color: var(--gray-500);
-  white-space: nowrap;
-}
-
-/* PATCH GRAFIK: sebelumnya persentase HANYA ada di tooltip (title attr),
-   yang tidak pernah muncul di HP karena tidak ada hover. Ditampilkan
-   sebagai teks kecil di atas tiap bar supaya terlihat tanpa perlu hover. */
-.trend-bar-value {
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-semibold);
-  color: var(--gray-700);
-  white-space: nowrap;
-}
-
-.chart-note {
-  font-size: var(--font-size-xs);
-  color: var(--gray-500);
-  margin-bottom: var(--spacing-2);
-  font-style: italic;
-}
-
-/* ==================== Notifications / Toast ====================
-   js/utils.js showNotification() memakai class-class ini, TIDAK
-   sama dengan .toast/.toast-container di components.css.
-   PATCH UX: dipindah dari pojok kanan-atas ke TENGAH LAYAR (fixed,
-   center horizontal & vertikal) supaya notifikasi (mis. "Absensi
-   tersimpan!") tidak luput dari perhatian pengguna -- sebelumnya
-   posisi pojok atas sering tidak disadari, terutama di HP saat
-   pengguna sedang fokus mengisi tabel siswa yang panjang. */
-.notification-container {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: var(--z-tooltip);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--spacing-3);
-  max-width: 380px;
-  width: calc(100% - var(--spacing-8));
-  /* Container fixed ini sendiri tidak boleh menangkap klik (supaya celah
-     kosong di sekitar toast tidak memblokir interaksi ke halaman di
-     baliknya) -- tiap .notification di bawah mengaktifkan lagi pointer-events
-     miliknya sendiri supaya tombol close tetap bisa diklik. */
-  pointer-events: none;
-}
-
-.notification {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-3);
-  padding: var(--spacing-4) var(--spacing-5);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  background: var(--white);
-  border-left: 4px solid var(--info-color);
-  animation: notifPopIn var(--transition-normal);
-  font-size: var(--font-size-sm);
-  color: var(--gray-700);
-  pointer-events: auto;
-}
-
-.notification-success { border-left-color: var(--success-color); }
-.notification-error   { border-left-color: var(--danger-color); }
-.notification-warning  { border-left-color: var(--warning-color); }
-.notification-info     { border-left-color: var(--info-color); }
-
-.notification.fade-out {
-  opacity: 0;
-  transform: scale(0.95);
-  transition: all var(--transition-normal);
-}
-
-.notification .close-btn {
-  font-size: var(--font-size-lg);
-  line-height: 1;
-  color: var(--gray-400);
-  flex-shrink: 0;
-}
-
-.notification .close-btn:hover {
-  color: var(--gray-600);
-}
-
-@keyframes notifPopIn {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@media (max-width: 640px) {
-  .notification-container {
-    width: calc(100% - var(--spacing-8));
-    max-width: 340px;
-  }
-}
-
-/* ==================== Container umum (app shell) ====================
-   index.html hanya punya <div class="container"><main id="app"></main></div>
-   tanpa padding/max-width -- pastikan konten dashboard tidak mepet ke tepi
-   layar dan tetap center di layar lebar. */
-.container {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: var(--spacing-5) var(--spacing-4);
-  width: 100%;
-}
-
-@media (max-width: 640px) {
-  .container {
-    padding: var(--spacing-4) var(--spacing-3);
-  }
-}
+/**
+ * Dashboard Module
+ * Menangani rendering dan logika untuk panel Dashboard (Analitik)
+ * Termasuk dashboard per mapel dan dashboard untuk wali kelas
+ *
+ * =========================================================
+ * PATCH NOTES
+ * =========================================================
+ * Backend (kodegs/Dashboard.gs) mengirim struktur data dengan nama
+ * field tertentu, tapi kode render di file ini sebelumnya memakai
+ * nama field yang BERBEDA (typo/asumsi lama), sehingga:
+ *  - Panel "Persentase Kehadiran (Per Mapel)" selalu tampil
+ *    "Belum ada data absensi" walau data ada di backend.
+ *  - Kolom Kelas & jumlah Alpa di "Perlu Perhatian" selalu undefined.
+ *  - Trend chart selalu flat (fallback minimum) karena field persen
+ *    tidak pernah ketemu.
+ *  - SELURUH Dashboard Wali Kelas (rata-rata, distribusi, trend)
+ *    tidak pernah terisi karena backend mengirim `rataRata` &
+ *    `statistikHarian`, bukan `rataHadir`/`rataAlpa`/`distribusi`/`trend`.
+ *
+ * Perbaikan: samakan semua akses field dengan struktur asli yang
+ * dikembalikan getDashboardData() & getDashboardDataWali() di
+ * kodegs/Dashboard.gs. Tidak ada perubahan pada backend yang diperlukan.
+ *
+ * Tambahan: loadDashboardMapel() tidak lagi men-throw error untuk akun
+ * yang murni wali kelas (tidak mengajar mapel apa pun) -- itu kondisi
+ * valid, bukan sesi rusak.
+ * =========================================================
+ */
+
+import { getDashboardData, getDashboardDataWali, getCurrentUser } from './api.js';
+// PATCH PERFORMA: escapeHtml dipakai dari utils.js (regex string-replace),
+// bukan implementasi lokal yang sebelumnya ada di file ini. Implementasi
+// lama membuat elemen <div> DOM baru pada SETIAP pemanggilan (lihat riwayat
+// versi file ini) -- jauh lebih lambat daripada regex sederhana, dan
+// terpanggil berulang kali di dalam .map()/.forEach() saat merender daftar
+// topAlpa & rekap kelas/mapel. Juga menghapus duplikasi kode yang sama
+// persis fungsinya dengan utils.js.
+import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js';
+
+// Cache untuk data dashboard
+let dashboardCache = {
+    mapel: null,
+    wali: null
+};
+
+/**
+ * Render chart kehadiran per mapel/kelas
+ * PATCH: backend mengirim array item berbentuk
+ *   { label: "Kelas - Mapel", hadir, izin, sakit, alpa, pertemuan, persenHadir }
+ * (bukan { kelas, mapel, persenHadir } seperti asumsi sebelumnya).
+ */
+function renderRekapKelasMapelList(data, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container || !data || data.length === 0) {
+        if (container) container.innerHTML = '<p class="empty-state">Tidak ada data</p>';
+        return;
+    }
+
+    let html = '<div class="stats-grid">';
+    data.forEach(item => {
+        const persenHadir = item.persenHadir || 0;
+        const className = persenHadir >= 80 ? 'stat-hadir' : persenHadir >= 60 ? 'stat-izin' : 'stat-alpa';
+        // PATCH: pakai item.label (sudah berisi "Kelas - Mapel" dari backend),
+        // bukan item.kelas / item.mapel yang tidak pernah dikirim.
+        html += `
+            <div class="stat-card ${className}">
+                <div class="stat-icon">📊</div>
+                <div class="stat-info">
+                    <div class="stat-value">${persenHadir.toFixed(1)}%</div>
+                    <div class="stat-label">${escapeHtml(item.label || '-')}</div>
+                </div>
+            </div>
+        `;
+    });
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+/**
+ * Render list siswa dengan alpa terbanyak
+ * PATCH: backend mengirim { nama: "Nama (Kelas)", jumlahAlpa } untuk dashboard
+ * per mapel, dan { nama: "Nama", jumlahAlpa } untuk dashboard wali.
+ * Field `kelas` terpisah dan `alpha` (dengan h) TIDAK PERNAH dikirim backend.
+ */
+function renderTopAlpaList(data, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container || !data || data.length === 0) {
+        if (container) container.innerHTML = '<p class="empty-state">Tidak ada siswa perlu perhatian</p>';
+        return;
+    }
+
+    let html = '<div class="table-wrapper"><table class="simple-table"><thead><tr><th>Nama</th><th>Jumlah Alpa</th></tr></thead><tbody>';
+    data.slice(0, 10).forEach(siswa => {
+        html += `<tr>
+            <td>${escapeHtml(siswa.nama)}</td>
+            <td><span class="badge badge-danger">${siswa.jumlahAlpa || 0}</span></td>
+        </tr>`;
+    });
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+}
+
+// =========================================================
+// GRAFIK TREN KEHADIRAN -- LINE CHART (SVG, tanpa library eksternal)
+// ---------------------------------------------------------
+// PATCH: sebelumnya grafik tren pakai bar chart CSS. Diganti ke line chart
+// karena lebih pas untuk data berbasis waktu ("tren" = arah naik/turun,
+// lebih jelas sebagai satu alur garis daripada perbandingan tinggi antar
+// bar berdampingan) dan lebih ringan ditampilkan kalau titik datanya banyak.
+//
+// Ditambahkan juga toggle periode Minggu/Bulan/Semester:
+//  - Minggu  : 7 data mentah terakhir (paling detail, harian/per pertemuan)
+//  - Bulan   : dikelompokkan per minggu (rata-rata persenHadir), 8 minggu terakhir
+//  - Semester: dikelompokkan per bulan (rata-rata persenHadir), seluruh data yang ada
+// Data mentah (dari getDashboardData()/getDashboardDataWali(), TIDAK
+// dibatasi jumlahnya oleh backend) disimpan di trendDataStore per
+// canvasId, supaya ganti periode tidak perlu fetch ulang ke server --
+// cukup diagregasi ulang di sisi frontend dari data yang sudah ada.
+// =========================================================
+const trendDataStore = {};
+const trendPeriodStore = {};
+
+function renderTrendChart(rawData, canvasId) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !rawData || rawData.length === 0) {
+        return;
+    }
+    const container = canvas.parentElement;
+    if (!container) return;
+
+    trendDataStore[canvasId] = rawData;
+    if (!trendPeriodStore[canvasId]) trendPeriodStore[canvasId] = 'minggu';
+
+    ensureTrendPeriodToggle(container, canvasId);
+    drawTrendChart(canvasId);
+}
+
+function ensureTrendPeriodToggle(container, canvasId) {
+    if (container.querySelector('.trend-period-toggle')) return; // sudah ada, jangan duplikasi
+
+    const toggle = document.createElement('div');
+    toggle.className = 'trend-period-toggle';
+    toggle.innerHTML = `
+        <button type="button" class="trend-period-btn active" data-period="minggu">Minggu</button>
+        <button type="button" class="trend-period-btn" data-period="bulan">Bulan</button>
+        <button type="button" class="trend-period-btn" data-period="semester">Semester</button>
+    `;
+    container.insertBefore(toggle, container.firstChild);
+
+    toggle.querySelectorAll('.trend-period-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            toggle.querySelectorAll('.trend-period-btn').forEach(b => b.classList.toggle('active', b === btn));
+            trendPeriodStore[canvasId] = btn.dataset.period;
+            drawTrendChart(canvasId);
+        });
+    });
+}
+
+function drawTrendChart(canvasId) {
+    const canvas = document.getElementById(canvasId);
+    const container = canvas.parentElement;
+    const rawData = trendDataStore[canvasId] || [];
+    const period = trendPeriodStore[canvasId] || 'minggu';
+
+    let points;
+    if (period === 'minggu') {
+        points = rawData.slice(-7).map(item => ({
+            label: formatTanggalSingkat(item.tanggal),
+            value: item.persenHadir || 0
+        }));
+    } else if (period === 'bulan') {
+        points = aggregateTrendByWeek(rawData).slice(-8);
+    } else {
+        points = aggregateTrendByMonth(rawData);
+    }
+
+    renderSvgLineChart(points, canvas, container);
+}
+
+/** Kelompokkan data harian jadi rata-rata per minggu (Senin sebagai awal minggu). */
+function aggregateTrendByWeek(rawData) {
+    const buckets = {};
+    rawData.forEach(item => {
+        const d = new Date(item.tanggal + 'T00:00:00');
+        const day = d.getDay(); // 0=Minggu..6=Sabtu
+        const diffKeSenin = (day === 0 ? -6 : 1) - day;
+        const senin = new Date(d);
+        senin.setDate(d.getDate() + diffKeSenin);
+        const key = toDateKey(senin);
+        if (!buckets[key]) buckets[key] = { sum: 0, count: 0 };
+        buckets[key].sum += (item.persenHadir || 0);
+        buckets[key].count += 1;
+    });
+    return Object.keys(buckets).sort().map(key => ({
+        label: formatTanggalSingkat(key),
+        value: Math.round((buckets[key].sum / buckets[key].count) * 10) / 10
+    }));
+}
+
+/** Kelompokkan data harian jadi rata-rata per bulan (untuk tampilan 1 semester). */
+function aggregateTrendByMonth(rawData) {
+    const namaBulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
+    const buckets = {};
+    rawData.forEach(item => {
+        const d = new Date(item.tanggal + 'T00:00:00');
+        const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        if (!buckets[key]) buckets[key] = { sum: 0, count: 0, bulanIdx: d.getMonth(), tahun: d.getFullYear() };
+        buckets[key].sum += (item.persenHadir || 0);
+        buckets[key].count += 1;
+    });
+    return Object.keys(buckets).sort().map(key => {
+        const b = buckets[key];
+        return {
+            label: namaBulan[b.bulanIdx] + " '" + String(b.tahun).slice(2),
+            value: Math.round((b.sum / b.count) * 10) / 10
+        };
+    });
+}
+
+function toDateKey(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+/**
+ * Gambar line chart SVG dari titik-titik { label, value(0-100) }.
+ * viewBox tetap (600x200), diregangkan mengisi lebar kontainer lewat CSS
+ * (width:100%) -- jadi otomatis responsif tanpa perlu hitung ulang lebar.
+ */
+function renderSvgLineChart(points, canvas, container) {
+    canvas.style.display = 'none';
+    const existing = container.querySelector('.trend-line-svg, .trend-empty');
+    if (existing) existing.remove();
+
+    if (!points || points.length === 0) {
+        container.insertAdjacentHTML('beforeend', '<p class="trend-empty empty-state">Belum ada data untuk periode ini</p>');
+        return;
+    }
+
+    const W = 600, H = 200;
+    const padTop = 24, padBottom = 28, padX = 28;
+    const plotW = W - padX * 2;
+    const plotH = H - padTop - padBottom;
+    const n = points.length;
+    const stepX = n > 1 ? plotW / (n - 1) : 0;
+
+    const coords = points.map((p, i) => {
+        const x = padX + (n > 1 ? i * stepX : plotW / 2);
+        const v = Math.max(0, Math.min(100, p.value));
+        const y = padTop + plotH - (v / 100) * plotH;
+        return { x, y, label: p.label, value: p.value };
+    });
+
+    const linePath = coords.map((c, i) => (i === 0 ? 'M' : 'L') + c.x.toFixed(1) + ',' + c.y.toFixed(1)).join(' ');
+    const areaPath = n > 1
+        ? linePath + ` L${coords[n - 1].x.toFixed(1)},${(padTop + plotH).toFixed(1)} L${coords[0].x.toFixed(1)},${(padTop + plotH).toFixed(1)} Z`
+        : '';
+
+    const gridLines = [0, 50, 100].map(pct => {
+        const y = padTop + plotH - (pct / 100) * plotH;
+        return `<line x1="${padX}" y1="${y.toFixed(1)}" x2="${W - padX}" y2="${y.toFixed(1)}" class="trend-gridline" />` +
+               `<text x="2" y="${(y + 4).toFixed(1)}" class="trend-gridlabel">${pct}%</text>`;
+    }).join('');
+
+    const dots = coords.map(c =>
+        `<circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3.5" class="trend-dot"><title>${escapeHtml(c.label)}: ${c.value.toFixed(1)}%</title></circle>`
+    ).join('');
+
+    const valueLabels = coords.map(c =>
+        `<text x="${c.x.toFixed(1)}" y="${(c.y - 8).toFixed(1)}" text-anchor="middle" class="trend-value-label">${c.value.toFixed(0)}%</text>`
+    ).join('');
+
+    const xLabels = coords.map(c =>
+        `<text x="${c.x.toFixed(1)}" y="${H - 8}" text-anchor="middle" class="trend-x-label">${escapeHtml(c.label)}</text>`
+    ).join('');
+
+    const svg = `
+        <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" class="trend-line-svg">
+            ${gridLines}
+            ${areaPath ? `<path d="${areaPath}" class="trend-area"></path>` : ''}
+            <path d="${linePath}" class="trend-line" fill="none"></path>
+            ${dots}
+            ${valueLabels}
+            ${xLabels}
+        </svg>
+    `;
+    container.insertAdjacentHTML('beforeend', svg);
+}
+
+/**
+ * Format tanggal ISO ("yyyy-MM-dd") jadi format singkat "dd/MM" untuk
+ * label sumbu-x -- ringkas tapi tetap menunjukkan tanggal sesungguhnya.
+ */
+function formatTanggalSingkat(tanggalIso) {
+    if (!tanggalIso) return '-';
+    const bagian = tanggalIso.split('-'); // [yyyy, MM, dd]
+    if (bagian.length !== 3) return tanggalIso;
+    return `${bagian[2]}/${bagian[1]}`;
+}
+
+/**
+ * Render distribusi status kehadiran (H/I/S/A)
+ * PATCH: menerima objek `rataRata` dari backend, berupa PERSENTASE
+ * yang sudah dihitung ({ hadir, izin, sakit, alpa } dalam %), bukan
+ * jumlah absolut. Sebelumnya fungsi ini mengasumsikan data.hadir dkk
+ * adalah jumlah mentah dan menghitung ulang persentase dari total,
+ * serta membaca data.alpha (dengan h) yang tidak pernah ada.
+ */
+function renderDistribusiStatus(rataRata, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container || !rataRata) {
+        if (container) container.innerHTML = '<p class="empty-state">Tidak ada data</p>';
+        return;
+    }
+
+    const pctH = (rataRata.hadir || 0).toFixed(1);
+    const pctI = (rataRata.izin || 0).toFixed(1);
+    const pctS = (rataRata.sakit || 0).toFixed(1);
+    const pctA = (rataRata.alpa || 0).toFixed(1);
+
+    const totalPersen = (rataRata.hadir || 0) + (rataRata.izin || 0) + (rataRata.sakit || 0) + (rataRata.alpa || 0);
+    if (totalPersen === 0) {
+        container.innerHTML = '<p class="empty-state">Belum ada data kehadiran</p>';
+        return;
+    }
+
+    container.innerHTML = `
+        <div class="stats-grid">
+            <div class="stat-card stat-hadir">
+                <div class="stat-info">
+                    <div class="stat-value">${pctH}%</div>
+                    <div class="stat-label">Hadir</div>
+                </div>
+            </div>
+            <div class="stat-card stat-izin">
+                <div class="stat-info">
+                    <div class="stat-value">${pctI}%</div>
+                    <div class="stat-label">Izin</div>
+                </div>
+            </div>
+            <div class="stat-card stat-sakit">
+                <div class="stat-info">
+                    <div class="stat-value">${pctS}%</div>
+                    <div class="stat-label">Sakit</div>
+                </div>
+            </div>
+            <div class="stat-card stat-alpa">
+                <div class="stat-info">
+                    <div class="stat-value">${pctA}%</div>
+                    <div class="stat-label">Alpha</div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Load dan render dashboard per mapel
+ * PATCH: dashboardCache.mapel di-cache dari `response.data` yang formatnya
+ * { rekapKelasMapel, topAlpa, trend } -- akses key disamakan.
+ * PATCH: jika mapelList/kelasList kosong (akun murni wali kelas tanpa
+ * tugas mengajar), ini kondisi VALID, bukan error. Panel cukup
+ * menampilkan pesan "tidak mengajar mapel apa pun", bukan showNotification
+ * error yang mengganggu setiap kali tab dibuka.
+ */
+async function loadDashboardMapel() {
+    const loadingEl = document.getElementById('dashboardLoading');
+    const contentEl = document.getElementById('dashboardMapelContent');
+    const rekapContainer = document.getElementById('rekapKelasMapelList');
+    const topAlpaContainer = document.getElementById('topAlpaList');
+
+    if (loadingEl) loadingEl.classList.remove('hidden');
+    if (contentEl) contentEl.classList.add('hidden');
+    showGlobalLoading('Memuat dashboard...');
+
+    try {
+        const userData = getCurrentUser() || {};
+        const mapelList = userData.mapelList || [];
+        const kelasList = userData.kelasList || [];
+
+        // PATCH: bukan error -- akun wali kelas murni memang bisa tidak
+        // punya mapel/kelas yang diajar sama sekali.
+        if (mapelList.length === 0 || kelasList.length === 0) {
+            if (rekapContainer) rekapContainer.innerHTML = '<p class="empty-state">Anda tidak mengajar mata pelajaran apa pun</p>';
+            if (topAlpaContainer) topAlpaContainer.innerHTML = '<p class="empty-state">-</p>';
+            if (contentEl) contentEl.classList.remove('hidden');
+            return;
+        }
+
+        // Load data untuk mapel dan kelas pertama sebagai contoh
+        const mapel = mapelList[0];
+        const kelas = kelasList[0];
+
+        const response = await getDashboardData(mapel, kelas);
+
+        if (!response.success) {
+            throw new Error(response.message || 'Gagal memuat data dashboard');
+        }
+
+        const data = response.data || {};
+
+        // PATCH: nama key sesuai backend -> rekapKelasMapel (bukan rekapPerKelas)
+        if (data.rekapKelasMapel && data.rekapKelasMapel.length > 0) {
+            renderRekapKelasMapelList(data.rekapKelasMapel, 'rekapKelasMapelList');
+        } else if (rekapContainer) {
+            rekapContainer.innerHTML = '<p class="empty-state">Belum ada data absensi</p>';
+        }
+
+        if (data.topAlpa && data.topAlpa.length > 0) {
+            renderTopAlpaList(data.topAlpa, 'topAlpaList');
+        } else if (topAlpaContainer) {
+            topAlpaContainer.innerHTML = '<p class="empty-state">Tidak ada siswa perlu perhatian</p>';
+        }
+
+        if (data.trend && data.trend.length > 0) {
+            renderTrendChart(data.trend, 'trendChart');
+        }
+
+        dashboardCache.mapel = data;
+
+        if (contentEl) contentEl.classList.remove('hidden');
+    } catch (error) {
+        console.error('Error loading dashboard:', error);
+        showNotification('Gagal memuat dashboard: ' + error.message, 'error');
+        if (rekapContainer) rekapContainer.innerHTML = '<p class="empty-state">Gagal memuat data</p>';
+        if (topAlpaContainer) topAlpaContainer.innerHTML = '<p class="empty-state">Gagal memuat data</p>';
+        if (contentEl) contentEl.classList.remove('hidden');
+    } finally {
+        if (loadingEl) loadingEl.classList.add('hidden');
+        hideGlobalLoading();
+    }
+}
+
+/**
+ * Load dan render dashboard wali kelas
+ * PATCH: seluruh akses field disamakan dengan struktur asli dari
+ * getDashboardDataWali() di kodegs/Dashboard.gs:
+ *   { kelas, totalPertemuan, totalSiswa, statistikHarian, topAlpa, rataRata }
+ * Field data.rataHadir / data.rataAlpa / data.distribusi / data.trend
+ * SEBELUMNYA TIDAK PERNAH ADA di response backend -- itulah sebabnya
+ * dashboard wali selalu tampil 0% / kosong.
+ */
+async function loadDashboardWali() {
+    const userData = getCurrentUser() || {};
+    const kelasWali = userData.kelasWali;
+
+    const waliContent = document.getElementById('dashboardWaliContent');
+    const waliEmpty = document.getElementById('dashboardWaliEmpty');
+
+    if (!kelasWali) {
+        if (waliContent) waliContent.classList.add('hidden');
+        if (waliEmpty) waliEmpty.classList.remove('hidden');
+        return;
+    }
+
+    if (waliEmpty) waliEmpty.classList.add('hidden');
+
+    // PATCH: isi label "Kelas binaan: X" supaya pengguna tahu dashboard ini
+    // menampilkan data untuk kelas wali yang mana.
+    const kelasLabel = document.getElementById('dashboardWaliKelasLabel');
+    if (kelasLabel) kelasLabel.textContent = kelasWali;
+
+    showGlobalLoading('Memuat dashboard wali kelas...');
+    try {
+        const response = await getDashboardDataWali(kelasWali);
+
+        if (!response.success) {
+            throw new Error(response.message || 'Gagal memuat data dashboard wali');
+        }
+
+        const data = response.data || {};
+
+        // Stats cards
+        const elPertemuan = document.getElementById('waliStatPertemuan');
+        const elSiswa = document.getElementById('waliStatSiswa');
+        const elRataHadir = document.getElementById('waliStatRataHadir');
+        const elRataAlpa = document.getElementById('waliStatRataAlpa');
+
+        if (elPertemuan) elPertemuan.textContent = data.totalPertemuan || 0;
+        if (elSiswa) elSiswa.textContent = data.totalSiswa || 0;
+        // PATCH: rataRata.hadir / rataRata.alpa (bukan data.rataHadir / data.rataAlpa)
+        if (elRataHadir) elRataHadir.textContent = (data.rataRata?.hadir || 0).toFixed(1) + '%';
+        if (elRataAlpa) elRataAlpa.textContent = (data.rataRata?.alpa || 0).toFixed(1) + '%';
+
+        // PATCH: distribusi = data.rataRata (bukan data.distribusi yang tidak ada)
+        if (data.rataRata) {
+            renderDistribusiStatus(data.rataRata, 'waliDistribusiList');
+        }
+
+        // PATCH: trend = data.statistikHarian, dan tiap item field-nya
+        // { tanggal, hadir, izin, sakit, alpa, total, persenHadir } --
+        // renderTrendChart sudah dibetulkan untuk memakai persenHadir.
+        if (data.statistikHarian && data.statistikHarian.length > 0) {
+            renderTrendChart(data.statistikHarian, 'trendChartWali');
+        }
+
+        if (data.topAlpa && data.topAlpa.length > 0) {
+            renderTopAlpaList(data.topAlpa, 'waliTopAlpaList');
+        } else {
+            const container = document.getElementById('waliTopAlpaList');
+            if (container) container.innerHTML = '<p class="empty-state">Tidak ada siswa perlu perhatian</p>';
+        }
+
+        dashboardCache.wali = data;
+        if (waliContent) waliContent.classList.remove('hidden');
+    } catch (error) {
+        console.error('Error loading dashboard wali:', error);
+        showNotification('Gagal memuat dashboard wali: ' + error.message, 'error');
+        if (waliContent) waliContent.classList.remove('hidden');
+    } finally {
+        hideGlobalLoading();
+    }
+}
+
+/**
+ * PATCH (BARU): atur sub-tab default & visibilitas tombol "Wali Kelas".
+ * Default tampilan Dashboard adalah Wali Kelas -- tapi hanya kalau akun
+ * ini memang wali kelas. Kalau bukan wali kelas (guru mapel murni),
+ * tombol sub-tab Wali disembunyikan dan default otomatis jatuh ke
+ * sub-tab Per Mapel, supaya tidak ada tab kosong yang jadi default.
+ */
+function setupDashboardSubTabs() {
+    const userData = getCurrentUser() || {};
+    const btnWali = document.getElementById('subtabBtnDashboardWali');
+    const btnMapel = document.getElementById('subtabBtnDashboardMapel');
+    const panelWali = document.getElementById('subtabDashboardWali');
+    const panelMapel = document.getElementById('subtabDashboardMapel');
+
+    const adalahWaliKelas = !!userData.kelasWali;
+
+    if (btnWali) btnWali.classList.toggle('hidden', !adalahWaliKelas);
+
+    // Tentukan tab aktif default: Wali Kelas kalau berlaku, kalau tidak Per Mapel.
+    const aktifkanWali = adalahWaliKelas;
+    if (btnWali) btnWali.classList.toggle('active', aktifkanWali);
+    if (btnMapel) btnMapel.classList.toggle('active', !aktifkanWali);
+    if (panelWali) panelWali.classList.toggle('hidden', !aktifkanWali);
+    if (panelMapel) panelMapel.classList.toggle('hidden', aktifkanWali);
+}
+
+/**
+ * Inisialisasi dashboard
+ * Dipanggil saat panel Dashboard ditampilkan
+ */
+export async function initDashboard() {
+    console.log('Initializing dashboard...');
+
+    setupDashboardSubTabs();
+    // PATCH PERFORMA: kedua fungsi ini independen (beda seksi DOM, beda
+    // endpoint API) -- sebelumnya di-await berurutan sehingga dashboard wali
+    // baru mulai dimuat SETELAH dashboard mapel selesai total. Dijalankan
+    // paralel dengan Promise.all supaya total waktu tunggu awal = waktu
+    // yang paling lambat di antara keduanya, bukan jumlah keduanya.
+    await Promise.all([loadDashboardMapel(), loadDashboardWali()]);
+
+    const dashboardTabBtn = document.querySelector('[data-tab="panelDashboard"]');
+    if (dashboardTabBtn) {
+        dashboardTabBtn.addEventListener('click', () => {
+            setTimeout(() => {
+                loadDashboardMapel();
+                loadDashboardWali();
+            }, 100);
+        });
+    }
+}
+
+export default {
+    initDashboard
+};
