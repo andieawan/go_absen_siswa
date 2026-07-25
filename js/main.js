@@ -51,6 +51,7 @@ import { initAbsensi } from './absensi.js';
 import { showNotification } from './utils.js';
 import { showAlert, showConfirm } from './modal.js';
 import { initModalHandlers } from './modal.js';
+import { initKetuaKelasPage } from './ketuaKelas.js';
 
 // Container utama
 const appContainer = document.getElementById('app');
@@ -81,6 +82,21 @@ async function renderLogin() {
     if (template) {
         appContainer.innerHTML = template;
         initLoginForm();
+    }
+}
+
+/**
+ * PATCH: Render halaman khusus Ketua Kelas (fitur sementara: delegasi
+ * input absen harian). Halaman ini SENGAJA tidak melalui alur login/
+ * dashboard biasa sama sekali -- diakses lewat link berisi token
+ * (?ketua=TOKEN) yang dibagikan wali kelas, dan hanya berisi 1 form
+ * sederhana tanpa navigasi ke bagian lain aplikasi.
+ */
+async function renderKetuaKelasPage(token) {
+    const template = await loadTemplate('ketuaKelas');
+    if (template) {
+        appContainer.innerHTML = template;
+        initKetuaKelasPage(token);
     }
 }
 
@@ -138,6 +154,17 @@ function isStaleSessionData(user) {
  * Routing berdasarkan status autentikasi
  */
 async function route() {
+    // PATCH: link ketua kelas (?ketua=TOKEN) dicek PALING AWAL, sebelum
+    // logika login/dashboard biasa apa pun -- ini entry point publik yang
+    // sepenuhnya terpisah dari status login guru, jadi tidak boleh
+    // tersentuh oleh guard sesi lama atau redirect ke halaman login/dashboard.
+    const urlParams = new URLSearchParams(window.location.search);
+    const ketuaToken = urlParams.get('ketua');
+    if (ketuaToken) {
+        await renderKetuaKelasPage(ketuaToken);
+        return;
+    }
+
     const isUserLoggedIn = isLoggedIn();
     const user = getCurrentUser();
 
