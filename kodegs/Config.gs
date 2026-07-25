@@ -78,7 +78,7 @@ function invalidateConfigCache(key) {
 // Anda perlu BUAT spreadsheet baru untuk Master Guru, pindahkan sheet
 // Akun_Guru ke sana, lalu isi ID spreadsheet barunya di bawah ini.
 const SPREADSHEET_MASTER_SISWA_ID = getConfigValue('SPREADSHEET_MASTER_SISWA_ID', '1YYWe9qgwP5v4FvO9xR2vWOtu9NA89EHwa7xaTOqeVuI');
-const SPREADSHEET_MASTER_GURU_ID = getConfigValue('SPREADSHEET_MASTER_GURU_ID', 'GANTI_DENGAN_ID_SPREADSHEET_MASTER_GURU_ANDA');
+const SPREADSHEET_MASTER_GURU_ID = getConfigValue('SPREADSHEET_MASTER_GURU_ID', '1jW4dNNN1MxLBkRIHsSOcg_zZwzueDS19BwyZprCHa_c');
 const SPREADSHEET_ABSEN_ID = getConfigValue('SPREADSHEET_ABSEN_ID', '1_ZIp2nAEp__atYI_b6D37nmpAdAOE510l6vLTtFdXHI');
 const DRIVE_FOLDER_REKAP_ID = getConfigValue('DRIVE_FOLDER_REKAP_ID', '1rZSN7CD93XIUAozSc0zmJuqq5on3u1RN');
 const DRIVE_FOLDER_BACKUP_ID = getConfigValue('DRIVE_FOLDER_BACKUP_ID', '1wxDqJ3YcMR0ubK6Ni-uIByFmtdmnU6sa');
@@ -108,7 +108,7 @@ function setupConfig() {
     props.setProperty('SPREADSHEET_MASTER_SISWA_ID', '1YYWe9qgwP5v4FvO9xR2vWOtu9NA89EHwa7xaTOqeVuI');
   }
   if (!props.getProperty('SPREADSHEET_MASTER_GURU_ID')) {
-    props.setProperty('SPREADSHEET_MASTER_GURU_ID', 'GANTI_DENGAN_ID_SPREADSHEET_MASTER_GURU_ANDA');
+    props.setProperty('SPREADSHEET_MASTER_GURU_ID', '1jW4dNNN1MxLBkRIHsSOcg_zZwzueDS19BwyZprCHa_c');
   }
   if (!props.getProperty('SPREADSHEET_ABSEN_ID')) {
     props.setProperty('SPREADSHEET_ABSEN_ID', '1_ZIp2nAEp__atYI_b6D37nmpAdAOE510l6vLTtFdXHI');
