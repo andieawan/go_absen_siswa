@@ -51,7 +51,12 @@ import { initAbsensi } from './absensi.js';
 import { showNotification } from './utils.js';
 import { showAlert, showConfirm } from './modal.js';
 import { initModalHandlers } from './modal.js';
-import { initKetuaKelasPage } from './ketuaKelas.js';
+// PATCH: nama file diselaraskan ke huruf kecil semua (ketuakelas.js, bukan
+// ketuaKelas.js) -- GitHub Pages adalah server berbasis Linux yang
+// case-sensitive, sedangkan proses upload sebelumnya menyimpan file ini
+// dengan huruf kecil semua. Import di sini disamakan supaya cocok persis
+// dengan nama file yang sesungguhnya ada di repo, mencegah error 404.
+import { initKetuaKelasPage } from './ketuakelas.js';
 
 // Container utama
 const appContainer = document.getElementById('app');
@@ -93,7 +98,10 @@ async function renderLogin() {
  * sederhana tanpa navigasi ke bagian lain aplikasi.
  */
 async function renderKetuaKelasPage(token) {
-    const template = await loadTemplate('ketuaKelas');
+    // PATCH: nama template disamakan ke huruf kecil (ketuakelas.html,
+    // bukan ketuaKelas.html) supaya cocok dengan file yang sesungguhnya
+    // ada di repo GitHub Pages (case-sensitive).
+    const template = await loadTemplate('ketuakelas');
     if (template) {
         appContainer.innerHTML = template;
         initKetuaKelasPage(token);
