@@ -804,7 +804,7 @@
 /* ==================== Chart / Trend Bars ==================== */
 .chart-wrapper {
   position: relative;
-  min-height: 160px;
+  min-height: 190px;
 }
 
 .chart-wrapper canvas {
@@ -815,8 +815,14 @@
   display: flex;
   align-items: flex-end;
   gap: var(--spacing-2);
-  height: 160px;
+  height: 190px;
   padding: var(--spacing-2) 0;
+  /* PATCH GRAFIK: kalau data dibatasi ke 14 titik tapi container sempit
+     (mis. HP), bar tetap punya lebar minimum yang bisa dibaca -- kelebihan
+     lebar di-scroll horizontal dalam kotak chart-nya sendiri, bukan
+     memaksa seluruh halaman melebar. */
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .trend-bar-item {
@@ -825,6 +831,7 @@
   align-items: center;
   gap: var(--spacing-1);
   flex: 1;
+  min-width: 36px;
 }
 
 .trend-bar {
@@ -838,6 +845,24 @@
 .trend-bar-label {
   font-size: var(--font-size-xs);
   color: var(--gray-500);
+  white-space: nowrap;
+}
+
+/* PATCH GRAFIK: sebelumnya persentase HANYA ada di tooltip (title attr),
+   yang tidak pernah muncul di HP karena tidak ada hover. Ditampilkan
+   sebagai teks kecil di atas tiap bar supaya terlihat tanpa perlu hover. */
+.trend-bar-value {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--gray-700);
+  white-space: nowrap;
+}
+
+.chart-note {
+  font-size: var(--font-size-xs);
+  color: var(--gray-500);
+  margin-bottom: var(--spacing-2);
+  font-style: italic;
 }
 
 /* ==================== Notifications / Toast ====================
