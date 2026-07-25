@@ -451,11 +451,16 @@ export async function nonaktifkanKetuaKelasLink(kelas) {
 }
 
 // PUBLIK -- dipanggil dari halaman link ketua kelas, tanpa login sama sekali
-export async function getInfoKetuaKelas(ketuaToken) {
+// PATCH: parameter `tanggal` opsional -- hanya berpengaruh kalau mode per
+// tanggal aktif untuk kelas tsb (dikontrol manual lewat Apps Script,
+// lihat kodegs/ketuakelas.gs). Kalau tidak diisi, backend tetap default
+// ke tanggal server hari ini seperti semula.
+export async function getInfoKetuaKelas(ketuaToken, tanggal) {
     try {
         return await postJson({
             action: 'getInfoKetuaKelas',
-            ketuaToken: ketuaToken
+            ketuaToken: ketuaToken,
+            tanggal: tanggal
         });
     } catch (error) {
         console.error('Get info ketua kelas error:', error);
@@ -464,12 +469,13 @@ export async function getInfoKetuaKelas(ketuaToken) {
 }
 
 // PUBLIK -- submit absensi lewat link ketua kelas, tanpa login sama sekali
-export async function submitAbsenKetuaKelas(ketuaToken, dataKehadiran) {
+export async function submitAbsenKetuaKelas(ketuaToken, dataKehadiran, tanggal) {
     try {
         return await postJson({
             action: 'submitAbsenKetuaKelas',
             ketuaToken: ketuaToken,
-            dataKehadiran: dataKehadiran
+            dataKehadiran: dataKehadiran,
+            tanggal: tanggal
         });
     } catch (error) {
         console.error('Submit absen ketua kelas error:', error);
