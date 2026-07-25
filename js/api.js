@@ -89,8 +89,8 @@ function handleSessionExpired(message) {
     if (sedangHandleSessionExpired) return;
     sedangHandleSessionExpired = true;
 
-    sessionStorage.removeItem(CONFIG.SESSION_KEY);
-    localStorage.removeItem('user_data');
+    // PATCH SSO: satu key localStorage gabungan (lihat CONFIG.SESSION_KEY)
+    localStorage.removeItem(CONFIG.SESSION_KEY);
 
     showNotification(message || 'Sesi Anda sudah habis. Silakan login ulang.', 'warning');
 
@@ -135,11 +135,12 @@ export async function login(username, password) {
         });
 
         if (response.success) {
-            sessionStorage.setItem(CONFIG.SESSION_KEY, JSON.stringify({
-                token: response.data.token,
-                username: response.data.username
-            }));
-            localStorage.setItem('user_data', JSON.stringify(response.data));
+            // PATCH SSO: token & profil disimpan BERSAMA dalam SATU key
+            // di localStorage (bukan lagi terpisah sessionStorage+localStorage)
+            // supaya bisa terbaca oleh aplikasi lain di origin yang sama
+            // begitu pengguna login di sini (lihat CONFIG.SESSION_KEY).
+            // response.data sudah berisi token+username+profil lengkap.
+            localStorage.setItem(CONFIG.SESSION_KEY, JSON.stringify(response.data));
         }
 
         return response;
@@ -155,8 +156,13 @@ export async function login(username, password) {
 // terlebih dahulu sebelum menampilkan alert / redirect -- lihat perbaikan
 // race condition di js/main.js.
 export function logout() {
-    sessionStorage.removeItem(CONFIG.SESSION_KEY);
-    localStorage.removeItem('user_data');
+    // PATCH SSO: satu key localStorage gabungan (lihat CONFIG.SESSION_KEY).
+    // CATATAN: ini hanya logout dari aplikasi INI. Kalau ada aplikasi lain
+    // dalam ekosistem SSO yang sama-sama membaca key ini, pengguna juga
+    // otomatis ter-logout dari aplikasi itu begitu localStorage ini
+    // dihapus (karena berbagi origin & key yang sama) -- ini perilaku
+    // yang diinginkan untuk SSO (logout sekali, logout semua aplikasi).
+    localStorage.removeItem(CONFIG.SESSION_KEY);
     return Promise.resolve();
 }
 
@@ -168,18 +174,18 @@ export function redirectToLoginPage() {
 
 // Cek apakah user sudah login
 export function isLoggedIn() {
-    return !!sessionStorage.getItem(CONFIG.SESSION_KEY);
+    return !!localStorage.getItem(CONFIG.SESSION_KEY);
 }
 
 // Dapatkan data user yang login
 export function getCurrentUser() {
-    const userData = localStorage.getItem('user_data');
-    return userData ? JSON.parse(userData) : null;
+    const sessionData = localStorage.getItem(CONFIG.SESSION_KEY);
+    return sessionData ? JSON.parse(sessionData) : null;
 }
 
 // Dapatkan token dan username dari session
 function getSessionAuth() {
-    const sessionData = sessionStorage.getItem(CONFIG.SESSION_KEY);
+    const sessionData = localStorage.getItem(CONFIG.SESSION_KEY);
     if (!sessionData) return { token: null, username: null };
     try {
         return JSON.parse(sessionData);
