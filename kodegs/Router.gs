@@ -146,6 +146,44 @@ function doPost(e) {
         return getDashboardDataWali(data.kelas);
       });
 
+    // ===== FITUR: Delegasi Input Absen ke Ketua Kelas (sementara) =====
+    // 3 action pertama BUTUH login wali kelas (sama seperti action wali
+    // kelas lain -- pakai username+token session, divalidasi harus wali
+    // kelas dari `data.kelas` yang bersangkutan). 2 action terakhir
+    // SENGAJA PUBLIK (tanpa username/token session sama sekali) karena itu
+    // yang dipakai dari link yang dibagikan ke ketua kelas -- keamanannya
+    // divalidasi lewat token acak itu sendiri (lihat kodegs/KetuaKelas.gs).
+    } else if (data.action === 'generateKetuaKelasLink' && data.kelas) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!akun.kelasWali || akun.kelasWali !== data.kelas) {
+          return { success: false, message: "Anda bukan wali kelas " + data.kelas + "." };
+        }
+        return generateKetuaKelasToken(data.kelas, akun.nama);
+      });
+
+    } else if (data.action === 'getStatusKetuaKelasLink' && data.kelas) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!akun.kelasWali || akun.kelasWali !== data.kelas) {
+          return { success: false, message: "Anda bukan wali kelas " + data.kelas + "." };
+        }
+        return getStatusKetuaKelasToken(data.kelas);
+      });
+
+    } else if (data.action === 'nonaktifkanKetuaKelasLink' && data.kelas) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!akun.kelasWali || akun.kelasWali !== data.kelas) {
+          return { success: false, message: "Anda bukan wali kelas " + data.kelas + "." };
+        }
+        return nonaktifkanKetuaKelasToken(data.kelas);
+      });
+
+    // ===== PUBLIK -- tanpa login, hanya divalidasi lewat data.ketuaToken =====
+    } else if (data.action === 'getInfoKetuaKelas' && data.ketuaToken) {
+      response = getInfoUntukKetuaKelas(data.ketuaToken);
+
+    } else if (data.action === 'submitAbsenKetuaKelas' && data.ketuaToken && data.dataKehadiran) {
+      response = submitAbsenViaKetuaKelas(data.ketuaToken, data.dataKehadiran);
+
     // ===== FIX: fallback eksplisit untuk action tak dikenal / parameter kurang =====
     } else {
       response.message = "Aksi tidak dikenali atau parameter tidak lengkap: " + (data.action || '(kosong)');
