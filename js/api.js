@@ -48,7 +48,7 @@
 
 import { CONFIG } from './config.js';
 import { showNotification } from './utils.js';
-import { setSsoCookie, getSsoCookie, deleteSsoCookie } from './ssoCookie.js';
+import { setSsoCookie, getSsoCookie, deleteSsoCookie } from './ssocookie.js';
 
 // Helper untuk fetch dengan timeout dan error handling khusus Google Apps Script
 async function fetchWithTimeout(url, options = {}, timeout = CONFIG.DEFAULT_TIMEOUT) {
