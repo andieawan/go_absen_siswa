@@ -198,7 +198,18 @@ function getDashboardData(mapelListStr, kelasListStr) {
 // - totalSiswa: jumlah siswa di kelas (dari Data Master)
 // =========================================================
 function getDashboardDataWali(kelas) {
-  const ss = getAbsenSs(kelas, todayISO());
+  let ss;
+  try {
+    ss = getAbsenSs(kelas, todayISO());
+  } catch (e) {
+    // PATCH: sebelumnya panggilan ini TIDAK dibungkus try/catch (beda
+    // dengan getDashboardData() yang sudah lebih dulu dibungkus) -- kalau
+    // gagal (mis. DRIVE_FOLDER_ABSEN_ROOT_ID belum diisi, atau gagal
+    // provisioning), exception lolos mentah sampai ke Router.gs dan
+    // muncul sebagai pesan generik "Terjadi kesalahan pada server."
+    // tanpa detail. Sekarang pesan errornya jelas & actionable.
+    return { success: false, message: "Gagal membuka data absen wali kelas " + kelas + ": " + e.message };
+  }
   const sheetName = (kelas + "_" + MAPEL_ABSEN_WALI).replace(/[^a-zA-Z0-9]/g, "_");
   const sheet = ss.getSheetByName(sheetName);
 
