@@ -315,6 +315,23 @@
   margin: var(--spacing-1) 0;
 }
 
+/* PATCH: kartu riwayat sekarang bisa diklik untuk langsung edit absensi
+   tanggal itu (lihat navigasiKeEditAbsensi() di js/absensi.js). */
+.riwayat-card-clickable {
+  cursor: pointer;
+  transition: box-shadow var(--transition-fast), transform var(--transition-fast);
+}
+
+.riwayat-card-clickable:hover {
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-1px);
+}
+
+.riwayat-card-clickable:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
 .stat-card.stat-hadir {
   border-left-color: var(--success-color);
 }
