@@ -89,7 +89,23 @@ function doPost(e) {
 
     } else if (data.action === 'getDashboardData' && data.mapel && data.kelas) {
       response = handleGetDenganValidasi(data.username, data.token, function(akun) {
-        if (akun.mapelList.indexOf(data.mapel) === -1 || akun.kelasList.indexOf(data.kelas) === -1) {
+        // PATCH: validasi PER-ITEM (bukan cek string gabungan utuh) --
+        // sejak dashboard frontend mengirim SEMUA mapel & kelas guru
+        // sekaligus (dipisah koma, bukan cuma 1 seperti sebelumnya),
+        // indexOf(data.mapel) tidak akan pernah cocok karena akun.mapelList
+        // isinya item satuan ("DKV","KIK"), bukan string gabungan
+        // ("DKV,KIK"). Pola sama seperti getRekapKelasSaya di bawah.
+        const mapelDiminta = splitList(data.mapel);
+        const kelasDiminta = splitList(data.kelas);
+
+        if (mapelDiminta.length === 0 || kelasDiminta.length === 0) {
+          return { success: false, message: "Mata pelajaran atau kelas tidak valid." };
+        }
+
+        const semuaMapelValid = mapelDiminta.every(m => akun.mapelList.indexOf(m) !== -1);
+        const semuaKelasValid = kelasDiminta.every(k => akun.kelasList.indexOf(k) !== -1);
+
+        if (!semuaMapelValid || !semuaKelasValid) {
           return { success: false, message: "Anda tidak berhak mengakses dashboard ini." };
         }
         return getDashboardData(data.mapel, data.kelas);
