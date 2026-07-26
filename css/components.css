@@ -188,6 +188,18 @@
 }
 
 /* ==================== Login Section ==================== */
+/* PATCH TAMPILAN DESKTOP (full-bleed): .login-section duduk di dalam
+   <div class="container"> yang sengaja dibatasi max-width:1100px +
+   padding (lihat .container di css/app-ui.css) -- itu memang perlu
+   untuk halaman Dashboard/Input dkk supaya kontennya tidak mepet ke
+   tepi layar lebar. TAPI untuk halaman login, akibatnya gradient
+   latar birunya ikut terpotong di 1100px, menyisakan celah putih polos
+   di kiri-kanan pada layar lebar (>1100px+padding) -- padahal gradient
+   ini harusnya memenuhi SELURUH lebar layar.
+   Trik di bawah ("full-bleed") membuat .login-section melebar 100vw
+   dan diposisikan ulang relatif ke VIEWPORT (bukan ke parent-nya),
+   sehingga lolos dari batasan lebar/padding .container TANPA perlu
+   mengubah struktur HTML atau menyentuh halaman lain sama sekali. */
 .login-section {
   min-height: 100vh;
   display: flex;
@@ -195,6 +207,10 @@
   justify-content: center;
   background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
   padding: var(--spacing-4);
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .login-card {
