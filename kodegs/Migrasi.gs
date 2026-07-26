@@ -93,3 +93,110 @@ function migrateAbsenNamaKeNis() {
   Logger.log(ringkasan);
   return ringkasan;
 }
+
+// =========================================================
+// PEMULIHAN DARURAT: absen mentah terhapus tidak sengaja,
+// tapi rekap-nya (Rekap_Master_... atau Rekap_Backup_..._<tanggal>)
+// masih ada di Drive.
+// ---------------------------------------------------------
+// Fungsi ini membaca 1 TAB dari file rekap tsb (isinya sudah dalam
+// bentuk NIS, Nama, L/P, status H/I/S/A per tanggal pertemuan, total --
+// lihat generateFullRecap() di Rekap.gs), lalu menulis ULANG baris-baris
+// absen mentahnya lewat getAbsenSs()/getOrCreateSheet() -- JALUR YANG
+// SAMA seperti submit absen biasa -- sehingga otomatis ter-provisioning
+// ke spreadsheet grup yang benar (dibuatkan baru kalau memang belum ada).
+//
+// KETERBATASAN (bukan restore 100% identik ke kondisi semula):
+//  - Kolom "Nama Guru" asli TIDAK tersimpan di rekap -> diisi placeholder
+//    "Dipulihkan dari Rekap (otomatis)".
+//  - Kolom "Timestamp" asli TIDAK tersimpan di rekap -> diisi waktu saat
+//    pemulihan dijalankan, BUKAN waktu submit aslinya.
+//  - Absen yang disubmit SETELAH rekap TERAKHIR kali jalan (trigger
+//    mingguan, Sabtu 20:00 -- lihat Trigger.gs) tapi SEBELUM file
+//    mentahnya terhapus TIDAK IKUT terpulihkan, karena datanya memang
+//    belum sempat masuk ke rekap manapun. Kalau ada beberapa
+//    Rekap_Backup dengan tanggal berbeda untuk sheet yang sama, pakai
+//    yang PALING BARU supaya kehilangan datanya paling minim.
+//
+// CARA PAKAI -- jalankan manual 1x dari editor Apps Script. Kelas & mapel
+// WAJIB diisi eksplisit (TIDAK ditebak otomatis dari nama tab), karena
+// nama tab "XI_DKV_1_DKV" ambigu untuk dipisah balik jadi kelas "XI DKV 1"
+// + mapel "DKV" secara otomatis dengan aman:
+//
+//   pulihkanAbsenDariRekap({
+//     spreadsheetIdRekap: 'ID_SPREADSHEET_REKAP_MASTER_ATAU_BACKUP',
+//     namaSheetDiRekap: 'XI_DKV_1_DKV',   // nama tab PERSIS di file rekap
+//     kelas: 'XI DKV 1',
+//     mapel: 'DKV'
+//   });
+// =========================================================
+function pulihkanAbsenDariRekap(opsi) {
+  const ssRekap = SpreadsheetApp.openById(opsi.spreadsheetIdRekap);
+  const sheet = ssRekap.getSheetByName(opsi.namaSheetDiRekap);
+  if (!sheet) {
+    throw new Error('Sheet "' + opsi.namaSheetDiRekap + '" tidak ditemukan di spreadsheet rekap tersebut -- cek lagi nama tab-nya persis seperti apa di file rekap.');
+  }
+
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) return 'Sheet rekap kosong, tidak ada yang dipulihkan.';
+
+  const header = data[0];
+  const KOLOM_TANGGAL_MULAI = 3; // 0=NIS, 1=NAMA SISWA, 2=L/P
+  const kolomTanggalAkhir = header.length - 4; // 4 kolom terakhir = JML HADIR/IZIN/SAKIT/ALPA
+
+  // Header kolom tanggal formatnya "dd/MM/yyyy" polos (absen harian wali
+  // kelas) ATAU "PERTEMUAN N\n(dd/MM/yyyy)" (absen per mapel) -- keduanya
+  // mengandung pola dd/MM/yyyy, jadi cukup 1 regex untuk keduanya.
+  const tanggalPerKolom = [];
+  for (let c = KOLOM_TANGGAL_MULAI; c < kolomTanggalAkhir; c++) {
+    const h = String(header[c] || '');
+    const m = h.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+    tanggalPerKolom.push(m ? (m[3] + '-' + m[2] + '-' + m[1]) : null); // -> yyyy-MM-dd
+  }
+
+  // Kumpulkan NIS per status per tanggal (invers dari tabel rekap: rekap
+  // 1 baris = 1 siswa lintas semua tanggal; absen mentah 1 baris = 1
+  // tanggal lintas semua siswa).
+  const perTanggal = {}; // { "yyyy-MM-dd": {H:[], I:[], S:[], A:[]} }
+  for (let r = 1; r < data.length; r++) {
+    const row = data[r];
+    const nis = String(row[0] || '').trim();
+    if (!nis) continue;
+    for (let c = 0; c < tanggalPerKolom.length; c++) {
+      const tgl = tanggalPerKolom[c];
+      if (!tgl) continue;
+      const status = String(row[KOLOM_TANGGAL_MULAI + c] || '').trim().toUpperCase();
+      if (!['H', 'I', 'S', 'A'].includes(status)) continue; // "-" (belum diabsen) dilewati
+      if (!perTanggal[tgl]) perTanggal[tgl] = { H: [], I: [], S: [], A: [] };
+      perTanggal[tgl][status].push(nis);
+    }
+  }
+
+  const waktuPemulihan = new Date();
+  let jumlahDipulihkan = 0;
+
+  Object.keys(perTanggal).sort().forEach(function(tgl) {
+    const s = perTanggal[tgl];
+    const ssTujuan = getAbsenSs(opsi.kelas, tgl); // auto-provision kalau grupnya belum ada
+    const sheetNameTujuan = (opsi.kelas + "_" + opsi.mapel).replace(/[^a-zA-Z0-9]/g, "_");
+    const sheetTujuan = getOrCreateSheet(ssTujuan, sheetNameTujuan);
+
+    const rowData = [
+      waktuPemulihan,
+      'Dipulihkan dari Rekap (otomatis)',
+      opsi.mapel,
+      opsi.kelas,
+      tgl,
+      s.H.join(', '),
+      s.I.join(', '),
+      s.S.join(', '),
+      s.A.join(', ')
+    ];
+    sheetTujuan.appendRow(rowData);
+    jumlahDipulihkan++;
+  });
+
+  const ringkasan = 'Berhasil memulihkan ' + jumlahDipulihkan + ' baris absen (per tanggal pertemuan) untuk kelas "' + opsi.kelas + '" mapel "' + opsi.mapel + '", dari sheet "' + opsi.namaSheetDiRekap + '" di file rekap tsb.';
+  Logger.log(ringkasan);
+  return ringkasan;
+}
