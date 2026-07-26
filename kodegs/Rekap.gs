@@ -10,6 +10,33 @@ function generateFullRecap() {
   const timestamp = Utilities.formatDate(new Date(), "GMT+7", "yyyy-MM-dd_HH-mm");
   let processedCount = 0;
 
+  // PATCH RAPI-RAPI DRIVE: folderMaster & folderBackup ini SENGAJA folder
+  // permanen berdiri sendiri, TIDAK ikut diputar per tahun ajaran seperti
+  // DRIVE_FOLDER_ABSEN_ROOT_ID -- karena fungsi ini memproses SEMUA grup
+  // dari SEMUA tahun ajaran tiap kali jalan (lihat getAllAbsenSpreadsheets()
+  // di bawah), jadi kalau folder ini ikut ditaruh di dalam folder root
+  // tahunan yang aktif SEKARANG, rekap data tahun-tahun LAMA yang
+  // kebetulan ikut diproses ulang minggu ini akan salah tersimpan ke
+  // folder tahun yang SEDANG aktif, bukan folder tahun yang sesuai
+  // datanya. Supaya tetap rapi meski jadi 1 folder permanen (bisa
+  // menumpuk banyak file lintas tahun), dibuat subfolder PER JURUSAN di
+  // dalamnya -- di-cache per eksekusi supaya tidak cari folder yang sama
+  // berulang-ulang ke Drive API untuk tiap sheet yang diproses.
+  const masterJurusanFolderCache = {};
+  const backupJurusanFolderCache = {};
+  function ambilFolderJurusanMaster(jurusan) {
+    if (!masterJurusanFolderCache[jurusan]) {
+      masterJurusanFolderCache[jurusan] = getOrCreateSubfolder(folderMaster, jurusan);
+    }
+    return masterJurusanFolderCache[jurusan];
+  }
+  function ambilFolderJurusanBackup(jurusan) {
+    if (!backupJurusanFolderCache[jurusan]) {
+      backupJurusanFolderCache[jurusan] = getOrCreateSubfolder(folderBackup, jurusan);
+    }
+    return backupJurusanFolderCache[jurusan];
+  }
+
   // PATCH SKALABILITAS: dulu 1 spreadsheet absen -> ss.getSheets() bisa
   // sampai ratusan tab sekaligus dalam 1 eksekusi (risiko kena limit
   // waktu eksekusi Apps Script, 6 menit/akun biasa atau 30 menit/
@@ -26,6 +53,7 @@ function generateFullRecap() {
 
     const mapel = absenData[1][2];
     const kelas = absenData[1][3];
+    const jurusan = getJurusanFromKelas(kelas);
 
     const masterSheetRef = ssMaster.getSheetByName(kelas);
     if (!masterSheetRef) return;
@@ -133,11 +161,12 @@ function generateFullRecap() {
     rangeBackup.setValues(rowData);
     rangeBackup.setBackgrounds(colorData);
     formatRecapSheet(backupTargetSheet, uniqueDates.length);
-    DriveApp.getFileById(backupSs.getId()).moveTo(folderBackup);
+    DriveApp.getFileById(backupSs.getId()).moveTo(ambilFolderJurusanBackup(jurusan));
 
     const masterFileName = `Rekap_Master_${grup.groupKey}_${sheetName}`;
+    const folderMasterJurusan = ambilFolderJurusanMaster(jurusan);
     let masterSs;
-    const masterFiles = folderMaster.getFilesByName(masterFileName);
+    const masterFiles = folderMasterJurusan.getFilesByName(masterFileName);
     let isNewMaster = false;
     if (masterFiles.hasNext()) {
       masterSs = SpreadsheetApp.openById(masterFiles.next().getId());
@@ -156,7 +185,7 @@ function generateFullRecap() {
     rangeMaster.setBackgrounds(colorData);
     formatRecapSheet(masterTargetSheet, uniqueDates.length);
     if (isNewMaster) {
-      DriveApp.getFileById(masterSs.getId()).moveTo(folderMaster);
+      DriveApp.getFileById(masterSs.getId()).moveTo(folderMasterJurusan);
     }
     processedCount++;
     }); // tutup absenSheets.forEach
@@ -173,18 +202,31 @@ function generateFullRecap() {
 
 function cleanupOldBackups() {
   const folderBackup = DriveApp.getFolderById(DRIVE_FOLDER_BACKUP_ID);
-  const files = folderBackup.getFiles();
   const batasWaktu = new Date();
   batasWaktu.setDate(batasWaktu.getDate() - BACKUP_RETENTION_DAYS);
-
   let dihapus = 0;
-  while (files.hasNext()) {
-    const file = files.next();
-    if (file.getDateCreated() < batasWaktu) {
-      file.setTrashed(true);
-      dihapus++;
+
+  function bersihkanFileDalamFolder(folder) {
+    const files = folder.getFiles();
+    while (files.hasNext()) {
+      const file = files.next();
+      if (file.getDateCreated() < batasWaktu) {
+        file.setTrashed(true);
+        dihapus++;
+      }
     }
   }
+
+  // PATCH: backup sekarang ditaruh di subfolder PER JURUSAN (lihat
+  // generateFullRecap()), bukan langsung di folderBackup -- jadi perlu
+  // masuk ke tiap subfolder juga, tidak cukup cek folder induknya saja
+  // (Folder.getFiles() TIDAK menjangkau isi subfolder secara otomatis).
+  bersihkanFileDalamFolder(folderBackup); // jaga-jaga kalau ada file lama sisa sebelum ada subfolder jurusan
+  const subfolders = folderBackup.getFolders();
+  while (subfolders.hasNext()) {
+    bersihkanFileDalamFolder(subfolders.next());
+  }
+
   return dihapus;
 }
 
