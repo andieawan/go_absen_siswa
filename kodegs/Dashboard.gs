@@ -19,6 +19,31 @@ function hitungDistribusiPersen(jumlah) {
   };
 }
 
+// Bangun 4 daftar "Perlu Perhatian" (Sering Alpa / Sering Izin / Sering
+// Sakit / Jarang Masuk gabungan) dari peta hitungan status per siswa
+// ({ key: {alpa, izin, sakit} }). `resolveNama(key)` menentukan cara
+// mengubah key jadi teks nama yang ditampilkan (beda antara level
+// gabungan -- key "kelas|nis" -- dan level per kombinasi -- key NIS saja).
+// Field hasil tetap dinamai `jumlahAlpa` (bukan diganti `jumlah` generik)
+// supaya kompatibel dengan renderTopAlpaList() di frontend yang juga
+// dipakai Dashboard Wali Kelas -- di sini artinya "jumlah kejadian status
+// yang bersangkutan", bukan selalu benar-benar Alpa.
+function bangunDaftarPerhatian(counterMap, resolveNama) {
+  function daftarUntuk(ambilJumlah) {
+    return Object.keys(counterMap)
+      .map(key => ({ nama: resolveNama(key), jumlahAlpa: ambilJumlah(counterMap[key]) }))
+      .filter(item => item.jumlahAlpa > 0)
+      .sort((a, b) => b.jumlahAlpa - a.jumlahAlpa)
+      .slice(0, 10);
+  }
+  return {
+    alpa: daftarUntuk(c => c.alpa),
+    izin: daftarUntuk(c => c.izin),
+    sakit: daftarUntuk(c => c.sakit),
+    jarangMasuk: daftarUntuk(c => c.alpa + c.izin + c.sakit)
+  };
+}
+
 // --- DASHBOARD (per mapel) ---
 function getDashboardData(mapelListStr, kelasListStr) {
   let mapelList = mapelListStr.split(',').map(s => s.trim()).filter(s => s !== "");
@@ -30,7 +55,12 @@ function getDashboardData(mapelListStr, kelasListStr) {
   const tglHariIni = todayISO();
 
   let rekapKelasMapel = [];
-  let siswaAlpaCount = {};
+  // PATCH: dulu cuma melacak Alpa (siswaAlpaCount). Sekarang melacak
+  // ketiga status non-hadir per siswa (alpa, izin, sakit) sekaligus,
+  // supaya "Perlu Perhatian" bisa dipecah jadi beberapa kategori
+  // terpisah (Sering Alpa / Sering Izin / Sering Sakit / Jarang Masuk),
+  // bukan cuma Alpa saja. Key sama seperti sebelumnya: "kelas|nis".
+  let siswaStatusCount = {}; // { "kelas|nis": {alpa, izin, sakit} }
   let trendMap = {};
   let perKombinasi = {}; // BARU: breakdown tren & top-alpa PER kelas+mapel,
                           // dipakai frontend saat 1 kartu "Persentase
@@ -61,7 +91,25 @@ function getDashboardData(mapelListStr, kelasListStr) {
 
       let agg = { hadir: 0, izin: 0, sakit: 0, alpa: 0, pertemuan: 0 };
       const trendMapKombinasi = {};
-      const siswaAlpaCountKombinasi = {};
+      // PATCH: sama seperti siswaStatusCount di atas, tapi dibatasi ke
+      // 1 kombinasi kelas+mapel ini saja (key cukup NIS, tidak perlu
+      // "kelas|nis" karena sudah pasti 1 kelas).
+      const siswaStatusCountKombinasi = {}; // { nis: {alpa, izin, sakit} }
+
+      // Fungsi kecil supaya 3 blok pencatatan (alpa/izin/sakit) di bawah
+      // tidak mengulang logika yang sama 3x secara terpisah.
+      function catatStatus(strDaftar, jenisStatus) {
+        if (!strDaftar) return;
+        strDaftar.split(',').forEach(nis => {
+          const nisTrim = nis.trim();
+          if (!nisTrim) return;
+          const keyGlobal = kelas + "|" + nisTrim;
+          if (!siswaStatusCount[keyGlobal]) siswaStatusCount[keyGlobal] = { alpa: 0, izin: 0, sakit: 0 };
+          siswaStatusCount[keyGlobal][jenisStatus]++;
+          if (!siswaStatusCountKombinasi[nisTrim]) siswaStatusCountKombinasi[nisTrim] = { alpa: 0, izin: 0, sakit: 0 };
+          siswaStatusCountKombinasi[nisTrim][jenisStatus]++;
+        });
+      }
 
       for (let i = 1; i < data.length; i++) {
         let rawDate = data[i][4];
@@ -86,15 +134,9 @@ function getDashboardData(mapelListStr, kelasListStr) {
         agg.alpa += alpaCount;
         agg.pertemuan++;
 
-        if (strAlpa) {
-          strAlpa.split(',').forEach(nis => {
-            const nisTrim = nis.trim();
-            if (!nisTrim) return;
-            let key = kelas + "|" + nisTrim;
-            siswaAlpaCount[key] = (siswaAlpaCount[key] || 0) + 1;
-            siswaAlpaCountKombinasi[nisTrim] = (siswaAlpaCountKombinasi[nisTrim] || 0) + 1;
-          });
-        }
+        catatStatus(strAlpa, 'alpa');
+        catatStatus(strIzin, 'izin');
+        catatStatus(strSakit, 'sakit');
 
         if (!trendMap[tanggalStr]) trendMap[tanggalStr] = { hadir: 0, izin: 0, sakit: 0, alpa: 0 };
         trendMap[tanggalStr].hadir += hadirCount;
@@ -120,13 +162,10 @@ function getDashboardData(mapelListStr, kelasListStr) {
         pertemuan: agg.pertemuan, persenHadir: persenHadir
       });
 
-      const topAlpaKombinasi = Object.keys(siswaAlpaCountKombinasi)
-        .map(nis => ({
-          nama: (namaMapKelasIni[nis] || ("NIS " + nis)) + " (" + kelas + ")",
-          jumlahAlpa: siswaAlpaCountKombinasi[nis]
-        }))
-        .sort((a, b) => b.jumlahAlpa - a.jumlahAlpa)
-        .slice(0, 10);
+      const perhatianKombinasi = bangunDaftarPerhatian(
+        siswaStatusCountKombinasi,
+        nis => (namaMapKelasIni[nis] || ("NIS " + nis)) + " (" + kelas + ")"
+      );
 
       const trendKombinasi = Object.keys(trendMapKombinasi)
         .sort((a, b) => new Date(a) - new Date(b))
@@ -142,7 +181,10 @@ function getDashboardData(mapelListStr, kelasListStr) {
       // (beda dengan "_" yang justru sering muncul di nama kelas/mapel).
       perKombinasi[kelas + "|" + mapel] = {
         trend: trendKombinasi,
-        topAlpa: topAlpaKombinasi,
+        // GANTI: dulu cuma topAlpa (1 daftar). Sekarang perhatian (4
+        // daftar terpisah: alpa/izin/sakit/jarangMasuk) -- lihat
+        // bangunDaftarPerhatian() di atas.
+        perhatian: perhatianKombinasi,
         // BARU: distribusi H/I/S/A (persen) khusus kombinasi ini -- format
         // sama seperti `rataRata` di getDashboardDataWali(), supaya bisa
         // dirender pakai fungsi renderDistribusiStatus() yang sama.
@@ -155,15 +197,12 @@ function getDashboardData(mapelListStr, kelasListStr) {
     return { success: false, message: "Belum ada data absensi untuk ditampilkan." };
   }
 
-  let topAlpa = Object.keys(siswaAlpaCount)
-    .map(k => {
-      let [kelasKey, nis] = k.split("|");
-      if (!nisKeNamaCache[kelasKey]) nisKeNamaCache[kelasKey] = getNisKeNamaMap(kelasKey);
-      let nama = nisKeNamaCache[kelasKey][nis] || ("NIS " + nis);
-      return { nama: nama + " (" + kelasKey + ")", jumlahAlpa: siswaAlpaCount[k] };
-    })
-    .sort((a, b) => b.jumlahAlpa - a.jumlahAlpa)
-    .slice(0, 10);
+  const perhatian = bangunDaftarPerhatian(siswaStatusCount, key => {
+    const [kelasKey, nis] = key.split("|");
+    if (!nisKeNamaCache[kelasKey]) nisKeNamaCache[kelasKey] = getNisKeNamaMap(kelasKey);
+    const nama = nisKeNamaCache[kelasKey][nis] || ("NIS " + nis);
+    return nama + " (" + kelasKey + ")";
+  });
 
   let trend = Object.keys(trendMap)
     .sort((a, b) => new Date(a) - new Date(b))
@@ -184,7 +223,7 @@ function getDashboardData(mapelListStr, kelasListStr) {
   }, { hadir: 0, izin: 0, sakit: 0, alpa: 0 });
   const rataRata = hitungDistribusiPersen(totalGabungan);
 
-  return { success: true, data: { rekapKelasMapel, topAlpa, trend, perKombinasi, rataRata } };
+  return { success: true, data: { rekapKelasMapel, perhatian, trend, perKombinasi, rataRata } };
 }
 
 // =========================================================
