@@ -33,7 +33,7 @@ function getStudents(kelas) {
 }
 
 function getExistingAttendance(guru, mapel, kelas, tanggal) {
-  let ss = getAbsenSs();
+  let ss = getAbsenSs(kelas, tanggal);
   let sheetName = (kelas + "_" + mapel).replace(/[^a-zA-Z0-9]/g, "_");
   let sheet = ss.getSheetByName(sheetName);
   if (!sheet) return { success: true, data: null };
@@ -69,7 +69,34 @@ function handleSubmit(payload) {
     return { success: false, message: "Data absensi siswa tidak valid." };
   }
 
-  let ss = getAbsenSs();
+  // PATCH KONKURENSI: sebelumnya tidak ada penguncian sama sekali di
+  // sini, padahal alurnya baca dulu (cari baris tanggal yang cocok) baru
+  // tulis (appendRow / setValues) -- kalau 2 permintaan nyaris bersamaan
+  // masuk untuk kelas+mapel+tanggal yang SAMA (mis. submit dobel karena
+  // koneksi lambat & user klik ulang), keduanya bisa sama-sama menyimpulkan
+  // "belum ada baris" lalu sama-sama appendRow -> baris duplikat, atau
+  // saling menimpa. LockService.getScriptLock() menyerialkan seluruh
+  // proses baca-putuskan-tulis di bawah ini lintas semua permintaan yang
+  // sedang berjalan di script ini (skala absen sekolah masih jauh dari
+  // volume yang bikin ini jadi bottleneck berarti).
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000); // tunggu maksimal 10 detik
+  } catch (e) {
+    return { success: false, message: "Server sedang memproses absen lain, silakan coba lagi beberapa saat." };
+  }
+
+  try {
+    return simpanSubmitAbsensi(payload);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+// Logika penyimpanan sebenarnya, dipisah dari handleSubmit() supaya
+// bagian ini bisa dibungkus rapi oleh try/finally LockService di atas.
+function simpanSubmitAbsensi(payload) {
+  let ss = getAbsenSs(payload.kelas, payload.tanggal);
   let sheetName = (payload.kelas + "_" + payload.mapel).replace(/[^a-zA-Z0-9]/g, "_");
   let sheet = getOrCreateSheet(ss, sheetName);
   let data = sheet.getDataRange().getValues();
@@ -141,7 +168,15 @@ function handleSubmit(payload) {
 
 // --- RIWAYAT ---
 function getRiwayatAbsensi(mapel, kelas) {
-  let ss = getAbsenSs();
+  // CATATAN: fungsi ini tidak dipanggil dengan tanggal spesifik (dipakai
+  // untuk lihat riwayat kelas+mapel yang SEDANG berjalan), jadi dipakai
+  // grup semester HARI INI (todayISO(), lihat Utils.gs). Kalau butuh
+  // riwayat dari semester yang sudah diarsipkan (grup lama), fungsi ini
+  // TIDAK menjangkau ke sana secara otomatis -- itu memang tujuan
+  // pengarsipan per semester (lihat catatan getAbsenGroupKey() di
+  // Config.gs). Untuk rekap lintas-semester, unduh rekap resmi lewat
+  // generateFullRecap()/getRekapKelasSaya() sebelum semester ditutup.
+  let ss = getAbsenSs(kelas, todayISO());
   let sheetName = (kelas + "_" + mapel).replace(/[^a-zA-Z0-9]/g, "_");
   let sheet = ss.getSheetByName(sheetName);
   if (!sheet) return { success: true, data: [] };
