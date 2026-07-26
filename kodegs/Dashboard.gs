@@ -6,7 +6,11 @@
 function getDashboardData(mapelListStr, kelasListStr) {
   let mapelList = mapelListStr.split(',').map(s => s.trim()).filter(s => s !== "");
   let kelasList = kelasListStr.split(',').map(s => s.trim()).filter(s => s !== "");
-  let ss = getAbsenSs();
+  // PATCH SKALABILITAS: dulu 1 `ss` dipakai untuk semua kelas. Sekarang
+  // tiap kelas bisa ada di grup (angkatan+semester) spreadsheet yang
+  // berbeda, jadi ss diambil PER KELAS di dalam loop, pakai grup
+  // semester HARI INI (dashboard menampilkan data terkini).
+  const tglHariIni = todayISO();
 
   let rekapKelasMapel = [];
   let siswaAlpaCount = {};
@@ -15,6 +19,15 @@ function getDashboardData(mapelListStr, kelasListStr) {
   let nisKeNamaCache = {};
 
   kelasList.forEach(kelas => {
+    let ss;
+    try {
+      ss = getAbsenSs(kelas, tglHariIni);
+    } catch (e) {
+      // Grup untuk kelas ini belum dikonfigurasi (lihat Config.gs) --
+      // lewati saja supaya kelas lain yang sudah siap tetap tampil,
+      // daripada seluruh dashboard gagal karena 1 kelas belum di-setup.
+      return;
+    }
     mapelList.forEach(mapel => {
       let sheetName = (kelas + "_" + mapel).replace(/[^a-zA-Z0-9]/g, "_");
       let sheet = ss.getSheetByName(sheetName);
@@ -112,7 +125,7 @@ function getDashboardData(mapelListStr, kelasListStr) {
 // - totalSiswa: jumlah siswa di kelas (dari Data Master)
 // =========================================================
 function getDashboardDataWali(kelas) {
-  const ss = getAbsenSs();
+  const ss = getAbsenSs(kelas, todayISO());
   const sheetName = (kelas + "_" + MAPEL_ABSEN_WALI).replace(/[^a-zA-Z0-9]/g, "_");
   const sheet = ss.getSheetByName(sheetName);
 
