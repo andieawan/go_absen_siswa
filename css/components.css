@@ -379,6 +379,30 @@
   color: var(--primary-color);
 }
 
+/* PATCH: "Perlu Perhatian" dipecah jadi 4 kategori terpisah (Sering
+   Alpa/Izin/Sakit + Jarang Masuk gabungan) -- lihat renderPerhatianEmpat()
+   & fokuskanKategoriPerhatian() di dashboard.js. Tiap kategori diberi
+   jarak & garis pemisah tipis supaya jelas ini daftar yang BERBEDA,
+   bukan 1 daftar campur aduk. */
+.perhatian-kategori {
+  margin-bottom: var(--spacing-5);
+  padding-bottom: var(--spacing-4);
+  border-bottom: 1px solid var(--gray-100);
+}
+
+.perhatian-kategori:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.perhatian-kategori h5 {
+  margin: 0 0 var(--spacing-2) 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--gray-600);
+}
+
 .stat-icon {
   width: 48px;
   height: 48px;
