@@ -7,10 +7,15 @@
 // =========================================================
 
 function migrateAbsenNamaKeNis() {
-  const ssAbsen = getAbsenSs();
   // PATCH INTEGRASI: data siswa di spreadsheet Master Siswa terpisah.
   const ssMaster = getMasterSiswaSs();
-  const sheets = ssAbsen.getSheets();
+  // PATCH SKALABILITAS: dulu 1 spreadsheet absen tunggal, sekarang
+  // dipecah per grup angkatan+semester (lihat Config.gs) -- migrasi
+  // one-off ini perlu jalan ke SEMUA grup yang sudah dikonfigurasi.
+  const sheets = [];
+  getAllAbsenSpreadsheets().forEach(function(grup) {
+    grup.ss.getSheets().forEach(function(sheet) { sheets.push(sheet); });
+  });
   const laporan = [];
   const masterMapCache = {};
 
