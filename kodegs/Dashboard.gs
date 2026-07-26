@@ -15,6 +15,9 @@ function getDashboardData(mapelListStr, kelasListStr) {
   let rekapKelasMapel = [];
   let siswaAlpaCount = {};
   let trendMap = {};
+  let perKombinasi = {}; // BARU: breakdown tren & top-alpa PER kelas+mapel,
+                          // dipakai frontend saat 1 kartu "Persentase
+                          // Kehadiran (Per Mapel)" diklik.
   let adaData = false;
   let nisKeNamaCache = {};
 
@@ -28,6 +31,9 @@ function getDashboardData(mapelListStr, kelasListStr) {
       // daripada seluruh dashboard gagal karena 1 kelas belum di-setup.
       return;
     }
+    if (!nisKeNamaCache[kelas]) nisKeNamaCache[kelas] = getNisKeNamaMap(kelas);
+    const namaMapKelasIni = nisKeNamaCache[kelas];
+
     mapelList.forEach(mapel => {
       let sheetName = (kelas + "_" + mapel).replace(/[^a-zA-Z0-9]/g, "_");
       let sheet = ss.getSheetByName(sheetName);
@@ -37,6 +43,8 @@ function getDashboardData(mapelListStr, kelasListStr) {
       if (data.length <= 1) return;
 
       let agg = { hadir: 0, izin: 0, sakit: 0, alpa: 0, pertemuan: 0 };
+      const trendMapKombinasi = {};
+      const siswaAlpaCountKombinasi = {};
 
       for (let i = 1; i < data.length; i++) {
         let rawDate = data[i][4];
@@ -67,6 +75,7 @@ function getDashboardData(mapelListStr, kelasListStr) {
             if (!nisTrim) return;
             let key = kelas + "|" + nisTrim;
             siswaAlpaCount[key] = (siswaAlpaCount[key] || 0) + 1;
+            siswaAlpaCountKombinasi[nisTrim] = (siswaAlpaCountKombinasi[nisTrim] || 0) + 1;
           });
         }
 
@@ -75,6 +84,12 @@ function getDashboardData(mapelListStr, kelasListStr) {
         trendMap[tanggalStr].izin += izinCount;
         trendMap[tanggalStr].sakit += sakitCount;
         trendMap[tanggalStr].alpa += alpaCount;
+
+        if (!trendMapKombinasi[tanggalStr]) trendMapKombinasi[tanggalStr] = { hadir: 0, izin: 0, sakit: 0, alpa: 0 };
+        trendMapKombinasi[tanggalStr].hadir += hadirCount;
+        trendMapKombinasi[tanggalStr].izin += izinCount;
+        trendMapKombinasi[tanggalStr].sakit += sakitCount;
+        trendMapKombinasi[tanggalStr].alpa += alpaCount;
       }
 
       let total = agg.hadir + agg.izin + agg.sakit + agg.alpa;
@@ -82,9 +97,33 @@ function getDashboardData(mapelListStr, kelasListStr) {
 
       rekapKelasMapel.push({
         label: kelas + " - " + mapel,
+        kelas: kelas,
+        mapel: mapel,
         hadir: agg.hadir, izin: agg.izin, sakit: agg.sakit, alpa: agg.alpa,
         pertemuan: agg.pertemuan, persenHadir: persenHadir
       });
+
+      const topAlpaKombinasi = Object.keys(siswaAlpaCountKombinasi)
+        .map(nis => ({
+          nama: (namaMapKelasIni[nis] || ("NIS " + nis)) + " (" + kelas + ")",
+          jumlahAlpa: siswaAlpaCountKombinasi[nis]
+        }))
+        .sort((a, b) => b.jumlahAlpa - a.jumlahAlpa)
+        .slice(0, 10);
+
+      const trendKombinasi = Object.keys(trendMapKombinasi)
+        .sort((a, b) => new Date(a) - new Date(b))
+        .map(tgl => {
+          const d = trendMapKombinasi[tgl];
+          const t = d.hadir + d.izin + d.sakit + d.alpa;
+          const p = t > 0 ? Math.round((d.hadir / t) * 1000) / 10 : 0;
+          return { tanggal: tgl, persenHadir: p };
+        });
+
+      // Kunci "kelas|mapel" -- dipakai frontend saat kartu diklik. Pemisah
+      // "|" dipilih karena tidak mungkin muncul di nama kelas/mapel biasa
+      // (beda dengan "_" yang justru sering muncul di nama kelas/mapel).
+      perKombinasi[kelas + "|" + mapel] = { trend: trendKombinasi, topAlpa: topAlpaKombinasi };
     });
   });
 
@@ -111,7 +150,7 @@ function getDashboardData(mapelListStr, kelasListStr) {
       return { tanggal: tgl, persenHadir: persenHadir };
     });
 
-  return { success: true, data: { rekapKelasMapel, topAlpa, trend } };
+  return { success: true, data: { rekapKelasMapel, topAlpa, trend, perKombinasi } };
 }
 
 // =========================================================
