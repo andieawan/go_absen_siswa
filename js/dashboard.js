@@ -28,7 +28,7 @@
  * =========================================================
  */
 
-import { getDashboardData, getDashboardDataWali, getCurrentUser } from './api.js';
+import { getDashboardData, getDashboardDataWali, getCurrentUser } from './api.js?v=20260726';
 // PATCH PERFORMA: escapeHtml dipakai dari utils.js (regex string-replace),
 // bukan implementasi lokal yang sebelumnya ada di file ini. Implementasi
 // lama membuat elemen <div> DOM baru pada SETIAP pemanggilan (lihat riwayat
@@ -36,7 +36,7 @@ import { getDashboardData, getDashboardDataWali, getCurrentUser } from './api.js
 // terpanggil berulang kali di dalam .map()/.forEach() saat merender daftar
 // topAlpa & rekap kelas/mapel. Juga menghapus duplikasi kode yang sama
 // persis fungsinya dengan utils.js.
-import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js';
+import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260726';
 
 // Cache untuk data dashboard
 let dashboardCache = {
