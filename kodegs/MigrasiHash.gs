@@ -47,11 +47,15 @@ function migrasiHashPassword() {
     // Hash password dengan salt
     const passwordHash = hashPassword(passwordPlaintext, salt);
     sheet.getRange(i + 1, 8).setValue(passwordHash); // Kolom H
-    
-    // Opsional: kosongkan kolom password plaintext setelah migrasi
-    // Uncomment baris berikut jika ingin menghapus password plaintext:
-    // sheet.getRange(i + 1, 2).clearContent(); // Kolom B
-    
+
+    // PATCH KEAMANAN: kosongkan kolom password plaintext (kolom B) setelah
+    // berhasil di-hash -- sebelumnya baris ini sengaja di-comment ("opsional"),
+    // sehingga password asli guru tetap tersimpan mentah di sheet selamanya
+    // walau login sudah memakai hash. Sekarang selalu dibersihkan begitu hash
+    // berhasil ditulis, supaya siapa pun yang punya akses ke spreadsheet tidak
+    // bisa lagi membaca password asli secara langsung.
+    sheet.getRange(i + 1, 2).clearContent(); // Kolom B
+
     totalDiubah++;
     laporan.push('OK: User "' + username + '" berhasil di-hash.');
   }
@@ -86,9 +90,12 @@ function resetPasswordUser(username, newPassword) {
       sheet.getRange(i + 1, 7).setValue(salt);
       // Set password hash di kolom H
       sheet.getRange(i + 1, 8).setValue(passwordHash);
-      // Opsional: kosongkan password plaintext di kolom B
-      // sheet.getRange(i + 1, 2).clearContent();
-      
+      // PATCH KEAMANAN: kosongkan kolom B -- sebelumnya dibiarkan (opsional,
+      // di-comment), sehingga kolom ini tetap menyimpan password LAMA yang
+      // sudah tidak berlaku sama sekali (bukan cuma tidak rahasia lagi, tapi
+      // juga menyesatkan kalau ada yang mengira itu password yang masih aktif).
+      sheet.getRange(i + 1, 2).clearContent();
+
       return 'Password untuk user "' + username + '" berhasil direset.';
     }
   }
