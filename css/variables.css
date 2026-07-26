@@ -3,21 +3,39 @@
    ========================================= */
 
 :root {
-  /* Warna Primer */
-  --primary-color: #4361ee;
-  --primary-dark: #3a56d4;
-  --primary-light: #5e7cf5;
-  
-  /* Warna Sekunder */
-  --secondary-color: #7209b7;
-  --secondary-dark: #5f0596;
-  --secondary-light: #8f2cc9;
-  
-  /* Warna Status */
-  --success-color: #06d6a0;
-  --warning-color: #ffd166;
-  --danger-color: #ef476f;
-  --info-color: #118ab2;
+  /* Warna Primer
+     PATCH DESAIN: primary sebelumnya #4361ee (indigo terang) + secondary
+     #7209b7 (ungu) dengan gradient diagonal di layar login -- kombinasi ini
+     adalah default palet SaaS/template yang sangat umum dan tidak
+     mencerminkan identitas aplikasi absensi sekolah ini secara spesifik.
+     Diganti dengan navy-slate yang lebih institusional/tenang (cocok untuk
+     konteks sekolah, dipakai guru berulang kali tiap hari -- bukan halaman
+     marketing yang perlu menarik perhatian sesaat). */
+  --primary-color: #33427A;
+  --primary-dark: #262F5C;
+  --primary-light: #5A6BA8;
+  --primary-color-rgb: 51, 66, 122;
+
+  /* Warna Sekunder — dipakai untuk aksen/CTA sekunder (mis. tombol unduh
+     rekap), sengaja beda keluarga warna dari primary (bukan lagi ungu satu
+     keluarga dengan indigo) supaya benar-benar terasa sebagai aksen, bukan
+     variasi tone dari warna utama. */
+  --secondary-color: #B5563C;
+  --secondary-dark: #954632;
+  --secondary-light: #CE7A63;
+  --secondary-color-rgb: 181, 86, 60;
+
+  /* Warna Status
+     Dipertahankan pemetaan makna yang SUDAH BENAR di js/utils.js:
+     Hadir=success, Izin=warning, Sakit=info, Alpa=danger -- hanya nuansa
+     warnanya diperhalus supaya (a) beda cukup jauh dari primary/secondary
+     yang baru supaya tidak tertukar maknanya, dan (b) kontras tulisannya
+     lebih baik di atas putih. */
+  --success-color: #1E9E6D;
+  --warning-color: #D97706;
+  --danger-color: #D6414C;
+  --info-color: #2C7DA0;
+  --error-color: var(--danger-color);
   
   /* Warna Netral */
   --white: #ffffff;
@@ -33,14 +51,23 @@
   --gray-900: #111827;
   --black: #000000;
   
-  /* Background & Surface */
-  --bg-gradient-start: #f0f4ff;
-  --bg-gradient-end: #e0e7ff;
+  /* Background & Surface
+     PATCH: tint sebelumnya (#f0f4ff -> #e0e7ff) adalah tint indigo yang
+     sama persis dengan keluarga warna primary lama -- diselaraskan ke tint
+     netral-hangat yang beririsan tipis dengan navy baru, bukan warna primary
+     yang "dibuat pucat". */
+  --bg-gradient-start: #F7F7F5;
+  --bg-gradient-end: #ECEEF3;
   --surface-color: var(--white);
   --card-bg: var(--white);
   
-  /* Typography */
-  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  /* Typography
+     PATCH: sebelumnya di-set ke 'Inter', padahal font yang benar-benar
+     di-load lewat <link> di index.html adalah 'Plus Jakarta Sans' -- Inter
+     tidak pernah di-load sama sekali. Akibatnya seluruh app diam-diam
+     jatuh ke font sistem default, dan request font Google yang sudah
+     didownload browser tidak pernah benar-benar terpakai. */
+  --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-size-xs: 0.75rem;    /* 12px */
   --font-size-sm: 0.875rem;   /* 14px */
   --font-size-base: 1rem;     /* 16px */
@@ -87,6 +114,10 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  /* PATCH: dipanggil oleh .login-card di components.css tapi sebelumnya
+     tidak pernah didefinisikan -- kartu login (layar pertama yang dilihat
+     user) jadi tampil TANPA shadow sama sekali. */
+  --shadow-2xl: 0 25px 50px -12px rgba(38, 47, 92, 0.35);
   
   /* Transitions */
   --transition-fast: 150ms ease;
