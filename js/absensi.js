@@ -232,7 +232,19 @@ function bacaAttendanceDariTabel(tbodyId) {
     });
 }
 
-function renderRiwayatList(res, containerId) {
+/**
+ * PATCH KLIK-UNTUK-EDIT: kartu riwayat sekarang bisa diklik -- akan
+ * pindah ke tab "Input" dan langsung memuat data absensi tanggal itu
+ * untuk diedit (isi ulang mapel/kelas/tanggal, lalu trigger reload
+ * seperti biasa saat field itu berubah).
+ *
+ * Parameter `konteks` menentukan kartu ini kartu riwayat "per mapel"
+ * atau "per kelas (wali)", supaya tahu field mana yang perlu diisi saat
+ * diklik nanti (lihat navigasiKeEditAbsensi() di bawah):
+ *   { mode: 'mapel', mapel, kelas }  -- dari panel Riwayat > Per Mapel
+ *   { mode: 'wali', kelas }          -- dari panel Riwayat > Per Kelas (Wali)
+ */
+function renderRiwayatList(res, containerId, konteks) {
     const container = document.getElementById(containerId);
     if (!container) return;
 
@@ -254,7 +266,7 @@ function renderRiwayatList(res, containerId) {
         if (item.namaAlpa && item.namaAlpa.length) detailList.push(`<p><strong>Alpa:</strong> ${item.namaAlpa.map(escapeHtml).join(', ')}</p>`);
 
         return `
-            <div class="card riwayat-card" style="margin-bottom: 12px;">
+            <div class="card riwayat-card riwayat-card-clickable" style="margin-bottom: 12px;" data-tanggal="${escapeHtml(item.tanggal)}" tabindex="0" role="button" title="Klik untuk edit absensi tanggal ini">
                 <div class="riwayat-card-header">
                     <strong>${escapeHtml(item.tanggal)}</strong>
                 </div>
@@ -267,6 +279,54 @@ function renderRiwayatList(res, containerId) {
                 ${detailList.length ? `<div class="riwayat-detail">${detailList.join('')}</div>` : ''}
             </div>`;
     }).join('');
+
+    if (konteks) {
+        container.querySelectorAll('.riwayat-card-clickable').forEach(card => {
+            const buka = () => navigasiKeEditAbsensi(konteks, card.dataset.tanggal);
+            card.addEventListener('click', buka);
+            card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); buka(); } });
+        });
+    }
+}
+
+/**
+ * Pindah ke tab "Input" (panelAbsensi) dan muat data absensi tanggal
+ * tertentu untuk diedit -- dipicu dari klik kartu riwayat.
+ * `dispatchEvent(new Event('change'))` dipakai supaya listener yang
+ * SUDAH ADA di setupInputAbsensiForm()/setupAbsenWaliPanel() (yang
+ * mengambil daftar siswa + data existing) otomatis ikut jalan, tanpa
+ * perlu mengekspos ulang fungsi reload-nya secara terpisah.
+ */
+function navigasiKeEditAbsensi(konteks, tanggal) {
+    if (!tanggal) return;
+    switchTab('panelAbsensi');
+
+    if (konteks.mode === 'wali') {
+        const btnSubtabWali = document.getElementById('subtabBtnInputWali');
+        if (btnSubtabWali && !btnSubtabWali.classList.contains('hidden')) btnSubtabWali.click();
+
+        const waliTanggal = document.getElementById('waliTanggal');
+        if (waliTanggal) {
+            waliTanggal.value = tanggal;
+            waliTanggal.dispatchEvent(new Event('change'));
+        }
+    } else {
+        const btnSubtabMapel = document.getElementById('subtabBtnInputMapel');
+        if (btnSubtabMapel) btnSubtabMapel.click();
+
+        const selectMapel = document.getElementById('selectMapel');
+        const selectKelas = document.getElementById('selectKelas');
+        const tanggalInput = document.getElementById('tanggalAbsen');
+        if (selectMapel) selectMapel.value = konteks.mapel;
+        if (selectKelas) selectKelas.value = konteks.kelas;
+        if (tanggalInput) {
+            tanggalInput.value = tanggal;
+            tanggalInput.dispatchEvent(new Event('change'));
+        }
+    }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showNotification('Menampilkan absensi tanggal ' + tanggal + ' untuk diedit.', 'info');
 }
 
 // =========================================================
@@ -417,7 +477,7 @@ function setupRiwayatPanel(user) {
         showGlobalLoading('Mengambil riwayat absensi...');
         try {
             const res = await getRiwayatAbsensi(mapel, kelas);
-            renderRiwayatList(res, 'riwayatList');
+            renderRiwayatList(res, 'riwayatList', { mode: 'mapel', mapel, kelas });
         } catch (err) {
             showNotification('Gagal memuat riwayat: ' + err.message, 'error');
         } finally {
@@ -439,7 +499,7 @@ function setupRiwayatPanel(user) {
             showGlobalLoading('Mengambil riwayat absensi...');
             try {
                 const res = await getRiwayatAbsenWali(user.kelasWali);
-                renderRiwayatList(res, 'riwayatWaliList');
+                renderRiwayatList(res, 'riwayatWaliList', { mode: 'wali', kelas: user.kelasWali });
             } catch (err) {
                 showNotification('Gagal memuat riwayat: ' + err.message, 'error');
             } finally {
