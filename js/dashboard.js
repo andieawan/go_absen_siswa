@@ -105,12 +105,20 @@ function toggleFilterKombinasi(card, listContainer) {
     const sedangAktif = card.classList.contains('stat-card-active');
     listContainer.querySelectorAll('.stat-card-clickable').forEach(c => c.classList.remove('stat-card-active'));
 
+    // Ganti kombinasi yang ditampilkan -> reset fokus kategori Perlu
+    // Perhatian ke "semua", supaya tidak ada fokus lama yang nyangkut
+    // dan membingungkan di konteks kombinasi yang baru.
+    fokusKategoriAktif = null;
+
     if (sedangAktif) {
         // Klik ulang kartu yang sama -> reset ke tampilan gabungan.
         const jumlahKombinasi = (data.rekapKelasMapel || []).length;
-        renderTopAlpaList(data.topAlpa, 'topAlpaList');
+        renderPerhatianEmpat(data.perhatian);
         renderTrendChart(data.trend, 'trendChart');
-        if (data.rataRata) renderDistribusiStatus(data.rataRata, 'distribusiMapelList');
+        if (data.rataRata) {
+            renderDistribusiStatus(data.rataRata, 'distribusiMapelList');
+            pasangKlikDistribusiPerMapel('distribusiMapelList');
+        }
         tampilkanLabelFilterTren(`Menampilkan: Semua Mapel (gabungan ${jumlahKombinasi} kombinasi kelas+mapel)`);
         return;
     }
@@ -125,9 +133,12 @@ function toggleFilterKombinasi(card, listContainer) {
         return;
     }
 
-    renderTopAlpaList(perKombinasi.topAlpa, 'topAlpaList');
+    renderPerhatianEmpat(perKombinasi.perhatian);
     renderTrendChart(perKombinasi.trend, 'trendChart');
-    if (perKombinasi.rataRata) renderDistribusiStatus(perKombinasi.rataRata, 'distribusiMapelList');
+    if (perKombinasi.rataRata) {
+        renderDistribusiStatus(perKombinasi.rataRata, 'distribusiMapelList');
+        pasangKlikDistribusiPerMapel('distribusiMapelList');
+    }
     tampilkanLabelFilterTren(`Menampilkan: ${labelTerpilih} (klik kartu ini lagi untuk kembali ke tampilan semua mapel)`);
 }
 
@@ -404,25 +415,25 @@ function renderDistribusiStatus(rataRata, containerId) {
 
     container.innerHTML = `
         <div class="stats-grid">
-            <div class="stat-card stat-hadir">
+            <div class="stat-card stat-hadir" data-status="hadir">
                 <div class="stat-info">
                     <div class="stat-value">${pctH}%</div>
                     <div class="stat-label">Hadir</div>
                 </div>
             </div>
-            <div class="stat-card stat-izin">
+            <div class="stat-card stat-izin" data-status="izin">
                 <div class="stat-info">
                     <div class="stat-value">${pctI}%</div>
                     <div class="stat-label">Izin</div>
                 </div>
             </div>
-            <div class="stat-card stat-sakit">
+            <div class="stat-card stat-sakit" data-status="sakit">
                 <div class="stat-info">
                     <div class="stat-value">${pctS}%</div>
                     <div class="stat-label">Sakit</div>
                 </div>
             </div>
-            <div class="stat-card stat-alpa">
+            <div class="stat-card stat-alpa" data-status="alpa">
                 <div class="stat-info">
                     <div class="stat-value">${pctA}%</div>
                     <div class="stat-label">Alpha</div>
@@ -430,6 +441,79 @@ function renderDistribusiStatus(rataRata, containerId) {
             </div>
         </div>
     `;
+}
+
+// =========================================================
+// PATCH: "PERLU PERHATIAN" DIPECAH JADI 4 KATEGORI (Per Mapel)
+// ---------------------------------------------------------
+// Dulu cuma 1 daftar "Sering Alpa". Sekarang backend mengirim `perhatian`
+// -- objek berisi 4 daftar terpisah: alpa, izin, sakit, jarangMasuk
+// (gabungan ketiganya). Semua 4 ditampilkan sekaligus secara default;
+// klik salah satu kotak Izin/Sakit/Alpa di "Distribusi Status Kehadiran"
+// akan MEMFOKUSKAN tampilan ke 1 kategori itu saja (sembunyikan yang
+// lain) -- klik kotak yang sama lagi (atau kotak Hadir) mengembalikan ke
+// tampilan semua 4 kategori.
+// =========================================================
+const PETA_STATUS_KE_KATEGORI = { alpa: 'alpa', izin: 'izin', sakit: 'sakit' };
+
+function renderPerhatianEmpat(perhatian) {
+    if (!perhatian) return;
+    renderTopAlpaList(perhatian.alpa, 'topAlpaList');
+    renderTopAlpaList(perhatian.izin, 'topIzinList');
+    renderTopAlpaList(perhatian.sakit, 'topSakitList');
+    renderTopAlpaList(perhatian.jarangMasuk, 'topJarangMasukList');
+}
+
+// Tampilkan HANYA 1 kategori (sembunyikan 3 lainnya), atau tampilkan
+// SEMUA (fokusKategori = null).
+function fokuskanKategoriPerhatian(fokusKategori) {
+    const semuaKategori = ['alpa', 'izin', 'sakit', 'jarangMasuk'];
+    semuaKategori.forEach(kat => {
+        const el = document.getElementById('perhatianKategori-' + kat);
+        if (!el) return;
+        el.classList.toggle('hidden', !!fokusKategori && kat !== fokusKategori);
+    });
+    const subtitle = document.getElementById('perhatianSubtitle');
+    if (subtitle) {
+        subtitle.textContent = fokusKategori
+            ? 'Menampilkan fokus 1 kategori saja -- klik kotak yang sama di Distribusi (atau kotak Hadir) untuk kembali melihat semua kategori.'
+            : 'Siswa dengan Alpa/Izin/Sakit terbanyak, dan siswa yang jarang masuk secara keseluruhan (gabungan ketiganya)';
+    }
+}
+
+// Tambahkan interaksi klik ke kartu Distribusi KHUSUS untuk Per Mapel
+// (dipanggil setelah renderDistribusiStatus() supaya kartunya sudah ada
+// di DOM). TIDAK dipakai untuk Dashboard Wali Kelas -- di sana Distribusi
+// tetap statis seperti semula.
+let fokusKategoriAktif = null;
+function pasangKlikDistribusiPerMapel(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.querySelectorAll('.stat-card[data-status]').forEach(card => {
+        card.classList.add('stat-card-clickable');
+        card.setAttribute('tabindex', '0');
+        card.setAttribute('role', 'button');
+
+        const klik = () => {
+            const status = card.dataset.status;
+            const kategori = PETA_STATUS_KE_KATEGORI[status] || null; // "hadir" -> null (tampilkan semua)
+            const sedangAktif = fokusKategoriAktif === kategori;
+
+            container.querySelectorAll('.stat-card[data-status]').forEach(c => c.classList.remove('stat-card-active'));
+
+            if (!kategori || sedangAktif) {
+                fokusKategoriAktif = null;
+                fokuskanKategoriPerhatian(null);
+            } else {
+                fokusKategoriAktif = kategori;
+                card.classList.add('stat-card-active');
+                fokuskanKategoriPerhatian(kategori);
+            }
+        };
+        card.addEventListener('click', klik);
+        card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); klik(); } });
+    });
 }
 
 /**
@@ -489,14 +573,15 @@ async function loadDashboardMapel() {
             rekapContainer.innerHTML = '<p class="empty-state">Belum ada data absensi</p>';
         }
 
-        if (data.topAlpa && data.topAlpa.length > 0) {
-            renderTopAlpaList(data.topAlpa, 'topAlpaList');
+        if (data.perhatian) {
+            renderPerhatianEmpat(data.perhatian);
         } else if (topAlpaContainer) {
             topAlpaContainer.innerHTML = '<p class="empty-state">Tidak ada siswa perlu perhatian</p>';
         }
 
         if (data.rataRata) {
             renderDistribusiStatus(data.rataRata, 'distribusiMapelList');
+            pasangKlikDistribusiPerMapel('distribusiMapelList');
         }
 
         if (data.trend && data.trend.length > 0) {
