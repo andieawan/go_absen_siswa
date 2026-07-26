@@ -79,9 +79,195 @@ function invalidateConfigCache(key) {
 // Akun_Guru ke sana, lalu isi ID spreadsheet barunya di bawah ini.
 const SPREADSHEET_MASTER_SISWA_ID = getConfigValue('SPREADSHEET_MASTER_SISWA_ID', '1YYWe9qgwP5v4FvO9xR2vWOtu9NA89EHwa7xaTOqeVuI');
 const SPREADSHEET_MASTER_GURU_ID = getConfigValue('SPREADSHEET_MASTER_GURU_ID', '1jW4dNNN1MxLBkRIHsSOcg_zZwzueDS19BwyZprCHa_c');
-const SPREADSHEET_ABSEN_ID = getConfigValue('SPREADSHEET_ABSEN_ID', '1_ZIp2nAEp__atYI_b6D37nmpAdAOE510l6vLTtFdXHI');
 const DRIVE_FOLDER_REKAP_ID = getConfigValue('DRIVE_FOLDER_REKAP_ID', '1rZSN7CD93XIUAozSc0zmJuqq5on3u1RN');
 const DRIVE_FOLDER_BACKUP_ID = getConfigValue('DRIVE_FOLDER_BACKUP_ID', '1wxDqJ3YcMR0ubK6Ni-uIByFmtdmnU6sa');
+
+// =========================================================
+// PEMBAGIAN & AUTO-PROVISIONING SPREADSHEET ABSEN
+// (jurusan + angkatan + semester)
+// ---------------------------------------------------------
+// KENAPA INI ADA: skema penyimpanan absen di app ini = 1 tab per
+// KELAS_MAPEL (lihat getOrCreateSheet() di Utils.gs). Kalau semua kelas
+// & mapel ditulis ke 1 file spreadsheet yang sama, dengan skala ~60
+// kelas x ~15 mapel itu bisa butuh sampai 900 tab -- jauh melebihi batas
+// KERAS Google Sheets: 200 tab per spreadsheet.
+//
+// SOLUSI: absen dipecah ke beberapa file, dikelompokkan per JURUSAN
+// (diambil dari nama kelas, mis. "DKV") + ANGKATAN (X/XI/XII) +
+// SEMESTER (S1 = Juli-Desember, S2 = Januari-Juni). Dengan 3 jurusan x 3
+// angkatan x 2 semester = 18 grup, tiap file cuma menampung sebagian
+// kecil dari 60 kelas -- jauh di bawah 200 tab, dengan ruang sisa besar.
+//
+// TIDAK PERLU BUAT FILE MANUAL: spreadsheet untuk tiap grup dibuat
+// OTOMATIS saat pertama kali dibutuhkan (guru pertama kali submit absen
+// untuk kombinasi jurusan+angkatan+semester itu), lewat
+// getOrProvisionAbsenSpreadsheetId() di bawah. Supaya admin gampang
+// menelusuri file-nya lewat Drive (bukan cuma lewat ID di Properties),
+// file itu otomatis ditaruh di dalam SUBFOLDER PER JURUSAN, yang juga
+// dibuat otomatis kalau belum ada, di bawah 1 folder ROOT yang cukup
+// admin siapkan SEKALI (lihat DRIVE_FOLDER_ABSEN_ROOT_ID).
+//
+// YANG PERLU ADMIN LAKUKAN (sekali saja):
+//   1) Buat 1 folder kosong di Google Drive, mis. "Data Absen".
+//   2) Salin ID folder itu dari URL, isi lewat:
+//        setupConfig(); // lalu edit DRIVE_FOLDER_ABSEN_ROOT_ID di bawah
+//      atau langsung: PropertiesService.getScriptProperties()
+//        .setProperty('DRIVE_FOLDER_ABSEN_ROOT_ID', 'ID_FOLDER_ANDA');
+//   Selesai -- subfolder jurusan (DKV/AK/BD/dst) dan file spreadsheet per
+//   grup akan muncul sendiri di dalam folder itu seiring pemakaian.
+//
+// KALAU DISTRIBUSI KELAS SEKOLAH ANDA MASIH TERLALU PADAT PER GRUP
+// (jarang terjadi dengan skema 3 sumbu ini, tapi jaga-jaga): perhalus
+// lagi kunci pengelompokan di getAbsenGroupKey() di bawah, misal
+// tambahkan nomor rombel ke dalam kunci.
+// =========================================================
+
+const DRIVE_FOLDER_ABSEN_ROOT_ID = getConfigValue('DRIVE_FOLDER_ABSEN_ROOT_ID', 'GANTI_DENGAN_ID_FOLDER_ROOT_ABSEN');
+
+// Seed: grup "DKV_XI_S1" (kelas "XI DKV ...", semester Juli-Des 2026)
+// diisi dengan ID spreadsheet absen LAMA yang sudah berjalan, supaya
+// data existing tidak dianggap "belum ada" lalu dibuatkan file baru yang
+// kosong. Grup lain akan ter-provision otomatis sendiri saat dipakai
+// pertama kali -- TIDAK perlu diisi manual satu-satu lagi.
+const DEFAULT_ABSEN_GROUP_MAP = {
+  "DKV_XI_S1": "1_ZIp2nAEp__atYI_b6D37nmpAdAOE510l6vLTtFdXHI"
+};
+
+function getAbsenGroupMap() {
+  return getConfigValue('ABSEN_GROUP_MAP', DEFAULT_ABSEN_GROUP_MAP);
+}
+
+/**
+ * Escape hatch manual (jarang dibutuhkan sekarang karena provisioning
+ * sudah otomatis) -- tetap disediakan untuk kasus admin mau menimpa /
+ * menunjuk manual 1 grup ke spreadsheet tertentu yang sudah ada,
+ * misalnya seperti seed DKV_XI_S1 di atas. Merge, bukan menimpa semua.
+ */
+function setupAbsenGroupMapping(mapObjBaru) {
+  const props = PropertiesService.getScriptProperties();
+  const existing = getAbsenGroupMap();
+  const merged = Object.assign({}, existing, mapObjBaru);
+  props.setProperty('ABSEN_GROUP_MAP', JSON.stringify(merged));
+  invalidateConfigCache('ABSEN_GROUP_MAP');
+  Logger.log('Pemetaan grup absen tersimpan: ' + JSON.stringify(merged));
+  return merged;
+}
+
+// Ambil ANGKATAN dari string kelas, misal "XI DKV 1" -> "XI".
+function getAngkatanFromKelas(kelas) {
+  const match = String(kelas).trim().match(/^(XII|XI|X|IX|VIII|VII)\b/i);
+  return match ? match[1].toUpperCase() : String(kelas).trim().split(' ')[0];
+}
+
+// Ambil JURUSAN dari string kelas, misal "XI DKV 1" -> "DKV", "XII AK 2"
+// -> "AK". Diasumsikan formatnya "ANGKATAN JURUSAN NOMOR_ROMBEL" (sesuai
+// data nyata: "XI DKV 1", "XII DKV 3"). Kalau tidak ketemu pola jurusan,
+// dikembalikan "UMUM" supaya tetap ada 1 folder tujuan yang jelas
+// (bukan error) -- sekaligus jadi sinyal untuk dicek manual formatnya.
+function getJurusanFromKelas(kelas) {
+  const trimmed = String(kelas).trim();
+  const angkatan = getAngkatanFromKelas(kelas);
+  const sisa = trimmed.replace(new RegExp('^' + angkatan + '\\b', 'i'), '').trim();
+  const token = sisa.split(/\s+/)[0];
+  return token ? token.toUpperCase() : 'UMUM';
+}
+
+// Tentukan semester dari STRING TANGGAL absensi ("yyyy-MM-dd"), BUKAN
+// dari tanggal hari ini -- supaya entri yang disimpan/diedit belakangan
+// tetap masuk ke file semester yang sesuai TANGGAL KEJADIAN absennya.
+// S1 = Juli-Desember, S2 = Januari-Juni (kalender pendidikan umum di
+// Indonesia). Sesuaikan kalau kalender akademik sekolah Anda beda.
+function getSemesterFromTanggal(tanggalStr) {
+  const d = new Date(tanggalStr);
+  const bulan = isNaN(d.getTime()) ? (new Date()).getMonth() + 1 : d.getMonth() + 1;
+  return (bulan >= 7 && bulan <= 12) ? 'S1' : 'S2';
+}
+
+// Kunci grup final, misal "DKV_XI_S1". Semua fungsi yang perlu tahu
+// "absen kelas ini disimpan di spreadsheet mana" pakai fungsi ini
+// sebagai satu-satunya sumber kebenaran.
+function getAbsenGroupKey(kelas, tanggalStr) {
+  const jurusan = getJurusanFromKelas(kelas);
+  const angkatan = getAngkatanFromKelas(kelas);
+  const semester = getSemesterFromTanggal(tanggalStr);
+  return jurusan + '_' + angkatan + '_' + semester;
+}
+
+// Cari subfolder bernama `namaSubfolder` di dalam `parentFolder`; kalau
+// belum ada, buat baru. Dipakai supaya subfolder per jurusan (DKV/AK/BD)
+// muncul otomatis tanpa admin perlu bikin manual.
+function getOrCreateSubfolder(parentFolder, namaSubfolder) {
+  const it = parentFolder.getFoldersByName(namaSubfolder);
+  if (it.hasNext()) return it.next();
+  return parentFolder.createFolder(namaSubfolder);
+}
+
+/**
+ * Inti auto-provisioning. Alurnya:
+ *   1) Kalau grup sudah tercatat di ABSEN_GROUP_MAP -> langsung pakai
+ *      ID-nya, TANPA sentuh Drive API sama sekali (cepat, ini jalur yang
+ *      dilewati hampir semua request sehari-hari).
+ *   2) Kalau belum tercatat -- ini cuma terjadi 1x per grup seumur hidup
+ *      aplikasi (submit pertama untuk kombinasi jurusan+angkatan+semester
+ *      itu) -- dikunci lewat LockService supaya 2 request pertama yang
+ *      nyaris bersamaan tidak sama-sama bikin spreadsheet duplikat untuk
+ *      grup yang sama. Setelah dapat lock, DICEK ULANG dulu (double-
+ *      checked locking) barangkali sudah dibikinkan oleh request lain
+ *      barusan sebelum kita sempat masuk giliran.
+ *   3) Baru kalau memang benar-benar belum ada: cari/buat subfolder
+ *      jurusan, cari/buat file spreadsheet-nya, simpan ID-nya ke
+ *      Properties supaya lookup berikutnya lewat jalur cepat di poin 1.
+ */
+function getOrProvisionAbsenSpreadsheetId(kelas, tanggalStr) {
+  const groupKey = getAbsenGroupKey(kelas, tanggalStr);
+
+  let groupMap = getAbsenGroupMap();
+  if (groupMap[groupKey]) return groupMap[groupKey];
+
+  if (!DRIVE_FOLDER_ABSEN_ROOT_ID || DRIVE_FOLDER_ABSEN_ROOT_ID.indexOf('GANTI_DENGAN_ID') === 0) {
+    throw new Error('DRIVE_FOLDER_ABSEN_ROOT_ID belum diisi. Buat 1 folder Drive untuk menampung semua file absen, lalu isi ID-nya (lihat catatan di atas getAbsenGroupKey(), Config.gs).');
+  }
+
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(15000);
+  } catch (e) {
+    throw new Error('Server sedang menyiapkan spreadsheet baru untuk grup ' + groupKey + ', silakan coba lagi beberapa saat.');
+  }
+
+  try {
+    // Cek ulang setelah dapat lock -- lihat catatan poin 2 di atas.
+    groupMap = getAbsenGroupMap();
+    if (groupMap[groupKey]) return groupMap[groupKey];
+
+    const jurusan = getJurusanFromKelas(kelas);
+    const rootFolder = DriveApp.getFolderById(DRIVE_FOLDER_ABSEN_ROOT_ID);
+    const jurusanFolder = getOrCreateSubfolder(rootFolder, jurusan);
+
+    const namaFile = 'Absen_' + groupKey;
+    let spreadsheetId;
+    const existingFiles = jurusanFolder.getFilesByName(namaFile);
+    if (existingFiles.hasNext()) {
+      // Sudah pernah dibuat sebelumnya tapi entah kenapa hilang dari
+      // Properties (mis. properties direset admin) -- pakai yang ada,
+      // jangan bikin file duplikat.
+      spreadsheetId = existingFiles.next().getId();
+    } else {
+      const ssBaru = SpreadsheetApp.create(namaFile);
+      spreadsheetId = ssBaru.getId();
+      DriveApp.getFileById(spreadsheetId).moveTo(jurusanFolder);
+    }
+
+    const props = PropertiesService.getScriptProperties();
+    groupMap[groupKey] = spreadsheetId;
+    props.setProperty('ABSEN_GROUP_MAP', JSON.stringify(groupMap));
+    invalidateConfigCache('ABSEN_GROUP_MAP');
+
+    return spreadsheetId;
+  } finally {
+    lock.releaseLock();
+  }
+}
 
 const MAPEL_ABSEN_WALI = "Absen Harian";
 const BACKUP_RETENTION_DAYS = 90;
@@ -110,11 +296,14 @@ function setupConfig() {
   if (!props.getProperty('SPREADSHEET_MASTER_GURU_ID')) {
     props.setProperty('SPREADSHEET_MASTER_GURU_ID', '1jW4dNNN1MxLBkRIHsSOcg_zZwzueDS19BwyZprCHa_c');
   }
-  if (!props.getProperty('SPREADSHEET_ABSEN_ID')) {
-    props.setProperty('SPREADSHEET_ABSEN_ID', '1_ZIp2nAEp__atYI_b6D37nmpAdAOE510l6vLTtFdXHI');
-  }
   if (!props.getProperty('DRIVE_FOLDER_REKAP_ID')) {
     props.setProperty('DRIVE_FOLDER_REKAP_ID', '1rZSN7CD93XIUAozSc0zmJuqq5on3u1RN');
+  }
+  if (!props.getProperty('DRIVE_FOLDER_ABSEN_ROOT_ID')) {
+    // GANTI nilai di bawah dengan ID folder Drive kosong yang Anda
+    // siapkan untuk menampung semua file absen (subfolder per jurusan
+    // akan dibuat otomatis di dalamnya).
+    props.setProperty('DRIVE_FOLDER_ABSEN_ROOT_ID', 'GANTI_DENGAN_ID_FOLDER_ROOT_ABSEN');
   }
   if (!props.getProperty('DRIVE_FOLDER_BACKUP_ID')) {
     props.setProperty('DRIVE_FOLDER_BACKUP_ID', '1wxDqJ3YcMR0ubK6Ni-uIByFmtdmnU6sa');
@@ -130,16 +319,23 @@ function setupConfig() {
   Logger.log('Konfigurasi berhasil disetup!');
   Logger.log('SPREADSHEET_MASTER_SISWA_ID: ' + props.getProperty('SPREADSHEET_MASTER_SISWA_ID'));
   Logger.log('SPREADSHEET_MASTER_GURU_ID: ' + props.getProperty('SPREADSHEET_MASTER_GURU_ID'));
-  Logger.log('SPREADSHEET_ABSEN_ID: ' + props.getProperty('SPREADSHEET_ABSEN_ID'));
   Logger.log('DRIVE_FOLDER_REKAP_ID: ' + props.getProperty('DRIVE_FOLDER_REKAP_ID'));
+  Logger.log('DRIVE_FOLDER_ABSEN_ROOT_ID: ' + props.getProperty('DRIVE_FOLDER_ABSEN_ROOT_ID') + ' (GANTI kalau masih placeholder!)');
   Logger.log('DRIVE_FOLDER_BACKUP_ID: ' + props.getProperty('DRIVE_FOLDER_BACKUP_ID'));
+  Logger.log('CATATAN: spreadsheet absen sekarang dipecah per grup jurusan+angkatan+semester, dan dibuat OTOMATIS saat pertama kali dipakai -- tidak perlu diisi manual satu-satu lagi.');
 }
 
-// ===== CACHE INSTANCE SPREADSHEET (SINGLETON) =====
+// ===== CACHE INSTANCE SPREADSHEET =====
+// PATCH SKALABILITAS: _absen dulu 1 instance tunggal (singleton). Sekarang
+// jadi _absenById -- cache per ID spreadsheet -- karena absen sudah
+// dipecah jadi beberapa file (per grup angkatan+semester, lihat
+// getAbsenGroupKey() di atas). Dalam 1 eksekusi script yang sama, kalau
+// beberapa kelas dari grup berbeda diakses, tiap file cukup dibuka sekali
+// (tetap di-cache), bukan berulang kali.
 const DB_CACHE = {
   _masterSiswa: null,
   _masterGuru: null,
-  _absen: null,
+  _absenById: {},
 
   getMasterSiswa: function() {
     if (!this._masterSiswa) {
@@ -155,30 +351,17 @@ const DB_CACHE = {
     return this._masterGuru;
   },
 
-  getAbsen: function() {
-    if (!this._absen) {
-      this._absen = SpreadsheetApp.openById(SPREADSHEET_ABSEN_ID);
+  getAbsen: function(spreadsheetId) {
+    if (!this._absenById[spreadsheetId]) {
+      this._absenById[spreadsheetId] = SpreadsheetApp.openById(spreadsheetId);
     }
-    return this._absen;
-  },
-
-  getSheet: function(spreadsheetType, sheetName) {
-    let ss;
-    if (spreadsheetType === 'siswa') ss = this.getMasterSiswa();
-    else if (spreadsheetType === 'guru') ss = this.getMasterGuru();
-    else ss = this.getAbsen();
-    let sheet = ss.getSheetByName(sheetName);
-
-    if (!sheet) {
-      throw new Error(`Sheet "${sheetName}" tidak ditemukan di spreadsheet ${spreadsheetType}.`);
-    }
-    return sheet;
+    return this._absenById[spreadsheetId];
   },
 
   reset: function() {
     this._masterSiswa = null;
     this._masterGuru = null;
-    this._absen = null;
+    this._absenById = {};
   }
 };
 
@@ -189,4 +372,42 @@ const DB_CACHE = {
 // dua ini di seluruh file kodegs/*.gs.
 function getMasterSiswaSs() { return DB_CACHE.getMasterSiswa(); }
 function getMasterGuruSs() { return DB_CACHE.getMasterGuru(); }
-function getAbsenSs() { return DB_CACHE.getAbsen(); }
+
+/**
+ * PATCH SKALABILITAS (pecah spreadsheet absen per grup angkatan+semester)
+ * getAbsenSs() SEKARANG WAJIB diberi parameter `kelas` (dan sebaiknya
+ * `tanggalStr` -- string "yyyy-MM-dd" tanggal absennya) supaya tahu file
+ * grup mana yang harus dibuka. Ini mengganti perilaku lama yang selalu
+ * membuka SATU spreadsheet absen untuk semua kelas & mapel.
+ *
+ * Kalau tanggalStr tidak diisi, dipakai tanggal HARI INI (cocok untuk
+ * kasus baca "data terkini", misal dashboard) -- tapi untuk MENYIMPAN
+ * absen selalu kirim tanggal absen yang sebenarnya, bukan default ini,
+ * supaya entri yang telat disimpan tetap masuk ke file semester yang
+ * benar sesuai tanggal kejadiannya.
+ */
+function getAbsenSs(kelas, tanggalStr) {
+  if (!kelas) {
+    throw new Error('getAbsenSs() sekarang wajib diberi parameter kelas -- data absen dipecah per grup jurusan+angkatan+semester supaya tidak melebihi batas 200 tab/spreadsheet Google Sheets. Lihat Config.gs.');
+  }
+  const tgl = tanggalStr || Utilities.formatDate(new Date(), ZONA_WAKTU_DIHARAPKAN, 'yyyy-MM-dd');
+  const spreadsheetId = getOrProvisionAbsenSpreadsheetId(kelas, tgl);
+  return DB_CACHE.getAbsen(spreadsheetId);
+}
+
+/**
+ * Dipakai oleh fungsi yang perlu melihat SEMUA grup sekaligus (rekap
+ * mingguan, migrasi one-off, dsb) -- lihat kodegs/Rekap.gs &
+ * kodegs/Migrasi.gs. Grup yang ID-nya belum diisi otomatis dilewati
+ * (tidak bikin error), supaya sekolah bisa mengaktifkan grup bertahap.
+ */
+function getAllAbsenSpreadsheets() {
+  const groupMap = getAbsenGroupMap();
+  const result = [];
+  for (const groupKey in groupMap) {
+    const spreadsheetId = groupMap[groupKey];
+    if (!spreadsheetId || spreadsheetId.indexOf('GANTI_DENGAN_ID') === 0) continue;
+    result.push({ groupKey: groupKey, ss: DB_CACHE.getAbsen(spreadsheetId) });
+  }
+  return result;
+}
