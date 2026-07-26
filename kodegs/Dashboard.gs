@@ -2,6 +2,23 @@
 // DASHBOARD ANALITIK
 // =========================================================
 
+// Hitung distribusi persen H/I/S/A dari objek jumlah mentah {hadir,
+// izin, sakit, alpa}. Dipakai bersama oleh dashboard Wali Kelas (rataRata
+// keseluruhan kelas) dan dashboard Per Mapel (rataRata gabungan & per
+// kombinasi kelas+mapel) -- format hasilnya SAMA supaya bisa dirender
+// pakai fungsi frontend yang sama (renderDistribusiStatus() di
+// js/dashboard.js).
+function hitungDistribusiPersen(jumlah) {
+  const total = (jumlah.hadir || 0) + (jumlah.izin || 0) + (jumlah.sakit || 0) + (jumlah.alpa || 0);
+  if (total === 0) return { hadir: 0, izin: 0, sakit: 0, alpa: 0 };
+  return {
+    hadir: Math.round((jumlah.hadir / total) * 1000) / 10,
+    izin: Math.round((jumlah.izin / total) * 1000) / 10,
+    sakit: Math.round((jumlah.sakit / total) * 1000) / 10,
+    alpa: Math.round((jumlah.alpa / total) * 1000) / 10
+  };
+}
+
 // --- DASHBOARD (per mapel) ---
 function getDashboardData(mapelListStr, kelasListStr) {
   let mapelList = mapelListStr.split(',').map(s => s.trim()).filter(s => s !== "");
@@ -123,7 +140,14 @@ function getDashboardData(mapelListStr, kelasListStr) {
       // Kunci "kelas|mapel" -- dipakai frontend saat kartu diklik. Pemisah
       // "|" dipilih karena tidak mungkin muncul di nama kelas/mapel biasa
       // (beda dengan "_" yang justru sering muncul di nama kelas/mapel).
-      perKombinasi[kelas + "|" + mapel] = { trend: trendKombinasi, topAlpa: topAlpaKombinasi };
+      perKombinasi[kelas + "|" + mapel] = {
+        trend: trendKombinasi,
+        topAlpa: topAlpaKombinasi,
+        // BARU: distribusi H/I/S/A (persen) khusus kombinasi ini -- format
+        // sama seperti `rataRata` di getDashboardDataWali(), supaya bisa
+        // dirender pakai fungsi renderDistribusiStatus() yang sama.
+        rataRata: hitungDistribusiPersen(agg)
+      };
     });
   });
 
@@ -150,7 +174,17 @@ function getDashboardData(mapelListStr, kelasListStr) {
       return { tanggal: tgl, persenHadir: persenHadir };
     });
 
-  return { success: true, data: { rekapKelasMapel, topAlpa, trend, perKombinasi } };
+  // Distribusi H/I/S/A gabungan -- jumlahkan hadir/izin/sakit/alpa dari
+  // SEMUA kombinasi kelas+mapel (sudah tersimpan per item di
+  // rekapKelasMapel), lalu hitung persentasenya lewat fungsi yang sama
+  // dipakai per kombinasi -- supaya format & pembulatannya konsisten.
+  const totalGabungan = rekapKelasMapel.reduce((acc, item) => {
+    acc.hadir += item.hadir; acc.izin += item.izin; acc.sakit += item.sakit; acc.alpa += item.alpa;
+    return acc;
+  }, { hadir: 0, izin: 0, sakit: 0, alpa: 0 });
+  const rataRata = hitungDistribusiPersen(totalGabungan);
+
+  return { success: true, data: { rekapKelasMapel, topAlpa, trend, perKombinasi, rataRata } };
 }
 
 // =========================================================
