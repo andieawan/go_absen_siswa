@@ -369,7 +369,7 @@ export async function getRiwayatAbsenWali(kelas) {
 }
 
 // Download rekap Excel
-export async function downloadRekapExcel(jenis, mapel, kelas) {
+export async function downloadRekapExcel(jenis, mapel, kelas, identitas) {
     try {
         const { token, username } = requireAuth();
 
@@ -385,7 +385,7 @@ export async function downloadRekapExcel(jenis, mapel, kelas) {
             throw new Error(response.message || 'Gagal mengunduh rekap');
         }
 
-        return generateExcelFromData(response.data, jenis);
+        return generateExcelFromData(response.data, jenis, identitas);
     } catch (error) {
         console.error('Download rekap error:', error);
         throw error;
@@ -485,14 +485,14 @@ export async function submitAbsenKetuaKelas(ketuaToken, dataKehadiran, tanggal) 
 
 // PATCH: generate file .xlsx ASLI (multi-sheet) menggunakan SheetJS (window.XLSX)
 // yang sudah di-load lewat <script> di index.html.
-async function generateExcelFromData(sheetsData, jenis) {
+async function generateExcelFromData(sheetsData, jenis, identitas) {
     if (!sheetsData || sheetsData.length === 0) {
         throw new Error('Data rekap kosong');
     }
 
     if (typeof XLSX === 'undefined') {
         console.warn('Library XLSX tidak ditemukan, fallback ke CSV.');
-        return generateCsvFallback(sheetsData, jenis);
+        return generateCsvFallback(sheetsData, jenis, identitas);
     }
 
     const workbook = XLSX.utils.book_new();
@@ -518,18 +518,35 @@ async function generateExcelFromData(sheetsData, jenis) {
         XLSX.utils.book_append_sheet(workbook, worksheet, safeTabName);
     });
 
-    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-    const filename = `Rekap_${jenis}_${timestamp}.xlsx`;
+    const filename = `${buatNamaFileRekap(jenis, identitas)}.xlsx`;
 
     XLSX.writeFile(workbook, filename);
 
     return { success: true, message: 'File rekap (.xlsx) berhasil diunduh' };
 }
 
+// PATCH: nama file rekap sebelumnya "Rekap_<jenis>_<timestamp-lengkap>"
+// (mis. "Rekap_wali_2026-07-26T06-02-47.xlsx") -- diganti supaya lebih
+// informatif dan mudah dibedakan kalau diunduh berkali-kali:
+//   - wali : "Rekap_wali_<kelas>_<tanggal>.xlsx" (mis. "Rekap_wali_XI-DKV-1_2026-07-26.xlsx")
+//   - mapel: "Rekap_mapel_<nama-guru>_<tanggal>.xlsx"
+// `identitas` diisi kelas (untuk wali) atau nama guru (untuk mapel) oleh
+// pemanggil (lihat js/absensi.js). Tanggal dipakai TANGGAL SAJA (bukan
+// jam:menit:detik) karena timestamp lengkap sudah tidak diperlukan lagi.
+function buatNamaFileRekap(jenis, identitas) {
+    const tanggal = new Date().toISOString().slice(0, 10); // yyyy-MM-dd
+    const identitasAman = (identitas || '')
+        .trim()
+        .replace(/[\\/?*[\]:]/g, '_')
+        .replace(/\s+/g, '-');
+    return identitasAman
+        ? `Rekap_${jenis}_${identitasAman}_${tanggal}`
+        : `Rekap_${jenis}_${tanggal}`; // fallback kalau identitas tidak diisi
+}
+
 // Fallback CSV lama, hanya dipakai kalau library XLSX benar-benar tidak tersedia
-function generateCsvFallback(sheetsData, jenis) {
-    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
-    const filename = `Rekap_${jenis}_${timestamp}.csv`;
+function generateCsvFallback(sheetsData, jenis, identitas) {
+    const filename = `${buatNamaFileRekap(jenis, identitas)}.csv`;
 
     const sheet = sheetsData[0];
     let csvContent = [];
