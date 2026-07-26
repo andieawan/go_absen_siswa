@@ -124,14 +124,16 @@ const DRIVE_FOLDER_BACKUP_ID = getConfigValue('DRIVE_FOLDER_BACKUP_ID', '1wxDqJ3
 
 const DRIVE_FOLDER_ABSEN_ROOT_ID = getConfigValue('DRIVE_FOLDER_ABSEN_ROOT_ID', 'GANTI_DENGAN_ID_FOLDER_ROOT_ABSEN');
 
-// Seed: grup "DKV_XI_S1" (kelas "XI DKV ...", semester Juli-Des 2026)
-// diisi dengan ID spreadsheet absen LAMA yang sudah berjalan, supaya
-// data existing tidak dianggap "belum ada" lalu dibuatkan file baru yang
-// kosong. Grup lain akan ter-provision otomatis sendiri saat dipakai
-// pertama kali -- TIDAK perlu diisi manual satu-satu lagi.
-const DEFAULT_ABSEN_GROUP_MAP = {
-  "DKV_XI_S1": "1_ZIp2nAEp__atYI_b6D37nmpAdAOE510l6vLTtFdXHI"
-};
+// Tidak ada seed manual -- SEMUA grup (termasuk kelas yang sebelumnya
+// memakai spreadsheet dummy lama) akan ter-provision otomatis sendiri
+// saat dipakai pertama kali. Spreadsheet dummy lama sengaja TIDAK
+// direferensikan lagi di sini karena akan dihapus dari Drive (data uji
+// coba aplikasi versi sebelumnya, bukan data produksi) -- kalau ID-nya
+// masih ditaruh di sini, begitu file itu dihapus, submit absen untuk
+// grup itu akan gagal dengan error "file tidak ditemukan" dari Google,
+// bukan otomatis membuatkan file baru (karena kode hanya mengecek APAKAH
+// grup sudah tercatat, bukan APAKAH file yang tercatat masih ada).
+const DEFAULT_ABSEN_GROUP_MAP = {};
 
 function getAbsenGroupMap() {
   return getConfigValue('ABSEN_GROUP_MAP', DEFAULT_ABSEN_GROUP_MAP);
