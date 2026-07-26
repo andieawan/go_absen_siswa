@@ -210,7 +210,7 @@
   width: 56px;
   height: 56px;
   border-radius: var(--radius-full);
-  background: rgba(67, 97, 238, 0.1);
+  background: rgba(var(--primary-color-rgb), 0.1);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -285,7 +285,7 @@
 }
 
 .tab-btn.active {
-  background: rgba(67, 97, 238, 0.1);
+  background: rgba(var(--primary-color-rgb), 0.1);
   color: var(--primary-color);
 }
 
@@ -419,7 +419,7 @@
 .login-form input:focus {
   outline: none;
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.1);
+  box-shadow: 0 0 0 3px rgba(var(--primary-color-rgb), 0.1);
 }
 
 .label-icon {
@@ -736,7 +736,7 @@
 }
 
 .info-chip-primary {
-  background: rgba(67, 97, 238, 0.1);
+  background: rgba(var(--primary-color-rgb), 0.1);
   color: var(--primary-color);
 }
 
@@ -746,7 +746,7 @@
   align-items: center;
   gap: var(--spacing-3);
   padding: var(--spacing-3) var(--spacing-4);
-  background: rgba(67, 97, 238, 0.06);
+  background: rgba(var(--primary-color-rgb), 0.06);
   border-radius: var(--radius-lg);
 }
 
@@ -864,7 +864,7 @@
 }
 
 .trend-area {
-  fill: rgba(67, 97, 238, 0.08);
+  fill: rgba(var(--primary-color-rgb), 0.08);
   stroke: none;
 }
 
