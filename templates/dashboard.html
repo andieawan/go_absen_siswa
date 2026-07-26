@@ -68,19 +68,36 @@
                     <div class="stat-card stat-alpa"><div class="stat-icon">⚠️</div><div class="stat-info"><div class="stat-value" id="waliStatRataAlpa">0%</div><div class="stat-label">Rata-rata Alpa</div></div></div>
                 </div>
                 <div class="card">
-                    <h4>📊 Distribusi Status Kehadiran</h4>
-                    <p class="card-subtitle">Persentase rata-rata H/I/S/A di kelas wali</p>
-                    <div id="waliDistribusiList"></div>
-                </div>
-                <div class="card">
                     <h4>📈 Tren Kehadiran Harian</h4>
                     <p class="card-subtitle">Persentase kehadiran per hari di kelas wali</p>
                     <div class="chart-wrapper"><canvas id="trendChartWali"></canvas></div>
                 </div>
                 <div class="card">
-                    <h4>⚠️ Siswa Perlu Perhatian (Kelas Wali)</h4>
-                    <p class="card-subtitle">Siswa di kelas wali dengan Alpa terbanyak</p>
-                    <div id="waliTopAlpaList"></div>
+                    <h4>📊 Distribusi Status Kehadiran</h4>
+                    <p class="card-subtitle">Persentase rata-rata H/I/S/A di kelas wali -- klik salah satu kotak I/S/A untuk fokus ke 1 kategori "Perlu Perhatian" saja</p>
+                    <div id="waliDistribusiList"></div>
+                </div>
+                <div class="card">
+                    <h4>⚠️ Perlu Perhatian (Kelas Wali)</h4>
+                    <p class="card-subtitle" id="waliPerhatianSubtitle">Siswa dengan Alpa/Izin/Sakit terbanyak, dan siswa yang jarang masuk secara keseluruhan (gabungan ketiganya)</p>
+                    <div id="waliPerhatianKhususWrapper">
+                        <div class="perhatian-kategori" id="waliPerhatianKategori-alpa">
+                            <h5>🔴 Sering Alpa</h5>
+                            <div id="waliTopAlpaList"></div>
+                        </div>
+                        <div class="perhatian-kategori" id="waliPerhatianKategori-izin">
+                            <h5>🟡 Sering Izin</h5>
+                            <div id="waliTopIzinList"></div>
+                        </div>
+                        <div class="perhatian-kategori" id="waliPerhatianKategori-sakit">
+                            <h5>🔵 Sering Sakit</h5>
+                            <div id="waliTopSakitList"></div>
+                        </div>
+                        <div class="perhatian-kategori" id="waliPerhatianKategori-jarangMasuk">
+                            <h5>📉 Jarang Masuk (Gabungan Alpa+Izin+Sakit)</h5>
+                            <div id="waliTopJarangMasukList"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <p id="dashboardWaliEmpty" class="empty-state hidden">Anda bukan wali kelas, tidak ada dashboard untuk ditampilkan di sini.</p>
@@ -94,13 +111,13 @@
                     <div id="rekapKelasMapelList"></div>
                 </div>
                 <div class="card">
+                    <h4>📉 Tren Kehadiran</h4>
+                    <div class="chart-wrapper"><canvas id="trendChart"></canvas></div>
+                </div>
+                <div class="card">
                     <h4>📊 Distribusi Status Kehadiran</h4>
                     <p class="card-subtitle">Persentase rata-rata H/I/S/A -- gabungan semua mapel, atau klik 1 kartu di atas untuk lihat 1 kombinasi kelas+mapel saja. Klik salah satu kotak I/S/A di bawah untuk fokus ke 1 kategori "Perlu Perhatian" saja.</p>
                     <div id="distribusiMapelList"></div>
-                </div>
-                <div class="card">
-                    <h4>📉 Tren Kehadiran</h4>
-                    <div class="chart-wrapper"><canvas id="trendChart"></canvas></div>
                 </div>
                 <div class="card">
                     <h4>⚠️ Perlu Perhatian</h4>
