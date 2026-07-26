@@ -384,6 +384,158 @@ function _importAbsenDariTemplateManualSatuSheet(ss, namaSheet, mapelOverride) {
 }
 
 // =========================================================
+// IMPOR MASSAL WALI KELAS (template bulanan, 1 sheet = 1 bulan)
+// ---------------------------------------------------------
+// Beda dengan template mapel (1 sheet = 1 kelas+mapel, tanggal bebas
+// format dd/MM/yy), template absen wali kelas ini berbentuk BULANAN:
+//   Baris 1, kolom A: "Kelas :"       | kolom C: isi kelas (mis. "XII DKV 3")
+//   Baris 1, kolom AC (index 25): "Bulan :" | index 28: nama bulan
+//     (Indonesia, mis. "Desember") | index 31: tahun (mis. 2026)
+//   Baris 2, kolom A: "Wali Kelas :" | kolom C: nama wali (tidak dipakai,
+//     cuma informasi)
+//   Baris 4 (index 3): angka HARI (1..31) mulai kolom E (index 4)
+//   Baris-baris siswa (di bawah baris angka hari): kolom A=NO, B=NIS,
+//     C=NAMA, D=L/P, E dst = status H/I/S/A per hari (searah kolom
+//     angka hari di baris 4)
+//   Kolom S/I/A di ujung kanan (setelah kolom hari terakhir) DILEWATI --
+//     itu rekap total per siswa, dihitung ulang otomatis oleh aplikasi,
+//     bukan data mentah yang perlu diimpor.
+//   Hari yang diblok/kosong (mis. hari Minggu) otomatis dilewati karena
+//     selnya memang kosong -- tidak perlu penanganan khusus.
+//
+// CARA PAKAI (1 bulan):
+//   importAbsenWaliDariTemplateBulanan({
+//     spreadsheetId: 'ID_FILE_SETELAH_DIKONVERSI_KE_GOOGLE_SHEETS',
+//     namaSheet: 'KELAS XII (DES)'
+//   });
+//
+// CARA PAKAI (banyak bulan sekaligus, 1 file gabungan beberapa sheet):
+//   importAbsenWaliDariTemplateBulananBatch({
+//     spreadsheetId: 'ID_FILE_GABUNGAN',
+//     daftarSheet: ['KELAS XII (AGU)', 'KELAS XII (SEP)', 'KELAS XII (OKT)', 'KELAS XII (NOV)', 'KELAS XII (DES)']
+//   });
+// =========================================================
+const NAMA_BULAN_INDONESIA = {
+  'januari': 1, 'februari': 2, 'maret': 3, 'april': 4, 'mei': 5, 'juni': 6,
+  'juli': 7, 'agustus': 8, 'september': 9, 'oktober': 10, 'november': 11, 'desember': 12
+};
+
+function importAbsenWaliDariTemplateBulanan(opsi) {
+  const ss = SpreadsheetApp.openById(opsi.spreadsheetId);
+  return _importAbsenWaliDariTemplateBulananSatuSheet(ss, opsi.namaSheet);
+}
+
+function importAbsenWaliDariTemplateBulananBatch(opsi) {
+  const ss = SpreadsheetApp.openById(opsi.spreadsheetId);
+  const daftarSheet = (opsi.daftarSheet && opsi.daftarSheet.length > 0)
+    ? opsi.daftarSheet
+    : ss.getSheets().map(function(s) { return s.getName(); });
+
+  const hasil = [];
+  daftarSheet.forEach(function(namaSheet) {
+    try {
+      const ringkasan = _importAbsenWaliDariTemplateBulananSatuSheet(ss, namaSheet);
+      hasil.push('[OK] ' + namaSheet + ' -- ' + ringkasan);
+    } catch (e) {
+      hasil.push('[GAGAL] ' + namaSheet + ' -- ' + e.message);
+    }
+  });
+
+  const laporan = hasil.join('\n');
+  Logger.log(laporan);
+  return laporan;
+}
+
+function _importAbsenWaliDariTemplateBulananSatuSheet(ss, namaSheet) {
+  const sheet = ss.getSheetByName(namaSheet);
+  if (!sheet) throw new Error('Sheet "' + namaSheet + '" tidak ditemukan di spreadsheet tsb.');
+
+  const data = sheet.getDataRange().getValues();
+
+  // Baris 1 (index 0): kolom C (index 2) = Kelas; kolom index 28 = nama
+  // bulan; kolom index 32 = tahun -- sesuai template.
+  const kelas = String(data[0][2] || '').trim();
+  const namaBulanRaw = String(data[0][28] || '').trim().toLowerCase();
+  const tahun = parseInt(data[0][32], 10);
+
+  if (!kelas) throw new Error('Kelas kosong di template (baris 1 kolom C) -- cek lagi templatenya.');
+  const bulanNum = NAMA_BULAN_INDONESIA[namaBulanRaw];
+  if (!bulanNum) throw new Error('Nama bulan "' + namaBulanRaw + '" (baris 1) tidak dikenali -- pastikan ditulis lengkap dalam Bahasa Indonesia, mis. "Desember".');
+  if (!tahun || isNaN(tahun)) throw new Error('Tahun kosong/tidak valid di template (baris 1) -- cek lagi templatenya.');
+
+  // Baris angka hari (index 3, 0-based -- baris ke-4 di Excel), mulai
+  // kolom E (index 4). Cari barisnya dengan mencari baris yang kolom E
+  // -nya berisi angka 1 (hari pertama), supaya tidak hardcode nomor
+  // baris kalau ada penambahan/pengurangan baris header di masa depan.
+  let barisHari = -1;
+  for (let r = 0; r < Math.min(data.length, 10); r++) {
+    if (Number(data[r][4]) === 1) { barisHari = r; break; }
+  }
+  if (barisHari === -1) {
+    throw new Error('Baris angka hari (dimulai dari "1" di kolom E) tidak ditemukan -- cek lagi struktur templatenya.');
+  }
+
+  const KOLOM_HARI_MULAI = 4; // kolom E (index 4), sesuai template
+  const tanggalPerKolom = [];
+  for (let c = KOLOM_HARI_MULAI; c < data[barisHari].length; c++) {
+    const raw = data[barisHari][c];
+    const hari = Number(raw);
+    if (!raw || isNaN(hari) || hari < 1 || hari > 31) { tanggalPerKolom.push(null); continue; } // kolom S/I/A di ujung kanan otomatis berhenti di sini
+    tanggalPerKolom.push(tahun + '-' + String(bulanNum).padStart(2, '0') + '-' + String(hari).padStart(2, '0'));
+  }
+
+  // Kumpulkan NIS per status per tanggal (invers dari tabel: template
+  // 1 baris = 1 siswa lintas semua hari; absen mentah 1 baris = 1
+  // tanggal lintas semua siswa).
+  const perTanggal = {}; // { "yyyy-MM-dd": {H:[], I:[], S:[], A:[]} }
+  for (let r = barisHari + 1; r < data.length; r++) {
+    const row = data[r];
+    const nis = String(row[1] || '').trim(); // kolom B
+    if (!nis) continue;
+    for (let c = 0; c < tanggalPerKolom.length; c++) {
+      const tgl = tanggalPerKolom[c];
+      if (!tgl) continue;
+      const status = String(row[KOLOM_HARI_MULAI + c] || '').trim().toUpperCase();
+      if (!['H', 'I', 'S', 'A'].includes(status)) continue; // kosong (termasuk hari Minggu yang diblok) dilewati
+      if (!perTanggal[tgl]) perTanggal[tgl] = { H: [], I: [], S: [], A: [] };
+      perTanggal[tgl][status].push(nis);
+    }
+  }
+
+  const waktuImpor = new Date();
+  let jumlahDiimpor = 0;
+
+  Object.keys(perTanggal).sort().forEach(function(tgl) {
+    const s = perTanggal[tgl];
+    const ssTujuan = getAbsenSs(kelas, tgl); // auto-provision kalau grupnya belum ada
+    const sheetNameTujuan = (kelas + "_" + MAPEL_ABSEN_WALI).replace(/[^a-zA-Z0-9]/g, "_");
+    const sheetTujuan = getOrCreateSheet(ssTujuan, sheetNameTujuan);
+
+    // Sama seperti simpanAbsenWali() di AbsenWali.gs: cari dulu baris
+    // tanggal yang sudah ada, UPDATE kalau ketemu, APPEND kalau belum --
+    // supaya aman dijalankan berulang tanpa bikin baris duplikat.
+    const existing = sheetTujuan.getDataRange().getValues();
+    let targetRow = -1;
+    for (let i = 1; i < existing.length; i++) {
+      if (existing[i][4] && isDateMatch(existing[i][4], tgl)) { targetRow = i + 1; break; }
+    }
+
+    const nilaiBaru = [s.H.join(', '), s.I.join(', '), s.S.join(', '), s.A.join(', ')];
+    if (targetRow !== -1) {
+      sheetTujuan.getRange(targetRow, 1).setValue(waktuImpor);
+      sheetTujuan.getRange(targetRow, 6, 1, 4).setValues([nilaiBaru]);
+    } else {
+      sheetTujuan.appendRow([waktuImpor, 'Impor Manual (Hard Copy - Wali Kelas)', MAPEL_ABSEN_WALI, kelas, tgl].concat(nilaiBaru));
+    }
+    jumlahDiimpor++;
+  });
+
+  const ringkasan = 'Berhasil impor ' + jumlahDiimpor + ' baris absen wali kelas untuk kelas "' + kelas + '" bulan ' + namaBulanRaw + ' ' + tahun + '.';
+  Logger.log(ringkasan);
+  return ringkasan;
+}
+
+// =========================================================
 // PEMBUNGKUS TANPA PARAMETER -- supaya bisa dipilih & dijalankan
 // langsung dari dropdown fungsi di editor Apps Script (tombol ▷ Run),
 // karena importAbsenDariTemplateManualBatch() butuh argumen dan tidak
