@@ -167,19 +167,28 @@ function tampilkanLabelFilterTren(teks) {
 }
 
 /**
- * Render list siswa dengan alpa terbanyak
+ * Render list siswa dengan jumlah kejadian terbanyak untuk 1 kategori.
  * PATCH: backend mengirim { nama: "Nama (Kelas)", jumlahAlpa } untuk dashboard
  * per mapel, dan { nama: "Nama", jumlahAlpa } untuk dashboard wali.
  * Field `kelas` terpisah dan `alpha` (dengan h) TIDAK PERNAH dikirim backend.
+ * PATCH: field backend TETAP dinamai `jumlahAlpa` untuk SEMUA kategori
+ * (alpa/izin/sakit/jarangMasuk) -- lihat komentar di kodegs/Dashboard.gs --
+ * jadi datanya sendiri sudah benar per kategori. Bug sebelumnya ada di
+ * SINI: header tabel di-hardcode teks "Jumlah Alpa" untuk keempat kategori
+ * itu, sehingga daftar "Sering Izin"/"Sering Sakit"/"Jarang Masuk" ikut
+ * menampilkan header "Jumlah Alpa" walau angkanya sebenarnya jumlah Izin/
+ * Sakit/gabungan. Ditambahkan parameter `labelKolom` supaya tiap pemanggil
+ * (lihat updateDashboardMapel()/updateDashboardWali() di bawah) memberi
+ * label yang sesuai kategorinya masing-masing.
  */
-function renderTopAlpaList(data, containerId) {
+function renderTopAlpaList(data, containerId, labelKolom = 'Jumlah Alpa') {
     const container = document.getElementById(containerId);
     if (!container || !data || data.length === 0) {
         if (container) container.innerHTML = '<p class="empty-state">Tidak ada siswa perlu perhatian</p>';
         return;
     }
 
-    let html = '<div class="table-wrapper"><table class="simple-table"><thead><tr><th>Nama</th><th>Jumlah Alpa</th></tr></thead><tbody>';
+    let html = `<div class="table-wrapper"><table class="simple-table"><thead><tr><th>Nama</th><th>${escapeHtml(labelKolom)}</th></tr></thead><tbody>`;
     data.slice(0, 10).forEach(siswa => {
         html += `<tr>
             <td>${escapeHtml(siswa.nama)}</td>
@@ -458,10 +467,10 @@ const PETA_STATUS_KE_KATEGORI = { alpa: 'alpa', izin: 'izin', sakit: 'sakit' };
 
 function renderPerhatianEmpat(perhatian) {
     if (!perhatian) return;
-    renderTopAlpaList(perhatian.alpa, 'topAlpaList');
-    renderTopAlpaList(perhatian.izin, 'topIzinList');
-    renderTopAlpaList(perhatian.sakit, 'topSakitList');
-    renderTopAlpaList(perhatian.jarangMasuk, 'topJarangMasukList');
+    renderTopAlpaList(perhatian.alpa, 'topAlpaList', 'Jumlah Alpa');
+    renderTopAlpaList(perhatian.izin, 'topIzinList', 'Jumlah Izin');
+    renderTopAlpaList(perhatian.sakit, 'topSakitList', 'Jumlah Sakit');
+    renderTopAlpaList(perhatian.jarangMasuk, 'topJarangMasukList', 'Jumlah Tidak Hadir');
 }
 
 // Tampilkan HANYA 1 kategori (sembunyikan 3 lainnya), atau tampilkan
@@ -626,10 +635,10 @@ async function loadDashboardMapel() {
 // =========================================================
 function renderPerhatianEmpatWali(perhatian) {
     if (!perhatian) return;
-    renderTopAlpaList(perhatian.alpa, 'waliTopAlpaList');
-    renderTopAlpaList(perhatian.izin, 'waliTopIzinList');
-    renderTopAlpaList(perhatian.sakit, 'waliTopSakitList');
-    renderTopAlpaList(perhatian.jarangMasuk, 'waliTopJarangMasukList');
+    renderTopAlpaList(perhatian.alpa, 'waliTopAlpaList', 'Jumlah Alpa');
+    renderTopAlpaList(perhatian.izin, 'waliTopIzinList', 'Jumlah Izin');
+    renderTopAlpaList(perhatian.sakit, 'waliTopSakitList', 'Jumlah Sakit');
+    renderTopAlpaList(perhatian.jarangMasuk, 'waliTopJarangMasukList', 'Jumlah Tidak Hadir');
 }
 
 function fokuskanKategoriPerhatianWali(fokusKategori) {
