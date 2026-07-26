@@ -227,6 +227,13 @@ document.addEventListener('DOMContentLoaded', () => {
 // PATCH: handleLogout sekarang menjamin urutan eksekusi yang benar --
 // alert ditampilkan dan ditunggu SAMPAI SELESAI sebelum navigasi terjadi,
 // karena logout() (api.js) TIDAK LAGI menavigasi halaman sendiri.
+// PATCH UX: sebelumnya setelah konfirmasi logout, masih ada 1 langkah
+// lagi yang WAJIB diklik user (showAlert "Berhasil logout" adalah modal
+// yang menunggu user menutupnya) sebelum benar-benar dialihkan ke
+// halaman login -- jadi total 2 klik (konfirmasi + tutup alert) untuk
+// 1 aksi logout, cukup mengganggu. Diganti showNotification() (toast
+// yang hilang otomatis dalam 5 detik, TIDAK butuh diklik) supaya user
+// cukup 1 kali konfirmasi, lalu langsung dialihkan.
 window.handleLogout = async () => {
     const confirmed = await showConfirm('Apakah Anda yakin ingin keluar?', 'Konfirmasi Logout');
     if (!confirmed) return;
@@ -235,10 +242,11 @@ window.handleLogout = async () => {
     await logout();
     currentUser = null;
 
-    // 2. Tampilkan alert dan TUNGGU sampai user menutupnya / selesai
-    await showAlert('Berhasil logout', 'Logout Berhasil', 'success');
+    // 2. Tampilkan notifikasi ringan (toast, otomatis hilang) -- TIDAK
+    // menunggu user menutupnya, beda dengan showAlert() sebelumnya.
+    showNotification('Berhasil logout', 'success');
 
-    // 3. Baru navigasi terjadi di akhir, setelah semua langkah di atas pasti selesai
+    // 3. Langsung navigasi, tanpa menunggu interaksi tambahan dari user.
     redirectToLoginPage();
 };
 
