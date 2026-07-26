@@ -382,3 +382,27 @@ function _importAbsenDariTemplateManualSatuSheet(ss, namaSheet, mapelOverride) {
   Logger.log(ringkasan);
   return ringkasan;
 }
+
+// =========================================================
+// PEMBUNGKUS TANPA PARAMETER -- supaya bisa dipilih & dijalankan
+// langsung dari dropdown fungsi di editor Apps Script (tombol ▷ Run),
+// karena importAbsenDariTemplateManualBatch() butuh argumen dan tidak
+// bisa dijalankan langsung dari dropdown itu.
+//
+// GANTI 2 BAGIAN DI BAWAH sebelum menjalankan:
+//   1) spreadsheetId -- ID file Google Sheets hasil konversi dari Excel
+//      (bagian URL antara "/d/" dan "/edit").
+//   2) daftarSheet -- daftar nama TAB persis seperti di filemu, 1 baris
+//      per kombinasi kelas+mapel yang mau diimpor.
+// =========================================================
+function jalankanImporBatch() {
+  importAbsenDariTemplateManualBatch({
+    spreadsheetId: 'ID_FILE_HASIL_KONVERSI', // <-- GANTI dengan ID spreadsheet-mu
+    daftarSheet: [
+      { namaSheet: 'XI_DKV_1_DKV' },   // <-- GANTI/tambah/hapus sesuai nama tab asli di filemu
+      { namaSheet: 'XI_DKV_4_DKV' },
+      { namaSheet: 'XII_DKV_3_KIK' },
+      { namaSheet: 'XII_DKV_4_KIK' }
+    ]
+  });
+}
