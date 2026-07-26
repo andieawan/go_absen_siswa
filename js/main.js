@@ -42,7 +42,7 @@
 import { isLoggedIn, getCurrentUser, logout, redirectToLoginPage } from './api.js?v=20260726';
 import { deleteSsoCookie } from './ssocookie.js?v=20260726';
 import { initLoginForm } from './login.js?v=20260726';
-import { initDashboard } from './dashboard.js?v=20260726';
+import { initDashboard } from './dashboard.js?v=20260726b';
 // PATCH (FIX BUG KRITIS): js/absensi.js sebelumnya tidak pernah di-import sama
 // sekali (sempat terhapus dari repo, lihat catatan di js/absensi.js), sehingga
 // panel Input Absensi, Riwayat, Rekap, dan Wali tidak pernah terhubung ke apa
