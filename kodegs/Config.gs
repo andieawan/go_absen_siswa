@@ -142,8 +142,9 @@ function getAbsenGroupMap() {
 /**
  * Escape hatch manual (jarang dibutuhkan sekarang karena provisioning
  * sudah otomatis) -- tetap disediakan untuk kasus admin mau menimpa /
- * menunjuk manual 1 grup ke spreadsheet tertentu yang sudah ada,
- * misalnya seperti seed DKV_XI_S1 di atas. Merge, bukan menimpa semua.
+ * menunjuk manual 1 grup ke spreadsheet tertentu yang sudah ada, contoh:
+ *   setupAbsenGroupMapping({ "DKV_XI_2026-2027_S1": "1AbC...xyz" });
+ * Merge, bukan menimpa semua.
  */
 function setupAbsenGroupMapping(mapObjBaru) {
   const props = PropertiesService.getScriptProperties();
@@ -337,8 +338,8 @@ function setupConfig() {
   // Invalidate cache agar config terbaru langsung terbaca
   invalidateConfigCache('SPREADSHEET_MASTER_SISWA_ID');
   invalidateConfigCache('SPREADSHEET_MASTER_GURU_ID');
-  invalidateConfigCache('SPREADSHEET_ABSEN_ID');
   invalidateConfigCache('DRIVE_FOLDER_REKAP_ID');
+  invalidateConfigCache('DRIVE_FOLDER_ABSEN_ROOT_ID');
   invalidateConfigCache('DRIVE_FOLDER_BACKUP_ID');
   
   Logger.log('Konfigurasi berhasil disetup!');
