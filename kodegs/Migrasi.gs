@@ -406,3 +406,59 @@ function jalankanImporBatch() {
     ]
   });
 }
+
+// =========================================================
+// DIAGNOSTIK: dashboard per mapel menampilkan "Belum ada data absensi
+// untuk ditampilkan" padahal seharusnya ada. Fungsi ini menelusuri PERSIS
+// yang dilakukan getDashboardData() di Dashboard.gs, tapi mencatat SETIAP
+// langkah ke Logger -- supaya kelihatan di titik mana rantainya putus:
+// grup/spreadsheet yang salah? sheet tidak ketemu? sheet ketemu tapi
+// kosong? Jalankan manual dari editor Apps Script, GANTI parameter di
+// bawah sesuai akun guru yang bermasalah (isi persis seperti yang
+// tersimpan di kolom mapelList/kelasList Akun_Guru, Master Guru).
+//
+//   debugDashboardData('DKV,KIK', 'XI DKV 1,XI DKV 4,XII DKV 3,XII DKV 4');
+// =========================================================
+function debugDashboardData(mapelListStr, kelasListStr) {
+  const mapelList = mapelListStr.split(',').map(s => s.trim()).filter(s => s !== "");
+  const kelasList = kelasListStr.split(',').map(s => s.trim()).filter(s => s !== "");
+  const tglHariIni = todayISO();
+  const laporan = [];
+
+  laporan.push('Tanggal HARI INI yang dipakai untuk resolve grup: ' + tglHariIni);
+  laporan.push('Daftar kelas yang dicek: ' + JSON.stringify(kelasList));
+  laporan.push('Daftar mapel yang dicek: ' + JSON.stringify(mapelList));
+  laporan.push('---');
+
+  kelasList.forEach(kelas => {
+    const groupKey = getAbsenGroupKey(kelas, tglHariIni);
+    laporan.push('Kelas "' + kelas + '" -> groupKey: "' + groupKey + '"');
+
+    let ss;
+    try {
+      ss = getAbsenSs(kelas, tglHariIni);
+      laporan.push('  -> spreadsheet berhasil dibuka. ID: ' + ss.getId() + ', nama file: "' + ss.getName() + '"');
+      laporan.push('  -> jumlah tab di file ini: ' + ss.getSheets().length);
+    } catch (e) {
+      laporan.push('  -> GAGAL membuka spreadsheet untuk grup ini: ' + e.message);
+      laporan.push('  -> (kelas ini akan DILEWATI oleh getDashboardData(), bukan bikin dashboard gagal total)');
+      return;
+    }
+
+    mapelList.forEach(mapel => {
+      const sheetName = (kelas + "_" + mapel).replace(/[^a-zA-Z0-9]/g, "_");
+      const sheet = ss.getSheetByName(sheetName);
+      if (!sheet) {
+        laporan.push('    Mapel "' + mapel + '" -> tab "' + sheetName + '" TIDAK DITEMUKAN di file ini.');
+        return;
+      }
+      const jumlahBaris = sheet.getDataRange().getValues().length;
+      laporan.push('    Mapel "' + mapel + '" -> tab "' + sheetName + '" DITEMUKAN, jumlah baris (termasuk header): ' + jumlahBaris +
+        (jumlahBaris <= 1 ? '  <-- KOSONG, ini penyebab "Belum ada data"' : '  <-- ADA datanya'));
+    });
+  });
+
+  const hasil = laporan.join('\n');
+  Logger.log(hasil);
+  return hasil;
+}
