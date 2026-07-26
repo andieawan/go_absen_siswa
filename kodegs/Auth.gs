@@ -187,6 +187,10 @@ function handleLogin(username, password) {
             const hashBaru = hashPassword(password, saltBaru);
             sheet.getRange(i + 1, 7).setValue(saltBaru);  // kolom G: salt
             sheet.getRange(i + 1, 8).setValue(hashBaru);  // kolom H: password_hash
+            // PATCH KEAMANAN: kosongkan password plaintext (kolom B) begitu
+            // hash berhasil disimpan -- sebelumnya kolom ini dibiarkan berisi
+            // password asli guru selamanya walau login sudah beralih ke hash.
+            sheet.getRange(i + 1, 2).clearContent();  // kolom B: password plaintext
             Logger.log('Auto-upgrade hash sukses untuk user: ' + username);
           } catch (upgradeError) {
             // Jangan sampai kegagalan upgrade menggagalkan login yang sudah valid.
