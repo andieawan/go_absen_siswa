@@ -5,14 +5,21 @@
 function generateFullRecap() {
   // PATCH INTEGRASI: data siswa di spreadsheet Master Siswa terpisah.
   const ssMaster = getMasterSiswaSs();
-  const ssAbsen = getAbsenSs();
   const folderMaster = DriveApp.getFolderById(DRIVE_FOLDER_REKAP_ID);
   const folderBackup = DriveApp.getFolderById(DRIVE_FOLDER_BACKUP_ID);
   const timestamp = Utilities.formatDate(new Date(), "GMT+7", "yyyy-MM-dd_HH-mm");
-  const absenSheets = ssAbsen.getSheets();
   let processedCount = 0;
 
-  absenSheets.forEach(sheet => {
+  // PATCH SKALABILITAS: dulu 1 spreadsheet absen -> ss.getSheets() bisa
+  // sampai ratusan tab sekaligus dalam 1 eksekusi (risiko kena limit
+  // waktu eksekusi Apps Script, 6 menit/akun biasa atau 30 menit/
+  // Workspace). Sekarang di-loop PER GRUP (angkatan+semester) -- tiap
+  // grup jauh lebih kecil (~150 tab), dan kalau suatu saat tetap terlalu
+  // berat, trigger bisa dipecah jadi 1 fungsi terpisah per grup supaya
+  // masing-masing dapat jatah waktu eksekusi sendiri-sendiri.
+  getAllAbsenSpreadsheets().forEach(function(grup) {
+    const absenSheets = grup.ss.getSheets();
+    absenSheets.forEach(sheet => {
     const sheetName = sheet.getName();
     const absenData = sheet.getDataRange().getValues();
     if (absenData.length <= 1) return;
@@ -152,7 +159,8 @@ function generateFullRecap() {
       DriveApp.getFileById(masterSs.getId()).moveTo(folderMaster);
     }
     processedCount++;
-  });
+    }); // tutup absenSheets.forEach
+  }); // tutup getAllAbsenSpreadsheets().forEach
 
   if (processedCount === 0) {
     cleanupOldBackups();
@@ -200,11 +208,21 @@ function getRekapKelasSaya(mapelListStr, kelasListStr) {
 
   // PATCH INTEGRASI: data siswa di spreadsheet Master Siswa terpisah.
   const ssMaster = getMasterSiswaSs();
-  const ssAbsen = getAbsenSs();
+  // PATCH SKALABILITAS: sama seperti getDashboardData() -- unduhan rekap
+  // guru pakai grup semester HARI INI. Kalau perlu rekap semester yang
+  // sudah diarsipkan, guru mengunduhnya SEBELUM semester berikutnya
+  // dimulai (lihat catatan di getRiwayatAbsensi(), kodegs/Absensi.gs).
+  const tglHariIni = todayISO();
 
   const sheetsRekap = [];
 
   kelasList.forEach(kelas => {
+    let ssAbsen;
+    try {
+      ssAbsen = getAbsenSs(kelas, tglHariIni);
+    } catch (e) {
+      return; // grup kelas ini belum dikonfigurasi -- lewati
+    }
     mapelList.forEach(mapel => {
       const sheetName = (kelas + "_" + mapel).replace(/[^a-zA-Z0-9]/g, "_");
       const absenSheet = ssAbsen.getSheetByName(sheetName);
