@@ -110,6 +110,7 @@ function toggleFilterKombinasi(card, listContainer) {
         const jumlahKombinasi = (data.rekapKelasMapel || []).length;
         renderTopAlpaList(data.topAlpa, 'topAlpaList');
         renderTrendChart(data.trend, 'trendChart');
+        if (data.rataRata) renderDistribusiStatus(data.rataRata, 'distribusiMapelList');
         tampilkanLabelFilterTren(`Menampilkan: Semua Mapel (gabungan ${jumlahKombinasi} kombinasi kelas+mapel)`);
         return;
     }
@@ -126,6 +127,7 @@ function toggleFilterKombinasi(card, listContainer) {
 
     renderTopAlpaList(perKombinasi.topAlpa, 'topAlpaList');
     renderTrendChart(perKombinasi.trend, 'trendChart');
+    if (perKombinasi.rataRata) renderDistribusiStatus(perKombinasi.rataRata, 'distribusiMapelList');
     tampilkanLabelFilterTren(`Menampilkan: ${labelTerpilih} (klik kartu ini lagi untuk kembali ke tampilan semua mapel)`);
 }
 
@@ -491,6 +493,10 @@ async function loadDashboardMapel() {
             renderTopAlpaList(data.topAlpa, 'topAlpaList');
         } else if (topAlpaContainer) {
             topAlpaContainer.innerHTML = '<p class="empty-state">Tidak ada siswa perlu perhatian</p>';
+        }
+
+        if (data.rataRata) {
+            renderDistribusiStatus(data.rataRata, 'distribusiMapelList');
         }
 
         if (data.trend && data.trend.length > 0) {
