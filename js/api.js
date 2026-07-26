@@ -528,20 +528,50 @@ async function generateExcelFromData(sheetsData, jenis, identitas) {
 // PATCH: nama file rekap sebelumnya "Rekap_<jenis>_<timestamp-lengkap>"
 // (mis. "Rekap_wali_2026-07-26T06-02-47.xlsx") -- diganti supaya lebih
 // informatif dan mudah dibedakan kalau diunduh berkali-kali:
-//   - wali : "Rekap_wali_<kelas>_<tanggal>.xlsx" (mis. "Rekap_wali_XI-DKV-1_2026-07-26.xlsx")
-//   - mapel: "Rekap_mapel_<nama-guru>_<tanggal>.xlsx"
+//   - wali : "Rekap_wali_<kelas>_<semester>_<tanggal>.xlsx" (mis. "Rekap_wali_XI-DKV-1_S1_2026-07-26.xlsx")
+//   - mapel: "Rekap_mapel_<nama-guru>_<semester>_<tanggal>.xlsx"
 // `identitas` diisi kelas (untuk wali) atau nama guru (untuk mapel) oleh
 // pemanggil (lihat js/absensi.js). Tanggal dipakai TANGGAL SAJA (bukan
 // jam:menit:detik) karena timestamp lengkap sudah tidak diperlukan lagi.
+//
+// Semester (S1/S2) DITAMBAHKAN sekarang, dihitung dari BULAN HARI INI --
+// aturan yang SAMA dengan getSemesterFromTanggal() di Config.gs (backend),
+// supaya nama file rekap selalu cocok dengan grup semester data absen
+// yang sedang aktif: Juli-Desember = S1, Januari-Juni = S2.
+//
+// CATATAN: untuk sekarang pergantian semester masih mengikuti tanggal
+// SISTEM (otomatis, bukan bisa dipilih manual). Nanti kalau sudah ada
+// dashboard admin aplikasi (untuk mengatur semester aktif secara
+// eksplisit, termasuk kasus semester belum/telat diganti tepat tanggal
+// 1 Juli/Januari), fungsi tentukanSemesterSaatIni() ini tinggal diganti
+// sumber datanya dari situ, tanpa perlu ubah bagian lain yang memanggilnya.
+function tentukanSemesterSaatIni() {
+    const bulan = new Date().getMonth() + 1; // getMonth() 0-indexed, waktu LOKAL browser
+    return (bulan >= 7 && bulan <= 12) ? 'S1' : 'S2';
+}
+
+// Tanggal lokal (yyyy-MM-dd) memakai waktu LOKAL browser, BUKAN
+// toISOString() (yang selalu UTC) -- supaya tidak salah tanggal (dan ikut
+// salah semester) kalau diakses dini hari WIB (UTC+7), mis. jam 00:30 WIB
+// tanggal 1 Agustus, toISOString() masih menunjukkan 31 Juli (UTC).
+function tanggalLokalHariIni() {
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
 function buatNamaFileRekap(jenis, identitas) {
-    const tanggal = new Date().toISOString().slice(0, 10); // yyyy-MM-dd
+    const tanggal = tanggalLokalHariIni();
+    const semester = tentukanSemesterSaatIni();
     const identitasAman = (identitas || '')
         .trim()
         .replace(/[\\/?*[\]:]/g, '_')
         .replace(/\s+/g, '-');
     return identitasAman
-        ? `Rekap_${jenis}_${identitasAman}_${tanggal}`
-        : `Rekap_${jenis}_${tanggal}`; // fallback kalau identitas tidak diisi
+        ? `Rekap_${jenis}_${identitasAman}_${semester}_${tanggal}`
+        : `Rekap_${jenis}_${semester}_${tanggal}`; // fallback kalau identitas tidak diisi
 }
 
 // Fallback CSV lama, hanya dipakai kalau library XLSX benar-benar tidak tersedia
