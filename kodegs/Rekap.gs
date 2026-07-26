@@ -125,7 +125,7 @@ function generateFullRecap() {
       colorData.push(rowColor);
     }
 
-    const backupFileName = `Rekap_Backup_${sheetName}_${timestamp}`;
+    const backupFileName = `Rekap_Backup_${grup.groupKey}_${sheetName}_${timestamp}`;
     const backupSs = SpreadsheetApp.create(backupFileName);
     const backupTargetSheet = backupSs.getSheets()[0];
     backupTargetSheet.setName(sheetName);
@@ -135,7 +135,7 @@ function generateFullRecap() {
     formatRecapSheet(backupTargetSheet, uniqueDates.length);
     DriveApp.getFileById(backupSs.getId()).moveTo(folderBackup);
 
-    const masterFileName = `Rekap_Master_${sheetName}`;
+    const masterFileName = `Rekap_Master_${grup.groupKey}_${sheetName}`;
     let masterSs;
     const masterFiles = folderMaster.getFilesByName(masterFileName);
     let isNewMaster = false;
