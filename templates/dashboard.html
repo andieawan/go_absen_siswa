@@ -95,7 +95,7 @@
                 </div>
                 <div class="card">
                     <h4>📊 Distribusi Status Kehadiran</h4>
-                    <p class="card-subtitle">Persentase rata-rata H/I/S/A -- gabungan semua mapel, atau klik 1 kartu di atas untuk lihat 1 kombinasi kelas+mapel saja</p>
+                    <p class="card-subtitle">Persentase rata-rata H/I/S/A -- gabungan semua mapel, atau klik 1 kartu di atas untuk lihat 1 kombinasi kelas+mapel saja. Klik salah satu kotak I/S/A di bawah untuk fokus ke 1 kategori "Perlu Perhatian" saja.</p>
                     <div id="distribusiMapelList"></div>
                 </div>
                 <div class="card">
@@ -103,9 +103,26 @@
                     <div class="chart-wrapper"><canvas id="trendChart"></canvas></div>
                 </div>
                 <div class="card">
-                    <h4>⚠️ Perlu Perhatian (Sering Alpa)</h4>
-                    <p class="card-subtitle">Siswa dengan absensi Alpa terbanyak</p>
-                    <div id="topAlpaList"></div>
+                    <h4>⚠️ Perlu Perhatian</h4>
+                    <p class="card-subtitle" id="perhatianSubtitle">Siswa dengan Alpa/Izin/Sakit terbanyak, dan siswa yang jarang masuk secara keseluruhan (gabungan ketiganya)</p>
+                    <div id="perhatianKhususWrapper">
+                        <div class="perhatian-kategori" id="perhatianKategori-alpa">
+                            <h5>🔴 Sering Alpa</h5>
+                            <div id="topAlpaList"></div>
+                        </div>
+                        <div class="perhatian-kategori" id="perhatianKategori-izin">
+                            <h5>🟡 Sering Izin</h5>
+                            <div id="topIzinList"></div>
+                        </div>
+                        <div class="perhatian-kategori" id="perhatianKategori-sakit">
+                            <h5>🔵 Sering Sakit</h5>
+                            <div id="topSakitList"></div>
+                        </div>
+                        <div class="perhatian-kategori" id="perhatianKategori-jarangMasuk">
+                            <h5>📉 Jarang Masuk (Gabungan Alpa+Izin+Sakit)</h5>
+                            <div id="topJarangMasukList"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
