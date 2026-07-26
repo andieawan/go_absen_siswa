@@ -18,7 +18,7 @@ const CACHE_DURATION = 300; // 5 menit dalam detik
 function getConfigValue(key, defaultValue) {
   const cache = CacheService.getScriptCache();
   const cacheKey = 'config_' + key;
-  
+
   // 1. Coba ambil dari cache dulu
   let cachedValue = cache.get(cacheKey);
   if (cachedValue != null) {
@@ -28,22 +28,47 @@ function getConfigValue(key, defaultValue) {
       // Jika parse gagal, lanjut ke properties
     }
   }
-  
+
   // 2. Ambil dari Properties jika tidak ada di cache
+  // PATCH BUG SERIUS: sebelumnya baris ini (`value !== null ? value : ...`)
+  // mengembalikan STRING MENTAH dari Properties tanpa JSON.parse -- padahal
+  // jalur cache-hit di atas SELALU mengembalikan hasil JSON.parse. Untuk
+  // config berupa string polos (ID spreadsheet dll) ini cuma bikin cache
+  // tidak efektif, tapi untuk config berupa OBJEK (mis. ABSEN_GROUP_MAP di
+  // getAbsenGroupMap()) ini bikin tipe data BERBEDA tergantung cache lagi
+  // hangat atau tidak -- akibatnya kode pemanggil (groupMap[groupKey])
+  // gagal cocok setiap kali cache basi, dikira grup "belum ada", lalu
+  // ditulis ulang berulang-ulang dengan nilai yang makin lama makin rusak
+  // (dibungkus JSON berlapis-lapis) sampai MENABRAK BATAS KUOTA
+  // PENYIMPANAN Script Properties ("You have exceeded the property
+  // storage quota"). Diperbaiki supaya SELALU coba JSON.parse dulu (biar
+  // konsisten dengan jalur cache-hit), dengan fallback aman ke string
+  // mentah kalau memang bukan JSON valid (kompatibel mundur untuk
+  // property lama yang disimpan sebagai string polos, bukan hasil
+  // JSON.stringify).
   const props = PropertiesService.getScriptProperties();
-  const value = props.getProperty(key);
-  const finalValue = (value !== null) ? value : defaultValue;
-  
-  // 3. Simpan ke cache untuk request berikutnya
+  const rawValue = props.getProperty(key);
+  let finalValue;
+  if (rawValue === null) {
+    finalValue = defaultValue;
+  } else {
+    try {
+      finalValue = JSON.parse(rawValue);
+    } catch (e) {
+      finalValue = rawValue; // string polos lama, pakai apa adanya
+    }
+  }
+
+  // 3. Simpan ke cache untuk request berikutnya -- SELALU lewat
+  // JSON.stringify sekarang (konsisten dengan JSON.parse di kedua jalur
+  // baca di atas), supaya round-trip cache<->properties selalu
+  // menghasilkan TIPE DATA YANG SAMA, apa pun kondisi cache-nya.
   try {
-    const valueToCache = (typeof finalValue === 'object' || Array.isArray(finalValue)) 
-      ? JSON.stringify(finalValue) 
-      : String(finalValue);
-    cache.put(cacheKey, valueToCache, CACHE_DURATION);
+    cache.put(cacheKey, JSON.stringify(finalValue), CACHE_DURATION);
   } catch(e) {
     Logger.log('Warning: Gagal cache config key ' + key + ': ' + e.toString());
   }
-  
+
   return finalValue;
 }
 
