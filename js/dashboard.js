@@ -387,9 +387,14 @@ async function loadDashboardMapel() {
             return;
         }
 
-        // Load data untuk mapel dan kelas pertama sebagai contoh
-        const mapel = mapelList[0];
-        const kelas = kelasList[0];
+        // PATCH: kirim SEMUA mapel & kelas yang diajar guru (bukan cuma
+        // yang pertama) -- backend getDashboardData() di Dashboard.gs
+        // sudah mendukung banyak mapel/kelas sekaligus lewat string
+        // dipisah koma, dan akan me-loop semua kombinasi kelas x mapel
+        // (kombinasi yang memang tidak diajar guru itu otomatis
+        // dilewati karena sheet-nya tidak ada, jadi aman dikirim semua).
+        const mapel = mapelList.join(',');
+        const kelas = kelasList.join(',');
 
         const response = await getDashboardData(mapel, kelas);
 
