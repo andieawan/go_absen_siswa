@@ -67,29 +67,44 @@ function simpanAbsenWali(kelas, tanggal, dataKehadiran, pengirim) {
   const strSakit = sakit.join(', ');
   const strAlpa = alpa.join(', ');
 
-  const ssAbsen = getAbsenSs();
-  const sheetName = (kelas + "_" + MAPEL_ABSEN_WALI).replace(/[^a-zA-Z0-9]/g, "_");
-  const sheet = getOrCreateSheet(ssAbsen, sheetName);
-
-  const data = sheet.getDataRange().getValues();
-  const timestamp = new Date();
-
-  let targetRow = -1;
-  for (let i = 1; i < data.length; i++) {
-    let rawDate = data[i][4];
-    if (rawDate && isDateMatch(rawDate, tanggal)) { targetRow = i + 1; break; }
+  // PATCH KONKURENSI: sama seperti handleSubmit() di kodegs/Absensi.gs --
+  // baca-cari baris tanggal dulu, baru tulis, jadi perlu dikunci supaya 2
+  // submit nyaris bersamaan untuk kelas+tanggal yang sama tidak saling
+  // menimpa / bikin baris duplikat.
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    return { success: false, message: "Server sedang memproses absen lain, silakan coba lagi beberapa saat." };
   }
 
-  if (targetRow !== -1) {
-    // PATCH PERFORMA: gabung 4 setValue() kolom Hadir/Izin/Sakit/Alpa yang
-    // berdampingan jadi 1 panggilan setValues() -- lihat catatan sama di
-    // kodegs/Absensi.gs (handleSubmit).
-    sheet.getRange(targetRow, 1).setValue(timestamp);
-    sheet.getRange(targetRow, 6, 1, 4).setValues([[strHadir, strIzin, strSakit, strAlpa]]);
-    return { success: true, message: "Data absensi kelas " + kelas + " tanggal " + tanggal + " diperbarui!" };
-  } else {
-    sheet.appendRow([timestamp, namaPengirim, MAPEL_ABSEN_WALI, kelas, tanggal, strHadir, strIzin, strSakit, strAlpa]);
-    return { success: true, message: "Data absensi kelas " + kelas + " tanggal " + tanggal + " disimpan!" };
+  try {
+    const ssAbsen = getAbsenSs(kelas, tanggal);
+    const sheetName = (kelas + "_" + MAPEL_ABSEN_WALI).replace(/[^a-zA-Z0-9]/g, "_");
+    const sheet = getOrCreateSheet(ssAbsen, sheetName);
+
+    const data = sheet.getDataRange().getValues();
+    const timestamp = new Date();
+
+    let targetRow = -1;
+    for (let i = 1; i < data.length; i++) {
+      let rawDate = data[i][4];
+      if (rawDate && isDateMatch(rawDate, tanggal)) { targetRow = i + 1; break; }
+    }
+
+    if (targetRow !== -1) {
+      // PATCH PERFORMA: gabung 4 setValue() kolom Hadir/Izin/Sakit/Alpa yang
+      // berdampingan jadi 1 panggilan setValues() -- lihat catatan sama di
+      // kodegs/Absensi.gs (handleSubmit).
+      sheet.getRange(targetRow, 1).setValue(timestamp);
+      sheet.getRange(targetRow, 6, 1, 4).setValues([[strHadir, strIzin, strSakit, strAlpa]]);
+      return { success: true, message: "Data absensi kelas " + kelas + " tanggal " + tanggal + " diperbarui!" };
+    } else {
+      sheet.appendRow([timestamp, namaPengirim, MAPEL_ABSEN_WALI, kelas, tanggal, strHadir, strIzin, strSakit, strAlpa]);
+      return { success: true, message: "Data absensi kelas " + kelas + " tanggal " + tanggal + " disimpan!" };
+    }
+  } finally {
+    lock.releaseLock();
   }
 }
 
