@@ -193,7 +193,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  /* PATCH DESAIN: sebelumnya gradient diagonal 2 warna brand (primary ->
+     secondary) -- pola ini adalah salah satu default paling umum di
+     halaman login yang di-generate template/AI (dua warna brand bertabrakan
+     di sudut 135deg). Diganti gradient 1 keluarga warna (dari primary-dark
+     ke primary), lebih tenang dan tetap terasa "institusional" untuk
+     aplikasi yang dipakai guru berulang setiap hari, bukan halaman
+     marketing yang perlu mencolok. */
+  background: linear-gradient(160deg, var(--primary-dark) 0%, var(--primary-color) 100%);
   padding: var(--spacing-4);
 }
 
