@@ -618,6 +618,66 @@ async function loadDashboardMapel() {
  * SEBELUMNYA TIDAK PERNAH ADA di response backend -- itulah sebabnya
  * dashboard wali selalu tampil 0% / kosong.
  */
+// =========================================================
+// PATCH: versi WALI KELAS dari fitur yang sama (4 kategori Perlu
+// Perhatian + kartu Distribusi bisa diklik) -- state dipisah sendiri
+// (fokusKategoriAktifWali, bukan fokusKategoriAktif) supaya dashboard
+// Wali Kelas dan Per Mapel tidak saling mengganggu status fokusnya.
+// =========================================================
+function renderPerhatianEmpatWali(perhatian) {
+    if (!perhatian) return;
+    renderTopAlpaList(perhatian.alpa, 'waliTopAlpaList');
+    renderTopAlpaList(perhatian.izin, 'waliTopIzinList');
+    renderTopAlpaList(perhatian.sakit, 'waliTopSakitList');
+    renderTopAlpaList(perhatian.jarangMasuk, 'waliTopJarangMasukList');
+}
+
+function fokuskanKategoriPerhatianWali(fokusKategori) {
+    const semuaKategori = ['alpa', 'izin', 'sakit', 'jarangMasuk'];
+    semuaKategori.forEach(kat => {
+        const el = document.getElementById('waliPerhatianKategori-' + kat);
+        if (!el) return;
+        el.classList.toggle('hidden', !!fokusKategori && kat !== fokusKategori);
+    });
+    const subtitle = document.getElementById('waliPerhatianSubtitle');
+    if (subtitle) {
+        subtitle.textContent = fokusKategori
+            ? 'Menampilkan fokus 1 kategori saja -- klik kotak yang sama di Distribusi (atau kotak Hadir) untuk kembali melihat semua kategori.'
+            : 'Siswa dengan Alpa/Izin/Sakit terbanyak, dan siswa yang jarang masuk secara keseluruhan (gabungan ketiganya)';
+    }
+}
+
+let fokusKategoriAktifWali = null;
+function pasangKlikDistribusiWali(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.querySelectorAll('.stat-card[data-status]').forEach(card => {
+        card.classList.add('stat-card-clickable');
+        card.setAttribute('tabindex', '0');
+        card.setAttribute('role', 'button');
+
+        const klik = () => {
+            const status = card.dataset.status;
+            const kategori = PETA_STATUS_KE_KATEGORI[status] || null;
+            const sedangAktif = fokusKategoriAktifWali === kategori;
+
+            container.querySelectorAll('.stat-card[data-status]').forEach(c => c.classList.remove('stat-card-active'));
+
+            if (!kategori || sedangAktif) {
+                fokusKategoriAktifWali = null;
+                fokuskanKategoriPerhatianWali(null);
+            } else {
+                fokusKategoriAktifWali = kategori;
+                card.classList.add('stat-card-active');
+                fokuskanKategoriPerhatianWali(kategori);
+            }
+        };
+        card.addEventListener('click', klik);
+        card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); klik(); } });
+    });
+}
+
 async function loadDashboardWali() {
     const userData = getCurrentUser() || {};
     const kelasWali = userData.kelasWali;
@@ -663,6 +723,7 @@ async function loadDashboardWali() {
         // PATCH: distribusi = data.rataRata (bukan data.distribusi yang tidak ada)
         if (data.rataRata) {
             renderDistribusiStatus(data.rataRata, 'waliDistribusiList');
+            pasangKlikDistribusiWali('waliDistribusiList');
         }
 
         // PATCH: trend = data.statistikHarian, dan tiap item field-nya
@@ -672,8 +733,8 @@ async function loadDashboardWali() {
             renderTrendChart(data.statistikHarian, 'trendChartWali');
         }
 
-        if (data.topAlpa && data.topAlpa.length > 0) {
-            renderTopAlpaList(data.topAlpa, 'waliTopAlpaList');
+        if (data.perhatian) {
+            renderPerhatianEmpatWali(data.perhatian);
         } else {
             const container = document.getElementById('waliTopAlpaList');
             if (container) container.innerHTML = '<p class="empty-state">Tidak ada siswa perlu perhatian</p>';
