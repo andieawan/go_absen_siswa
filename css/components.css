@@ -331,6 +331,37 @@
   border-left-color: var(--error-color);
 }
 
+/* PATCH: interaksi klik kartu "Persentase Kehadiran (Per Mapel)" --
+   klik memfilter grafik Tren & daftar Perlu Perhatian ke kombinasi
+   kelas+mapel itu saja (lihat toggleFilterKombinasi() di dashboard.js). */
+.stat-card-clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.stat-card-clickable:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.stat-card-clickable.stat-card-active {
+  box-shadow: var(--shadow-lg), 0 0 0 2px var(--primary-color) inset;
+  transform: translateY(-2px);
+}
+
+.dashboard-filter-hint {
+  margin-top: var(--spacing-2);
+  font-size: var(--font-size-sm);
+  color: var(--gray-600);
+}
+
+.dashboard-filter-active-label {
+  margin: 0 0 var(--spacing-3) 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--primary-color);
+}
+
 .stat-icon {
   width: 48px;
   height: 48px;
