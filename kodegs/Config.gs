@@ -185,14 +185,37 @@ function getSemesterFromTanggal(tanggalStr) {
   return (bulan >= 7 && bulan <= 12) ? 'S1' : 'S2';
 }
 
-// Kunci grup final, misal "DKV_XI_S1". Semua fungsi yang perlu tahu
-// "absen kelas ini disimpan di spreadsheet mana" pakai fungsi ini
-// sebagai satu-satunya sumber kebenaran.
+// Tentukan TAHUN AJARAN dari string tanggal, format "2026-2027".
+// PENTING: ini yang membuat pergantian tahun ajaran (kenaikan kelas)
+// otomatis memicu spreadsheet BARU, TANPA bergantung pada admin harus
+// ingat mengganti DRIVE_FOLDER_ABSEN_ROOT_ID tepat waktu. Kalau tahun
+// ajaran TIDAK dimasukkan ke groupKey (lihat getAbsenGroupKey() di
+// bawah), kunci grup "DKV_XI_S1" akan SAMA PERSIS tahun depan -- kode
+// akan menemukan grup itu "sudah tercatat" (dari tahun lalu) di Script
+// Properties dan diam-diam terus menulis ke spreadsheet TAHUN LALU,
+// meskipun folder root sudah diganti ke folder tahun baru.
+// Juli-Desember tahun X = tahun ajaran mulai X; Januari-Juni tahun X =
+// tahun ajaran mulai (X-1) -- karena semester genap adalah lanjutan
+// tahun ajaran yang dimulai tahun sebelumnya.
+function getTahunAjaranFromTanggal(tanggalStr) {
+  const d = new Date(tanggalStr);
+  const valid = !isNaN(d.getTime());
+  const now = new Date();
+  const bulan = valid ? d.getMonth() + 1 : now.getMonth() + 1;
+  const tahun = valid ? d.getFullYear() : now.getFullYear();
+  const tahunMulai = (bulan >= 7) ? tahun : (tahun - 1);
+  return tahunMulai + '-' + (tahunMulai + 1);
+}
+
+// Kunci grup final, misal "DKV_XI_2026-2027_S1". Semua fungsi yang
+// perlu tahu "absen kelas ini disimpan di spreadsheet mana" pakai fungsi
+// ini sebagai satu-satunya sumber kebenaran.
 function getAbsenGroupKey(kelas, tanggalStr) {
   const jurusan = getJurusanFromKelas(kelas);
   const angkatan = getAngkatanFromKelas(kelas);
+  const tahunAjaran = getTahunAjaranFromTanggal(tanggalStr);
   const semester = getSemesterFromTanggal(tanggalStr);
-  return jurusan + '_' + angkatan + '_' + semester;
+  return jurusan + '_' + angkatan + '_' + tahunAjaran + '_' + semester;
 }
 
 // Cari subfolder bernama `namaSubfolder` di dalam `parentFolder`; kalau
@@ -374,6 +397,24 @@ const DB_CACHE = {
 // dua ini di seluruh file kodegs/*.gs.
 function getMasterSiswaSs() { return DB_CACHE.getMasterSiswa(); }
 function getMasterGuruSs() { return DB_CACHE.getMasterGuru(); }
+
+/**
+ * Jalankan MANUAL 1x setiap kenaikan kelas (pergantian tahun ajaran),
+ * SETELAH data siswa tahun ajaran baru selesai disiapkan di Aplikasi
+ * Manajemen Siswa (mis. spreadsheet baru "DATA SISWA 2027-2028"
+ * dengan kelas-kelas yang sudah dimutakhirkan). Contoh pemakaian di
+ * editor Apps Script:
+ *   gantiMasterSiswaSpreadsheet('ID_SPREADSHEET_DATA_SISWA_2027_2028');
+ * Setelah ini, SEMUA request berikutnya (mulai request selanjutnya --
+ * bukan di eksekusi yang sama tempat fungsi ini dipanggil) akan memakai
+ * spreadsheet baru untuk data siswa/NIS.
+ */
+function gantiMasterSiswaSpreadsheet(spreadsheetIdBaru) {
+  const props = PropertiesService.getScriptProperties();
+  props.setProperty('SPREADSHEET_MASTER_SISWA_ID', spreadsheetIdBaru);
+  invalidateConfigCache('SPREADSHEET_MASTER_SISWA_ID');
+  Logger.log('SPREADSHEET_MASTER_SISWA_ID sekarang diarahkan ke: ' + spreadsheetIdBaru);
+}
 
 /**
  * PATCH SKALABILITAS (pecah spreadsheet absen per grup angkatan+semester)
