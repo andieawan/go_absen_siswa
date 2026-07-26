@@ -105,13 +105,12 @@ function toggleFilterKombinasi(card, listContainer) {
     const sedangAktif = card.classList.contains('stat-card-active');
     listContainer.querySelectorAll('.stat-card-clickable').forEach(c => c.classList.remove('stat-card-active'));
 
-    let judulFilter = document.getElementById('dashboardFilterAktifLabel');
-
     if (sedangAktif) {
         // Klik ulang kartu yang sama -> reset ke tampilan gabungan.
+        const jumlahKombinasi = (data.rekapKelasMapel || []).length;
         renderTopAlpaList(data.topAlpa, 'topAlpaList');
         renderTrendChart(data.trend, 'trendChart');
-        if (judulFilter) judulFilter.remove();
+        tampilkanLabelFilterTren(`Menampilkan: Semua Mapel (gabungan ${jumlahKombinasi} kombinasi kelas+mapel)`);
         return;
     }
 
@@ -127,23 +126,31 @@ function toggleFilterKombinasi(card, listContainer) {
 
     renderTopAlpaList(perKombinasi.topAlpa, 'topAlpaList');
     renderTrendChart(perKombinasi.trend, 'trendChart');
+    tampilkanLabelFilterTren(`Menampilkan: ${labelTerpilih} (klik kartu ini lagi untuk kembali ke tampilan semua mapel)`);
+}
 
-    // Tampilkan label kecil di atas grafik tren, supaya jelas sedang
-    // melihat filter kelas+mapel yang mana (bukan data gabungan).
+/**
+ * Tampilkan/perbarui label kecil di atas grafik Tren Kehadiran yang
+ * menjelaskan data apa yang sedang ditampilkan (gabungan semua kombinasi
+ * ATAU 1 kombinasi kelas+mapel tertentu). SELALU ada (dari pertama kali
+ * dashboard dimuat), bukan cuma muncul setelah 1 kartu diklik -- supaya
+ * tidak ada tampilan "misterius" yang tidak jelas datanya dari mana.
+ */
+function tampilkanLabelFilterTren(teks) {
     const trendCanvas = document.getElementById('trendChart');
     const trendContainer = trendCanvas ? trendCanvas.closest('.card, .dashboard-section') || trendCanvas.parentElement.parentElement : null;
-    if (trendContainer) {
-        let label = document.getElementById('dashboardFilterAktifLabel');
-        if (!label) {
-            label = document.createElement('p');
-            label.id = 'dashboardFilterAktifLabel';
-            label.className = 'dashboard-filter-active-label';
-            const heading = trendContainer.querySelector('h3, h2');
-            if (heading) heading.insertAdjacentElement('afterend', label);
-            else trendContainer.insertBefore(label, trendContainer.firstChild);
-        }
-        label.textContent = `Menampilkan: ${labelTerpilih} (klik kartu ini lagi untuk kembali ke tampilan semua mapel)`;
+    if (!trendContainer) return;
+
+    let label = document.getElementById('dashboardFilterAktifLabel');
+    if (!label) {
+        label = document.createElement('p');
+        label.id = 'dashboardFilterAktifLabel';
+        label.className = 'dashboard-filter-active-label';
+        const heading = trendContainer.querySelector('h3, h2');
+        if (heading) heading.insertAdjacentElement('afterend', label);
+        else trendContainer.insertBefore(label, trendContainer.firstChild);
     }
+    label.textContent = teks;
 }
 
 /**
@@ -488,6 +495,12 @@ async function loadDashboardMapel() {
 
         if (data.trend && data.trend.length > 0) {
             renderTrendChart(data.trend, 'trendChart');
+            // PATCH: label default supaya jelas SEJAK AWAL bahwa grafik ini
+            // gabungan semua kombinasi kelas+mapel, bukan cuma 1 -- sebelumnya
+            // label ini cuma muncul SETELAH 1 kartu diklik, jadi tampilan awal
+            // terkesan "misterius" datanya dari mana.
+            const jumlahKombinasi = (data.rekapKelasMapel || []).length;
+            tampilkanLabelFilterTren(`Menampilkan: Semua Mapel (gabungan ${jumlahKombinasi} kombinasi kelas+mapel)`);
         }
 
         dashboardCache.mapel = data;
