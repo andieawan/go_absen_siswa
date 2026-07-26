@@ -33,13 +33,43 @@ function getNisKeNamaMap(kelas) {
   return map;
 }
 
+// Ambang peringatan sebelum batas KERAS Google Sheets (200 tab/file)
+// benar-benar tersentuh -- diberi jarak (195) supaya admin sekolah
+// dapat pesan error yang jelas & actionable DULUAN, sebelum Google
+// sendiri menolak insertSheet() dengan error yang jauh lebih membingungkan.
+const BATAS_PERINGATAN_JUMLAH_TAB = 195;
+
 function getOrCreateSheet(ss, sheetName) {
   let sheet = ss.getSheetByName(sheetName);
   if (!sheet) {
+    // PATCH SKALABILITAS: cek dulu jumlah tab SEBELUM insertSheet().
+    // Kalaupun spreadsheet absen sudah dipecah per grup (lihat
+    // getAbsenGroupKey() di Config.gs), tetap disiapkan pengaman ini --
+    // jaga-jaga kalau distribusi kelas riil sekolah ternyata lebih padat
+    // dari perkiraan saat pengelompokan dirancang.
+    const jumlahTabSaatIni = ss.getSheets().length;
+    if (jumlahTabSaatIni >= BATAS_PERINGATAN_JUMLAH_TAB) {
+      throw new Error(
+        'Spreadsheet "' + ss.getName() + '" sudah punya ' + jumlahTabSaatIni +
+        ' tab (mendekati batas keras Google Sheets, 200 tab/file). ' +
+        'Tab baru "' + sheetName + '" TIDAK dibuat supaya data tidak tiba-tiba ' +
+        'gagal tersimpan. Perhalus pembagian grup di getAbsenGroupKey() ' +
+        '(Config.gs) -- misal tambahkan jurusan selain angkatan+semester -- ' +
+        'lalu buat spreadsheet grup baru dan daftarkan lewat setupAbsenGroupMapping().'
+      );
+    }
     sheet = ss.insertSheet(sheetName);
     sheet.appendRow(["Timestamp", "Nama Guru", "Mata Pelajaran", "Kelas", "Tanggal", "Hadir", "Izin", "Sakit", "Alpa"]);
   }
   return sheet;
+}
+
+// Tanggal hari ini dalam format "yyyy-MM-dd", zona waktu sekolah.
+// Dipakai fungsi baca "data terkini" (dashboard, riwayat) yang tidak
+// punya tanggal spesifik untuk menentukan grup semester mana yang dibuka
+// -- lihat getAbsenSs() di Config.gs.
+function todayISO() {
+  return Utilities.formatDate(new Date(), ZONA_WAKTU_DIHARAPKAN, 'yyyy-MM-dd');
 }
 
 // ===== VALIDASI & SANITASI INPUT =====
