@@ -91,15 +91,12 @@ async function handleLoginSubmit(e) {
 
         if (response.success) {
             loginBerhasil = true;
-            if (msgEl) {
-                msgEl.textContent = 'Login berhasil! Mengalihkan...';
-                msgEl.className = 'login-msg success';
-            }
-
-            // Delay sebentar agar user melihat notifikasi
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+            // PATCH: sebelumnya sempat menampilkan pesan "Login berhasil!
+            // Mengalihkan..." dan menunggu 1 detik sebelum reload -- atas
+            // permintaan, langkah ini dihilangkan supaya begitu akun
+            // tervalidasi, langsung masuk ke dashboard tanpa jeda/pesan
+            // apa pun di antaranya.
+            window.location.reload();
         } else {
             if (msgEl) {
                 msgEl.textContent = response.message || 'Login gagal. Periksa username dan password Anda.';
