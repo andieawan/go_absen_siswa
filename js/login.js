@@ -45,6 +45,17 @@ async function handleLoginSubmit(e) {
     let btnText = null;
     let btnLoader = null;
 
+    // PATCH UX: dulu tombol submit SELALU dikembalikan ke tampilan normal
+    // (loader disembunyikan, tombol diaktifkan lagi) lewat blok `finally`
+    // di paling bawah -- termasuk saat login BERHASIL. Karena redirect
+    // baru terjadi 1 detik kemudian (lihat setTimeout di bawah), tombol
+    // sempat "balik ke semula" tepat saat pesan "Login berhasil!
+    // Mengalihkan..." muncul -- kelihatan seperti proses batal/reset,
+    // padahal sebenarnya berhasil dan sedang menunggu redirect. Sekarang
+    // dilacak lewat `loginBerhasil`, supaya tampilan loading tetap
+    // dipertahankan sampai reload benar-benar terjadi.
+    let loginBerhasil = false;
+
     try {
         const username = document.getElementById('username')?.value.trim();
         const password = document.getElementById('password')?.value;
@@ -79,6 +90,7 @@ async function handleLoginSubmit(e) {
         }
 
         if (response.success) {
+            loginBerhasil = true;
             if (msgEl) {
                 msgEl.textContent = 'Login berhasil! Mengalihkan...';
                 msgEl.className = 'login-msg success';
@@ -110,8 +122,11 @@ async function handleLoginSubmit(e) {
             alert('Login gagal: ' + error.message);
         }
     } finally {
-        // Hide loading state -- dijalankan walau terjadi error di atas
-        if (submitBtn) {
+        // PATCH: JANGAN kembalikan tombol ke tampilan normal kalau login
+        // BERHASIL -- biarkan tetap terlihat "memproses" sampai halaman
+        // benar-benar reload sesaat lagi, supaya transisinya terasa mulus
+        // (bukan berhasil -> balik ke awal -> baru pindah halaman).
+        if (!loginBerhasil && submitBtn) {
             if (btnText) btnText.classList.remove('hidden');
             if (btnLoader) btnLoader.classList.add('hidden');
             submitBtn.disabled = false;
