@@ -397,12 +397,12 @@ function _importAbsenDariTemplateManualSatuSheet(ss, namaSheet, mapelOverride) {
 // =========================================================
 function jalankanImporBatch() {
   importAbsenDariTemplateManualBatch({
-    spreadsheetId: 'ID_FILE_HASIL_KONVERSI', // <-- GANTI dengan ID spreadsheet-mu
+    spreadsheetId: '1yu92BJ4Uii16mx-nt8UoW6fIoUanVEp-90WkZTG3h6Y',
     daftarSheet: [
-      { namaSheet: 'XI_DKV_1_DKV' },   // <-- GANTI/tambah/hapus sesuai nama tab asli di filemu
-      { namaSheet: 'XI_DKV_4_DKV' },
-      { namaSheet: 'XII_DKV_3_KIK' },
-      { namaSheet: 'XII_DKV_4_KIK' }
+      { namaSheet: 'XI_DKV_1_DKV' },
+      { namaSheet: 'XI_DKV_4_KIK' },
+      { namaSheet: 'XII_DKV_3_DKV' },
+      { namaSheet: 'XII_DKV_4_DKV' }
     ]
   });
 }
