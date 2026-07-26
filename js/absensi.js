@@ -38,9 +38,9 @@ import {
     generateKetuaKelasLink,
     getStatusKetuaKelasLink,
     nonaktifkanKetuaKelasLink
-} from './api.js';
-import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js';
-import { showConfirm } from './modal.js';
+} from './api.js?v=20260726';
+import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260726';
+import { showConfirm } from './modal.js?v=20260726';
 
 // Cache daftar siswa per kelas supaya tidak fetch berulang kali
 // dalam satu sesi dashboard yang sama.
