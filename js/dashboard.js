@@ -148,7 +148,7 @@ function tampilkanLabelFilterTren(teks) {
         label = document.createElement('p');
         label.id = 'dashboardFilterAktifLabel';
         label.className = 'dashboard-filter-active-label';
-        const heading = trendContainer.querySelector('h3, h2');
+        const heading = trendContainer.querySelector('h4, h3, h2');
         if (heading) heading.insertAdjacentElement('afterend', label);
         else trendContainer.insertBefore(label, trendContainer.firstChild);
     }
