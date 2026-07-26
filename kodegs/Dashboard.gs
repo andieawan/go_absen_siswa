@@ -264,8 +264,19 @@ function getDashboardDataWali(kelas) {
   const nisKeNama = getNisKeNamaMap(kelas);
 
   let statistikHarian = [];
-  let siswaAlpaCount = {};
+  // PATCH: dulu cuma melacak Alpa (siswaAlpaCount). Sekarang melacak
+  // ketiga status non-hadir per siswa sekaligus (sama seperti perubahan
+  // di getDashboardData() untuk Per Mapel), supaya "Perlu Perhatian" di
+  // sini juga bisa dipecah jadi 4 kategori terpisah.
+  let siswaStatusCount = {}; // { nis: {alpa, izin, sakit} }
   let totalHadir = 0, totalIzin = 0, totalSakit = 0, totalAlpa = 0;
+
+  function catatStatusWali(daftarNis, jenisStatus) {
+    daftarNis.forEach(nis => {
+      if (!siswaStatusCount[nis]) siswaStatusCount[nis] = { alpa: 0, izin: 0, sakit: 0 };
+      siswaStatusCount[nis][jenisStatus]++;
+    });
+  }
 
   for (let i = 1; i < data.length; i++) {
     const rawDate = data[i][4];
@@ -295,22 +306,19 @@ function getDashboardDataWali(kelas) {
     totalSakit += sakitArr.length;
     totalAlpa += alpaArr.length;
 
-    alpaArr.forEach(nis => {
-      siswaAlpaCount[nis] = (siswaAlpaCount[nis] || 0) + 1;
-    });
+    catatStatusWali(alpaArr, 'alpa');
+    catatStatusWali(izinArr, 'izin');
+    catatStatusWali(sakitArr, 'sakit');
   }
 
   // Sort by date ascending
   statistikHarian.sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal));
 
-  // Top alpa
-  const topAlpa = Object.keys(siswaAlpaCount)
-    .map(nis => ({
-      nama: (nisKeNama[nis] || ("NIS " + nis)),
-      jumlahAlpa: siswaAlpaCount[nis]
-    }))
-    .sort((a, b) => b.jumlahAlpa - a.jumlahAlpa)
-    .slice(0, 10);
+  // GANTI: dulu cuma topAlpa (1 daftar). Sekarang perhatian (4 daftar
+  // terpisah: alpa/izin/sakit/jarangMasuk) -- pakai fungsi bersama yang
+  // sama seperti dashboard Per Mapel (lihat bangunDaftarPerhatian() di
+  // atas getDashboardData()).
+  const perhatian = bangunDaftarPerhatian(siswaStatusCount, nis => (nisKeNama[nis] || ("NIS " + nis)));
 
   // Rata-rata distribusi status
   const grandTotal = totalHadir + totalIzin + totalSakit + totalAlpa;
@@ -328,7 +336,7 @@ function getDashboardDataWali(kelas) {
       totalPertemuan: statistikHarian.length,
       totalSiswa: Object.keys(nisKeNama).length,
       statistikHarian,
-      topAlpa,
+      perhatian,
       rataRata
     }
   };
