@@ -47,8 +47,17 @@ let dashboardCache = {
 /**
  * Render chart kehadiran per mapel/kelas
  * PATCH: backend mengirim array item berbentuk
- *   { label: "Kelas - Mapel", hadir, izin, sakit, alpa, pertemuan, persenHadir }
- * (bukan { kelas, mapel, persenHadir } seperti asumsi sebelumnya).
+ *   { label: "Kelas - Mapel", kelas, mapel, hadir, izin, sakit, alpa, pertemuan, persenHadir }
+ * (field kelas & mapel terpisah ditambahkan supaya kartu ini bisa
+ * diklik -- lihat PATCH FILTER KLIK di bawah).
+ *
+ * PATCH FILTER KLIK: klik 1 kartu akan memfilter grafik "Tren Kehadiran"
+ * & daftar "Perlu Perhatian (Sering Alpa)" di bawahnya supaya hanya
+ * menampilkan data kombinasi kelas+mapel itu saja (bukan gabungan semua).
+ * Klik kartu yang sedang aktif lagi untuk kembali ke tampilan gabungan.
+ * Data per-kombinasi (`perKombinasi`) sudah dikirim sekaligus oleh
+ * backend (lihat getDashboardData() di Dashboard.gs), jadi filter ini
+ * murni di sisi frontend -- tidak fetch ulang ke server.
  */
 function renderRekapKelasMapelList(data, containerId) {
     const container = document.getElementById(containerId);
@@ -58,13 +67,14 @@ function renderRekapKelasMapelList(data, containerId) {
     }
 
     let html = '<div class="stats-grid">';
-    data.forEach(item => {
+    data.forEach((item, idx) => {
         const persenHadir = item.persenHadir || 0;
         const className = persenHadir >= 80 ? 'stat-hadir' : persenHadir >= 60 ? 'stat-izin' : 'stat-alpa';
-        // PATCH: pakai item.label (sudah berisi "Kelas - Mapel" dari backend),
-        // bukan item.kelas / item.mapel yang tidak pernah dikirim.
+        // data-kombinasi dipakai untuk mencocokkan ke key perKombinasi
+        // ("kelas|mapel") saat kartu ini diklik.
+        const kombinasiKey = `${item.kelas || ''}|${item.mapel || ''}`;
         html += `
-            <div class="stat-card ${className}">
+            <div class="stat-card ${className} stat-card-clickable" data-kombinasi="${escapeHtml(kombinasiKey)}" data-label="${escapeHtml(item.label || '-')}" tabindex="0" role="button">
                 <div class="stat-icon">📊</div>
                 <div class="stat-info">
                     <div class="stat-value">${persenHadir.toFixed(1)}%</div>
@@ -73,8 +83,67 @@ function renderRekapKelasMapelList(data, containerId) {
             </div>
         `;
     });
-    html += '</div>';
+    html += '</div><p class="dashboard-filter-hint">Klik salah satu kartu di atas untuk melihat tren & siswa perlu perhatian khusus kelas+mapel itu saja.</p>';
     container.innerHTML = html;
+
+    container.querySelectorAll('.stat-card-clickable').forEach(card => {
+        const aktifkan = () => toggleFilterKombinasi(card, container);
+        card.addEventListener('click', aktifkan);
+        card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aktifkan(); } });
+    });
+}
+
+/**
+ * Klik kartu kelas+mapel -> tampilkan tren & top-alpa KHUSUS kombinasi
+ * itu. Klik kartu yang sedang aktif lagi -> kembali ke data gabungan
+ * (semua kelas+mapel guru itu).
+ */
+function toggleFilterKombinasi(card, listContainer) {
+    const data = dashboardCache.mapel;
+    if (!data) return;
+
+    const sedangAktif = card.classList.contains('stat-card-active');
+    listContainer.querySelectorAll('.stat-card-clickable').forEach(c => c.classList.remove('stat-card-active'));
+
+    let judulFilter = document.getElementById('dashboardFilterAktifLabel');
+
+    if (sedangAktif) {
+        // Klik ulang kartu yang sama -> reset ke tampilan gabungan.
+        renderTopAlpaList(data.topAlpa, 'topAlpaList');
+        renderTrendChart(data.trend, 'trendChart');
+        if (judulFilter) judulFilter.remove();
+        return;
+    }
+
+    card.classList.add('stat-card-active');
+    const kombinasiKey = card.dataset.kombinasi;
+    const labelTerpilih = card.dataset.label;
+    const perKombinasi = (data.perKombinasi && data.perKombinasi[kombinasiKey]) || null;
+
+    if (!perKombinasi) {
+        showNotification('Data rinci untuk "' + labelTerpilih + '" belum tersedia.', 'error');
+        return;
+    }
+
+    renderTopAlpaList(perKombinasi.topAlpa, 'topAlpaList');
+    renderTrendChart(perKombinasi.trend, 'trendChart');
+
+    // Tampilkan label kecil di atas grafik tren, supaya jelas sedang
+    // melihat filter kelas+mapel yang mana (bukan data gabungan).
+    const trendCanvas = document.getElementById('trendChart');
+    const trendContainer = trendCanvas ? trendCanvas.closest('.card, .dashboard-section') || trendCanvas.parentElement.parentElement : null;
+    if (trendContainer) {
+        let label = document.getElementById('dashboardFilterAktifLabel');
+        if (!label) {
+            label = document.createElement('p');
+            label.id = 'dashboardFilterAktifLabel';
+            label.className = 'dashboard-filter-active-label';
+            const heading = trendContainer.querySelector('h3, h2');
+            if (heading) heading.insertAdjacentElement('afterend', label);
+            else trendContainer.insertBefore(label, trendContainer.firstChild);
+        }
+        label.textContent = `Menampilkan: ${labelTerpilih} (klik kartu ini lagi untuk kembali ke tampilan semua mapel)`;
+    }
 }
 
 /**
