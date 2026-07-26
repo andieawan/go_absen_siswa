@@ -541,7 +541,7 @@ function setupRekapPanel(user) {
             btn.disabled = true;
             showGlobalLoading('Menyiapkan file rekap...');
             try {
-                const res = await downloadRekapExcel('mapel', user.mapelList.join(','), user.kelasList.join(','));
+                const res = await downloadRekapExcel('mapel', user.mapelList.join(','), user.kelasList.join(','), user.nama);
                 showNotification(res.message || 'Rekap berhasil diunduh', res.success ? 'success' : 'error');
             } catch (err) {
                 showNotification('Gagal mengunduh rekap: ' + err.message, 'error');
@@ -558,7 +558,7 @@ function setupRekapPanel(user) {
             btn.disabled = true;
             showGlobalLoading('Menyiapkan file rekap...');
             try {
-                const res = await downloadRekapExcel('wali', '', user.kelasWali);
+                const res = await downloadRekapExcel('wali', '', user.kelasWali, user.kelasWali);
                 showNotification(res.message || 'Rekap berhasil diunduh', res.success ? 'success' : 'error');
             } catch (err) {
                 showNotification('Gagal mengunduh rekap: ' + err.message, 'error');
