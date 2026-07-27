@@ -639,19 +639,6 @@ function generateCsvFallback(sheetsData, jenis, identitas) {
     return { success: true, message: 'File rekap (.csv fallback) berhasil diunduh' };
 }
 
-export default {
-    login,
-    logout,
-    redirectToLoginPage,
-    isLoggedIn,
-    getCurrentUser,
-    submitAbsensi,
-    submitAbsenWali,
-    getSiswaByKelas,
-    getExistingAttendance,
-    getRiwayatAbsensi,
-    hapusAbsen,
-    getDashboardData,
 // ===== PANEL PROFIL =====
 
 // Ambil data profil (nama + URL foto) untuk ditampilkan saat panel dibuka
