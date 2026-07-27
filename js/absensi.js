@@ -457,6 +457,10 @@ function setupInputAbsensiForm(user) {
             ]);
 
             const existingMap = {};
+            // PATCH: tandai apakah tanggal ini SUDAH ada datanya (mode
+            // update) atau belum (mode simpan baru) -- dipakai untuk
+            // mengganti label tombol submit di bawah.
+            const adaDataLama = !!(existingRes.success && existingRes.data);
             if (existingRes.success && existingRes.data) {
                 const kodeStatus = { hadir: 'H', izin: 'I', sakit: 'S', alpa: 'A' };
                 Object.keys(kodeStatus).forEach(key => {
@@ -468,7 +472,11 @@ function setupInputAbsensiForm(user) {
             }
 
             renderStudentRows('studentsBody', students, existingMap);
-            if (btnSubmit) btnSubmit.classList.remove('hidden');
+            if (btnSubmit) {
+                btnSubmit.classList.remove('hidden');
+                const btnTextEl = btnSubmit.querySelector('.btn-text');
+                if (btnTextEl) btnTextEl.textContent = adaDataLama ? '🔄 Update Absensi' : '💾 Simpan Absensi';
+            }
         } catch (err) {
             console.error('Gagal memuat siswa:', err);
             showNotification('Gagal memuat data siswa: ' + err.message, 'error');
@@ -801,8 +809,16 @@ function setupAbsenWaliPanel(user) {
                 getAbsenWaliExisting(user.kelasWali, tanggal)
             ]);
             const existingMap = (existingRes.success && existingRes.data) ? existingRes.data : {};
+            // PATCH: sama seperti reloadStudents() -- ganti label tombol
+            // submit jadi "Update Absensi" kalau tanggal ini sudah ada
+            // datanya, "Simpan Absensi" kalau belum.
+            const adaDataLama = !!(existingRes.success && existingRes.data);
             renderStudentRows('waliStudentsBody', students, existingMap);
-            if (waliBtnSubmit) waliBtnSubmit.classList.remove('hidden');
+            if (waliBtnSubmit) {
+                waliBtnSubmit.classList.remove('hidden');
+                const btnTextEl = waliBtnSubmit.querySelector('.btn-text');
+                if (btnTextEl) btnTextEl.textContent = adaDataLama ? '🔄 Update Absensi' : '💾 Simpan Absensi';
+            }
         } catch (err) {
             showNotification('Gagal memuat data siswa: ' + err.message, 'error');
         } finally {
