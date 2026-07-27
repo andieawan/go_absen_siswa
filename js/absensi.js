@@ -33,6 +33,8 @@ import {
     getAbsenWaliExisting,
     getRiwayatAbsensi,
     getRiwayatAbsenWali,
+    hapusAbsen,
+    hapusAbsenWali,
     downloadRekapExcel,
     getCurrentUser,
     generateKetuaKelasLink,
@@ -265,10 +267,22 @@ function renderRiwayatList(res, containerId, konteks) {
         if (item.namaSakit && item.namaSakit.length) detailList.push(`<p><strong>Sakit:</strong> ${item.namaSakit.map(escapeHtml).join(', ')}</p>`);
         if (item.namaAlpa && item.namaAlpa.length) detailList.push(`<p><strong>Alpa:</strong> ${item.namaAlpa.map(escapeHtml).join(', ')}</p>`);
 
+        // PATCH HAPUS ABSEN: tombol hapus cuma ditampilkan untuk tanggal
+        // dalam 7 hari terakhir -- cek di sisi frontend ini cuma untuk
+        // UX (supaya tombol tidak ditampilkan kalau memang pasti akan
+        // ditolak); aturan SEBENARNYA tetap dijaga di backend
+        // (apakahDalam7HariTerakhir() di Utils.gs), bukan bergantung ke
+        // cek di sini.
+        const bolehHapus = dalam7HariTerakhir(item.tanggal);
+        const tombolHapus = bolehHapus
+            ? `<button type="button" class="btn-hapus-riwayat" data-tanggal="${escapeHtml(item.tanggal)}" title="Hapus absensi tanggal ini">🗑️ Hapus</button>`
+            : '';
+
         return `
             <div class="card riwayat-card riwayat-card-clickable" style="margin-bottom: 12px;" data-tanggal="${escapeHtml(item.tanggal)}" tabindex="0" role="button" title="Klik untuk edit absensi tanggal ini">
                 <div class="riwayat-card-header">
                     <strong>${escapeHtml(item.tanggal)}</strong>
+                    ${tombolHapus}
                 </div>
                 <div class="stats-grid" style="margin: 8px 0;">
                     <span class="badge badge-success">Hadir: ${item.jumlahHadir}</span>
@@ -286,6 +300,64 @@ function renderRiwayatList(res, containerId, konteks) {
             card.addEventListener('click', buka);
             card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); buka(); } });
         });
+
+        container.querySelectorAll('.btn-hapus-riwayat').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation(); // jangan sampai memicu navigasiKeEditAbsensi() dari klik kartu
+                hapusKartuRiwayat(konteks, btn.dataset.tanggal, containerId);
+            });
+        });
+    }
+}
+
+// Cek apakah `tanggalStr` ("yyyy-MM-dd") ada dalam 7 hari terakhir
+// (termasuk hari ini) -- versi frontend dari apakahDalam7HariTerakhir()
+// di Utils.gs, cuma dipakai untuk UX (tampil/sembunyikan tombol Hapus).
+function dalam7HariTerakhir(tanggalStr) {
+    const hariIni = new Date();
+    hariIni.setHours(0, 0, 0, 0);
+    const batasAwal = new Date(hariIni);
+    batasAwal.setDate(batasAwal.getDate() - 6);
+    const tgl = new Date(tanggalStr + 'T00:00:00');
+    if (isNaN(tgl.getTime())) return false;
+    return tgl >= batasAwal && tgl <= hariIni;
+}
+
+/**
+ * Hapus 1 baris absen (tombol 🗑️ Hapus di kartu riwayat) -- minta
+ * konfirmasi dulu, lalu panggil endpoint hapus yang sesuai (mapel/wali),
+ * lalu muat ulang daftar riwayat supaya kartu yang dihapus langsung
+ * hilang dari tampilan tanpa perlu refresh manual.
+ */
+async function hapusKartuRiwayat(konteks, tanggal, containerId) {
+    const confirmed = await showConfirm(
+        `Yakin hapus absensi tanggal ${tanggal}? Data yang dihapus tidak bisa dikembalikan.`,
+        'Konfirmasi Hapus Absensi'
+    );
+    if (!confirmed) return;
+
+    try {
+        showGlobalLoading('Menghapus data...');
+        const res = konteks.mode === 'wali'
+            ? await hapusAbsenWali(konteks.kelas, tanggal)
+            : await hapusAbsen(konteks.mapel, konteks.kelas, tanggal);
+        hideGlobalLoading();
+
+        if (!res.success) {
+            showNotification(res.message || 'Gagal menghapus absensi.', 'error');
+            return;
+        }
+        showNotification(res.message || 'Absensi berhasil dihapus.', 'success');
+
+        // Muat ulang daftar riwayat (bukan cuma hapus kartunya dari DOM)
+        // supaya data yang ditampilkan selalu sinkron dengan spreadsheet.
+        const resRiwayat = konteks.mode === 'wali'
+            ? await getRiwayatAbsenWali(konteks.kelas)
+            : await getRiwayatAbsensi(konteks.mapel, konteks.kelas);
+        renderRiwayatList(resRiwayat, containerId, konteks);
+    } catch (error) {
+        hideGlobalLoading();
+        showNotification('Gagal menghapus: ' + error.message, 'error');
     }
 }
 
