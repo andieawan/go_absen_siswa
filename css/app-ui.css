@@ -216,6 +216,16 @@
   justify-content: center;
   font-size: 1.75rem;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* PATCH PANEL PROFIL: dipakai saat foto profil sudah diunggah -- lihat
+   js/profil.js (tampilkanFoto()). Menggantikan emoji default di
+   .header-avatar dengan foto asli, tetap pas di lingkaran yang sama. */
+.header-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .header-info-text h2 {
