@@ -325,7 +325,7 @@
 
 .login-msg.error {
   background: rgba(239, 68, 68, 0.1);
-  color: var(--error-color);
+  color: var(--danger-color);
   border: 1px solid rgba(239, 68, 68, 0.2);
 }
 
@@ -438,7 +438,7 @@
 }
 
 .stat-card.stat-alpa {
-  border-left-color: var(--error-color);
+  border-left-color: var(--danger-color);
 }
 
 /* PATCH: interaksi klik kartu "Persentase Kehadiran (Per Mapel)" --
@@ -525,7 +525,7 @@
 
 .stat-alpa .stat-icon {
   background: rgba(239, 68, 68, 0.1);
-  color: var(--error-color);
+  color: var(--danger-color);
 }
 
 .stat-info {
