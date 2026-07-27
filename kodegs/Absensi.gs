@@ -212,7 +212,13 @@ function getRiwayatAbsensi(mapel, kelas) {
   }
 
   riwayat.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
-  return { success: true, data: riwayat };
+  // PATCH: sertakan tanggal HARI INI menurut server (zona waktu sekolah,
+  // Asia/Jakarta) -- dipakai frontend supaya cek "7 hari terakhir" untuk
+  // tombol Hapus (lihat dalam7HariTerakhir() di js/absensi.js) pakai
+  // acuan yang SAMA dengan yang ditegakkan backend (apakahDalam7HariTerakhir()
+  // di Utils.gs), bukan bergantung pada jam/zona waktu perangkat guru
+  // sendiri (yang bisa saja salah setel atau beda zona).
+  return { success: true, data: riwayat, hariIniServer: todayISO() };
 }
 
 // --- HAPUS ABSEN (salah tanggal, dsb) ---
