@@ -135,3 +135,11 @@ function getRekapAbsenWali(kelas) {
   }
   return hasil;
 }
+
+// Wrapper tipis di atas hapusAbsensi() (Absensi.gs) -- logika hapus
+// (termasuk aturan 7 hari terakhir) sudah generik menerima parameter
+// mapel, jadi cukup diarahkan ke MAPEL_ABSEN_WALI, tidak perlu
+// duplikasi logika.
+function hapusAbsenWali(kelas, tanggal) {
+  return hapusAbsensi(MAPEL_ABSEN_WALI, kelas, tanggal);
+}
