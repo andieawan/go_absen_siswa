@@ -79,7 +79,10 @@ function simpanAbsenWali(kelas, tanggal, dataKehadiran, pengirim) {
   }
 
   try {
-    const ssAbsen = getAbsenSs(kelas, tanggal);
+    // PATCH KRITIS: sudahDikunci=true -- lock sudah dipegang di atas.
+    // Lihat penjelasan lengkap di getOrProvisionAbsenSpreadsheetId()
+    // (Config.gs).
+    const ssAbsen = getAbsenSs(kelas, tanggal, true);
     const sheetName = (kelas + "_" + MAPEL_ABSEN_WALI).replace(/[^a-zA-Z0-9]/g, "_");
     const sheet = getOrCreateSheet(ssAbsen, sheetName);
 
