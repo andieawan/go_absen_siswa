@@ -87,6 +87,14 @@ function doPost(e) {
         return getRiwayatAbsensi(data.mapel, data.kelas);
       });
 
+    } else if (data.action === 'hapusAbsen' && data.mapel && data.kelas && data.tanggal) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (akun.mapelList.indexOf(data.mapel) === -1 || akun.kelasList.indexOf(data.kelas) === -1) {
+          return { success: false, message: "Anda tidak berhak menghapus absensi ini." };
+        }
+        return hapusAbsensi(data.mapel, data.kelas, data.tanggal);
+      });
+
     } else if (data.action === 'getDashboardData' && data.mapel && data.kelas) {
       response = handleGetDenganValidasi(data.username, data.token, function(akun) {
         // PATCH: validasi PER-ITEM (bukan cek string gabungan utuh) --
@@ -144,6 +152,14 @@ function doPost(e) {
           return { success: false, message: "Anda bukan wali kelas " + data.kelas + "." };
         }
         return getRiwayatAbsenWali(data.kelas);
+      });
+
+    } else if (data.action === 'hapusAbsenWali' && data.kelas && data.tanggal) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!akun.kelasWali || akun.kelasWali !== data.kelas) {
+          return { success: false, message: "Anda bukan wali kelas " + data.kelas + "." };
+        }
+        return hapusAbsenWali(data.kelas, data.tanggal);
       });
 
     } else if (data.action === 'getRekapAbsenWali' && data.kelas) {
