@@ -96,7 +96,12 @@ function handleSubmit(payload) {
 // Logika penyimpanan sebenarnya, dipisah dari handleSubmit() supaya
 // bagian ini bisa dibungkus rapi oleh try/finally LockService di atas.
 function simpanSubmitAbsensi(payload) {
-  let ss = getAbsenSs(payload.kelas, payload.tanggal);
+  // PATCH KRITIS: sudahDikunci=true -- fungsi ini HANYA dipanggil dari
+  // dalam handleSubmit(), yang sudah memegang LockService.getScriptLock()
+  // sendiri. Lihat penjelasan lengkap di getOrProvisionAbsenSpreadsheetId()
+  // (Config.gs) kenapa ini penting (cegah potensi deadlock saat provisioning
+  // grup baru).
+  let ss = getAbsenSs(payload.kelas, payload.tanggal, true);
   let sheetName = (payload.kelas + "_" + payload.mapel).replace(/[^a-zA-Z0-9]/g, "_");
   let sheet = getOrCreateSheet(ss, sheetName);
   let data = sheet.getDataRange().getValues();
@@ -229,7 +234,10 @@ function hapusAbsensi(mapel, kelas, tanggal) {
   }
 
   try {
-    let ss = getAbsenSs(kelas, tanggal);
+    // PATCH KRITIS: sudahDikunci=true -- lock sudah dipegang di atas.
+    // Lihat penjelasan lengkap di getOrProvisionAbsenSpreadsheetId()
+    // (Config.gs).
+    let ss = getAbsenSs(kelas, tanggal, true);
     let sheetName = (kelas + "_" + mapel).replace(/[^a-zA-Z0-9]/g, "_");
     let sheet = ss.getSheetByName(sheetName);
     if (!sheet) return { success: false, message: "Data absen untuk kelas/mapel ini tidak ditemukan." };
