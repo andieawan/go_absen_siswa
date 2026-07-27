@@ -70,20 +70,31 @@ function updateProfilSaya(username, dataBaru) {
   for (let i = 1; i < data.length; i++) {
     if (data[i][0] !== username) continue;
     const baris = i + 1;
+
+    // PATCH: dipecah jadi 2 FASE -- VALIDASI dulu semuanya (tidak
+    // menyentuh sheet sama sekali di fase ini), baru TULIS semuanya di
+    // fase kedua kalau seluruh validasi lolos. Sebelumnya nama & password
+    // divalidasi-lalu-langsung-ditulis satu-satu secara berurutan --
+    // kalau nama berhasil ditulis tapi password baru gagal validasi
+    // (mis. password lama salah), yang terjadi "gagal" tapi nama-nya
+    // sudah kadung tersimpan (update sebagian). Sekarang dijamin
+    // semua-berhasil ATAU semua-gagal, tidak ada kondisi di tengah.
+    let namaBaru = null;
+    let saltBaru = null;
+    let hashBaru = null;
     const perubahan = [];
 
-    // --- Update nama (opsional) ---
+    // --- FASE 1a: validasi nama (opsional) ---
     if (dataBaru.nama && String(dataBaru.nama).trim() !== '') {
-      const namaBaru = String(dataBaru.nama).trim();
+      namaBaru = String(dataBaru.nama).trim();
       const validasiNama = validateInput(namaBaru, 'nama');
       if (validasiNama !== true) {
         return { success: false, message: 'Nama tidak valid: ' + validasiNama };
       }
-      sheet.getRange(baris, 3).setValue(namaBaru); // kolom C = nama
       perubahan.push('nama');
     }
 
-    // --- Update password (opsional) ---
+    // --- FASE 1b: validasi password (opsional) ---
     if (dataBaru.passwordBaru) {
       if (!dataBaru.passwordLama) {
         return { success: false, message: 'Isi password lama untuk mengganti password.' };
@@ -107,17 +118,25 @@ function updateProfilSaya(username, dataBaru) {
         return { success: false, message: 'Password baru minimal 6 karakter.' };
       }
 
-      const saltBaru = generateSalt();
-      const hashBaru = hashPassword(passwordBaruStr, saltBaru);
-      sheet.getRange(baris, 7).setValue(saltBaru);  // kolom G: salt
-      sheet.getRange(baris, 8).setValue(hashBaru);  // kolom H: password_hash
-      sheet.getRange(baris, 2).clearContent();      // kolom B: pastikan plaintext lama (kalau masih ada) ikut terhapus
+      saltBaru = generateSalt();
+      hashBaru = hashPassword(passwordBaruStr, saltBaru);
       perubahan.push('password');
     }
 
     if (perubahan.length === 0) {
       return { success: false, message: 'Tidak ada perubahan yang dikirim.' };
     }
+
+    // --- FASE 2: semua validasi lolos -- baru sekarang tulis ke sheet ---
+    if (namaBaru !== null) {
+      sheet.getRange(baris, 3).setValue(namaBaru); // kolom C = nama
+    }
+    if (hashBaru !== null) {
+      sheet.getRange(baris, 7).setValue(saltBaru);  // kolom G: salt
+      sheet.getRange(baris, 8).setValue(hashBaru);  // kolom H: password_hash
+      sheet.getRange(baris, 2).clearContent();      // kolom B: pastikan plaintext lama (kalau masih ada) ikut terhapus
+    }
+
     return { success: true, message: 'Berhasil memperbarui ' + perubahan.join(' & ') + '.' };
   }
 
