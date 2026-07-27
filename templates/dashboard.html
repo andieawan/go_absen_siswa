@@ -2,7 +2,7 @@
 <section id="dashboardSection">
     <div class="header-card">
         <div class="header-content">
-            <div class="header-avatar">👨‍🏫</div>
+            <div class="header-avatar" id="headerAvatar">👨‍🏫</div>
             <div class="header-info-text">
                 <h2 id="greeting">Selamat Datang!</h2>
                 <p class="header-date" id="headerDate"></p>
@@ -29,6 +29,7 @@
         <button class="tab-btn" data-tab="panelAbsensi" role="tab"><span class="tab-icon">📝</span><span class="tab-label">Input</span></button>
         <button class="tab-btn" data-tab="panelRiwayat" role="tab"><span class="tab-icon">🕒</span><span class="tab-label">Riwayat</span></button>
         <button class="tab-btn" data-tab="panelRekap" role="tab"><span class="tab-icon">📁</span><span class="tab-label">Rekap</span></button>
+        <button class="tab-btn" data-tab="panelProfil" role="tab"><span class="tab-icon">👤</span><span class="tab-label">Profil</span></button>
     </div>
 
     <!-- PANEL: DASHBOARD -->
@@ -385,6 +386,63 @@
                 <strong>Tips:</strong>
                 <p>File rekap akan langsung terunduh ke perangkat Anda dalam format Excel (.xlsx).</p>
             </div>
+        </div>
+    </div>
+
+    <!-- PANEL: PROFIL AKUN -->
+    <div id="panelProfil" class="tab-panel hidden">
+        <div class="panel-header">
+            <h3>👤 Profil Akun</h3>
+            <p class="panel-subtitle">Ubah nama, foto profil, dan password akun Anda</p>
+        </div>
+
+        <div class="card profil-foto-card">
+            <div class="profil-foto-wrapper">
+                <img id="profilFotoPreview" class="profil-foto-preview hidden" src="" alt="Foto profil">
+                <div id="profilFotoKosong" class="profil-foto-kosong">👤</div>
+            </div>
+            <input type="file" id="inputFotoProfil" accept="image/*" class="hidden">
+            <button type="button" id="btnPilihFoto" class="btn-secondary btn-full">📷 Ganti Foto Profil</button>
+            <p id="profilFotoMsg" class="login-msg"></p>
+        </div>
+
+        <div class="card">
+            <h4>✏️ Nama</h4>
+            <form id="formProfilNama">
+                <div class="form-group">
+                    <label for="profilNama">Nama Lengkap</label>
+                    <input type="text" id="profilNama" required placeholder="Nama lengkap Anda">
+                </div>
+                <button type="submit" class="btn-primary btn-full">
+                    <span class="btn-text">💾 Simpan Nama</span>
+                    <span class="btn-loader hidden">⏳ Menyimpan...</span>
+                </button>
+                <p id="profilNamaMsg" class="login-msg"></p>
+            </form>
+        </div>
+
+        <div class="card">
+            <h4>🔒 Ganti Password</h4>
+            <p class="card-subtitle">Kosongkan bagian ini kalau tidak ingin mengganti password</p>
+            <form id="formProfilPassword">
+                <div class="form-group">
+                    <label for="profilPasswordLama">Password Lama</label>
+                    <input type="password" id="profilPasswordLama" autocomplete="current-password" placeholder="Password saat ini">
+                </div>
+                <div class="form-group">
+                    <label for="profilPasswordBaru">Password Baru</label>
+                    <input type="password" id="profilPasswordBaru" autocomplete="new-password" placeholder="Minimal 6 karakter">
+                </div>
+                <div class="form-group">
+                    <label for="profilPasswordKonfirmasi">Konfirmasi Password Baru</label>
+                    <input type="password" id="profilPasswordKonfirmasi" autocomplete="new-password" placeholder="Ulangi password baru">
+                </div>
+                <button type="submit" class="btn-primary btn-full">
+                    <span class="btn-text">🔄 Ganti Password</span>
+                    <span class="btn-loader hidden">⏳ Menyimpan...</span>
+                </button>
+                <p id="profilPasswordMsg" class="login-msg"></p>
+            </form>
         </div>
     </div>
 </section>
