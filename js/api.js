@@ -652,10 +652,79 @@ export default {
     getRiwayatAbsensi,
     hapusAbsen,
     getDashboardData,
+// ===== PANEL PROFIL =====
+
+// Ambil data profil (nama + URL foto) untuk ditampilkan saat panel dibuka
+export async function getProfilSaya() {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({
+            action: 'getProfilSaya',
+            username: username,
+            token: token
+        });
+    } catch (error) {
+        console.error('Get profil error:', error);
+        throw error;
+    }
+}
+
+// Update nama & (opsional) password. `dataBaru` bentuknya:
+//   { nama }, { passwordLama, passwordBaru }, atau keduanya sekaligus.
+export async function updateProfil(dataBaru) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({
+            action: 'updateProfil',
+            dataBaru: dataBaru,
+            username: username,
+            token: token
+        });
+    } catch (error) {
+        console.error('Update profil error:', error);
+        throw error;
+    }
+}
+
+// Upload foto profil. `base64Data` HARUS sudah dikompres/diresize di sisi
+// klien dulu (lihat js/profil.js, kompresGambarSebelumUpload()) supaya
+// payload yang dikirim ke server tetap kecil.
+export async function uploadFotoProfil(base64Data, mimeType) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({
+            action: 'uploadFotoProfil',
+            base64Data: base64Data,
+            mimeType: mimeType,
+            username: username,
+            token: token
+        });
+    } catch (error) {
+        console.error('Upload foto profil error:', error);
+        throw error;
+    }
+}
+
+export default {
+    login,
+    logout,
+    redirectToLoginPage,
+    isLoggedIn,
+    getCurrentUser,
+    submitAbsensi,
+    submitAbsenWali,
+    getSiswaByKelas,
+    getExistingAttendance,
+    getRiwayatAbsensi,
+    hapusAbsen,
+    getDashboardData,
     getDashboardDataWali,
     getRekapKelasSaya,
     getAbsenWaliExisting,
     getRiwayatAbsenWali,
     hapusAbsenWali,
-    downloadRekapExcel
+    downloadRekapExcel,
+    getProfilSaya,
+    updateProfil,
+    uploadFotoProfil
 };
