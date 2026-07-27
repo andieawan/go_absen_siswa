@@ -614,3 +614,145 @@ function debugDashboardData(mapelListStr, kelasListStr) {
   Logger.log(hasil);
   return hasil;
 }
+
+// =========================================================
+// RESET SEMESTER: bersihkan spreadsheet absen mentah (+ entri
+// ABSEN_GROUP_MAP terkait) untuk 1 tahun ajaran+semester tertentu,
+// SETELAH data-nya sudah kamu backup ke luar aplikasi.
+// ---------------------------------------------------------
+// PENTING -- URUTAN YANG BENAR:
+//   1) Backup dulu (unduh/salin semua yang dibutuhkan) di LUAR aplikasi
+//      ini -- fungsi ini TIDAK melakukan backup apa pun, cuma menghapus.
+//   2) Baru jalankan fungsi ini.
+//
+// File tidak dihapus permanen, cuma dipindah ke SAMPAH Google Drive
+// (bisa dipulihkan manual dalam 30 hari kalau ternyata masih dibutuhkan)
+// -- lihat DriveApp .setTrashed(true).
+//
+// WAJIB isi `konfirmasi: true` DAN `tahunAjaran`+`semester` yang PERSIS
+// sama 2x (di dalam opsi) supaya tidak kepencet tidak sengaja. Coba
+// dulu TANPA `konfirmasi` (atau `konfirmasi: false`) untuk mode PREVIEW
+// -- akan menunjukkan apa saja yang AKAN dihapus, tanpa benar-benar
+// menghapus apa pun, supaya kamu bisa cek dulu sebelum yakin.
+//
+// CARA PAKAI:
+//   // 1) PREVIEW dulu (aman, tidak menghapus apa pun):
+//   resetSemester({ tahunAjaran: '2026-2027', semester: 'S1' });
+//
+//   // 2) Setelah yakin (dan sudah backup!), jalankan sungguhan:
+//   resetSemester({ tahunAjaran: '2026-2027', semester: 'S1', konfirmasi: true });
+//
+//   // 3) Opsional: sekalian hapus Rekap_Master & Rekap_Backup periode
+//   //    itu juga (kalau memang mau "bersih total", bukan cuma data
+//   //    mentahnya):
+//   resetSemester({ tahunAjaran: '2026-2027', semester: 'S1', konfirmasi: true, hapusJugaRekap: true });
+// =========================================================
+function resetSemester(opsi) {
+  if (!opsi || !opsi.tahunAjaran || !opsi.semester) {
+    throw new Error('Wajib isi opsi.tahunAjaran (mis. "2026-2027") dan opsi.semester ("S1" atau "S2").');
+  }
+  const akhiranGroupKey = '_' + opsi.tahunAjaran + '_' + opsi.semester;
+  const modePreview = opsi.konfirmasi !== true;
+
+  const groupMap = getAbsenGroupMap();
+  const groupCocok = Object.keys(groupMap).filter(key => key.endsWith(akhiranGroupKey));
+
+  if (groupCocok.length === 0) {
+    return 'Tidak ada grup absen yang cocok dengan tahun ajaran "' + opsi.tahunAjaran + '" semester "' + opsi.semester + '". Tidak ada yang dihapus.';
+  }
+
+  const laporan = [];
+  laporan.push((modePreview ? '=== MODE PREVIEW (belum menghapus apa pun) ===' : '=== MODE HAPUS SUNGGUHAN ==='));
+  laporan.push('Tahun ajaran: ' + opsi.tahunAjaran + ', Semester: ' + opsi.semester);
+  laporan.push('Jumlah grup yang cocok: ' + groupCocok.length);
+  laporan.push('---');
+
+  groupCocok.forEach(function(groupKey) {
+    const spreadsheetId = groupMap[groupKey];
+    let namaFile = '(tidak diketahui)';
+    try {
+      namaFile = SpreadsheetApp.openById(spreadsheetId).getName();
+    } catch (e) {
+      namaFile = '(file sudah tidak bisa dibuka -- mungkin sudah terhapus sebelumnya: ' + e.message + ')';
+    }
+
+    if (modePreview) {
+      laporan.push('[AKAN DIHAPUS] Grup "' + groupKey + '" -> file "' + namaFile + '" (ID: ' + spreadsheetId + ')');
+    } else {
+      try {
+        DriveApp.getFileById(spreadsheetId).setTrashed(true);
+        laporan.push('[DIHAPUS -> Sampah] Grup "' + groupKey + '" -> file "' + namaFile + '"');
+      } catch (e) {
+        laporan.push('[GAGAL HAPUS] Grup "' + groupKey + '" -> file "' + namaFile + '": ' + e.message);
+      }
+      delete groupMap[groupKey];
+    }
+  });
+
+  if (!modePreview) {
+    const props = PropertiesService.getScriptProperties();
+    props.setProperty('ABSEN_GROUP_MAP', JSON.stringify(groupMap));
+    invalidateConfigCache('ABSEN_GROUP_MAP');
+    laporan.push('---');
+    laporan.push(groupCocok.length + ' entri berhasil dihapus dari ABSEN_GROUP_MAP.');
+  }
+
+  if (opsi.hapusJugaRekap) {
+    laporan.push('---');
+    laporan.push('Membersihkan Rekap_Master & Rekap_Backup yang cocok...');
+    laporan.push(bersihkanRekapUntukSemester_(groupCocok, modePreview));
+  }
+
+  laporan.push('---');
+  laporan.push(modePreview
+    ? 'Ini baru PREVIEW. Kalau sudah yakin (dan SUDAH backup data di luar aplikasi), jalankan lagi dengan konfirmasi:true untuk benar-benar menghapus.'
+    : 'Selesai. File yang dihapus ada di Sampah Google Drive (bisa dipulihkan manual dalam 30 hari kalau ternyata masih dibutuhkan).');
+
+  const hasil = laporan.join('\n');
+  Logger.log(hasil);
+  return hasil;
+}
+
+// Cari & hapus (atau preview) file Rekap_Master/Rekap_Backup yang nama
+// filenya mengandung salah satu groupKey di `groupCocok` -- dipanggil
+// dari resetSemester() kalau opsi.hapusJugaRekap true. Menyisir semua
+// subfolder jurusan di dalam DRIVE_FOLDER_REKAP_ID & DRIVE_FOLDER_BACKUP_ID
+// (lihat generateFullRecap() di Rekap.gs untuk struktur foldernya).
+function bersihkanRekapUntukSemester_(groupCocok, modePreview) {
+  const laporan = [];
+  [
+    { label: 'Rekap_Master', folderId: DRIVE_FOLDER_REKAP_ID },
+    { label: 'Rekap_Backup', folderId: DRIVE_FOLDER_BACKUP_ID }
+  ].forEach(function(target) {
+    let folderInduk;
+    try {
+      folderInduk = DriveApp.getFolderById(target.folderId);
+    } catch (e) {
+      laporan.push(target.label + ': gagal buka folder induk (' + e.message + ')');
+      return;
+    }
+
+    let jumlahDitemukan = 0;
+    const subfolders = folderInduk.getFolders();
+    while (subfolders.hasNext()) {
+      const subfolder = subfolders.next();
+      const files = subfolder.getFiles();
+      while (files.hasNext()) {
+        const file = files.next();
+        const namaFile = file.getName();
+        const cocok = groupCocok.some(function(groupKey) { return namaFile.indexOf(groupKey) !== -1; });
+        if (!cocok) continue;
+
+        jumlahDitemukan++;
+        if (modePreview) {
+          laporan.push('  [AKAN DIHAPUS] ' + target.label + '/' + subfolder.getName() + '/' + namaFile);
+        } else {
+          file.setTrashed(true);
+          laporan.push('  [DIHAPUS -> Sampah] ' + target.label + '/' + subfolder.getName() + '/' + namaFile);
+        }
+      }
+    }
+    if (jumlahDitemukan === 0) laporan.push(target.label + ': tidak ada file yang cocok.');
+  });
+  return laporan.join('\n');
+}
