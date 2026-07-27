@@ -268,8 +268,28 @@ function getOrCreateSubfolder(parentFolder, namaSubfolder) {
  *   3) Baru kalau memang benar-benar belum ada: cari/buat subfolder
  *      jurusan, cari/buat file spreadsheet-nya, simpan ID-nya ke
  *      Properties supaya lookup berikutnya lewat jalur cepat di poin 1.
+ *
+ * PATCH KRITIS (cegah potensi deadlock): parameter `sudahDikunci` --
+ * beberapa pemanggil (handleSubmit() di Absensi.gs, simpanAbsenWali() di
+ * AbsenWali.gs, hapusAbsensi() di Absensi.gs) SUDAH memegang
+ * LockService.getScriptLock() SENDIRI sebelum sampai ke fungsi ini
+ * (lewat getAbsenSs()). Kalau grup belum ter-provision, fungsi ini
+ * SEBELUMNYA selalu mencoba lock() lagi -- padahal LockService Apps
+ * Script adalah SATU kunci tunggal per script (bukan per-resource), jadi
+ * mengunci lagi di eksekusi yang SAMA yang sudah memegangnya berisiko
+ * deadlock (menunggu dirinya sendiri) kalau LockService tidak reentrant.
+ * Ini justru paling mungkin kejadian di momen PALING PENTING: submit
+ * absen pertama kali di semester/tahun ajaran baru (saat grup memang
+ * belum pernah ada).
+ * Kalau `sudahDikunci` true, fungsi ini TIDAK mengunci lagi -- provisioning
+ * tetap AMAN dari race condition antar-2-EKSEKUSI-BERBEDA, karena kedua
+ * eksekusi itu sudah pasti terserialisasi lebih dulu lewat lock TUNGGAL
+ * yang sama yang dipegang pemanggil (getScriptLock() cuma ada 1 per
+ * script, bukan per grup) -- jadi tidak mungkin ada 2 eksekusi yang
+ * SAMA-SAMA sedang di titik ini secara bersamaan kalau caller-nya sudah
+ * dikunci di titik yang lebih luar.
  */
-function getOrProvisionAbsenSpreadsheetId(kelas, tanggalStr) {
+function getOrProvisionAbsenSpreadsheetId(kelas, tanggalStr, sudahDikunci) {
   const groupKey = getAbsenGroupKey(kelas, tanggalStr);
 
   let groupMap = getAbsenGroupMap();
@@ -277,6 +297,12 @@ function getOrProvisionAbsenSpreadsheetId(kelas, tanggalStr) {
 
   if (!DRIVE_FOLDER_ABSEN_ROOT_ID || DRIVE_FOLDER_ABSEN_ROOT_ID.indexOf('GANTI_DENGAN_ID') === 0) {
     throw new Error('DRIVE_FOLDER_ABSEN_ROOT_ID belum diisi. Buat 1 folder Drive untuk menampung semua file absen, lalu isi ID-nya (lihat catatan di atas getAbsenGroupKey(), Config.gs).');
+  }
+
+  if (sudahDikunci) {
+    // Pemanggil sudah pegang lock sendiri -- langsung provisioning tanpa
+    // lock tambahan (lihat penjelasan lengkap di komentar fungsi ini).
+    return provisionSpreadsheetAbsenBaru(kelas, groupKey, groupMap);
   }
 
   const lock = LockService.getScriptLock();
@@ -290,34 +316,41 @@ function getOrProvisionAbsenSpreadsheetId(kelas, tanggalStr) {
     // Cek ulang setelah dapat lock -- lihat catatan poin 2 di atas.
     groupMap = getAbsenGroupMap();
     if (groupMap[groupKey]) return groupMap[groupKey];
-
-    const jurusan = getJurusanFromKelas(kelas);
-    const rootFolder = DriveApp.getFolderById(DRIVE_FOLDER_ABSEN_ROOT_ID);
-    const jurusanFolder = getOrCreateSubfolder(rootFolder, jurusan);
-
-    const namaFile = 'Absen_' + groupKey;
-    let spreadsheetId;
-    const existingFiles = jurusanFolder.getFilesByName(namaFile);
-    if (existingFiles.hasNext()) {
-      // Sudah pernah dibuat sebelumnya tapi entah kenapa hilang dari
-      // Properties (mis. properties direset admin) -- pakai yang ada,
-      // jangan bikin file duplikat.
-      spreadsheetId = existingFiles.next().getId();
-    } else {
-      const ssBaru = SpreadsheetApp.create(namaFile);
-      spreadsheetId = ssBaru.getId();
-      DriveApp.getFileById(spreadsheetId).moveTo(jurusanFolder);
-    }
-
-    const props = PropertiesService.getScriptProperties();
-    groupMap[groupKey] = spreadsheetId;
-    props.setProperty('ABSEN_GROUP_MAP', JSON.stringify(groupMap));
-    invalidateConfigCache('ABSEN_GROUP_MAP');
-
-    return spreadsheetId;
+    return provisionSpreadsheetAbsenBaru(kelas, groupKey, groupMap);
   } finally {
     lock.releaseLock();
   }
+}
+
+// Logika sebenarnya yang membuat/menemukan spreadsheet untuk 1 grup --
+// dipisah dari getOrProvisionAbsenSpreadsheetId() supaya bisa dipanggil
+// BAIK dari jalur yang mengunci sendiri MAUPUN dari jalur yang lock-nya
+// sudah dipegang pemanggil (lihat parameter `sudahDikunci` di atas).
+function provisionSpreadsheetAbsenBaru(kelas, groupKey, groupMap) {
+  const jurusan = getJurusanFromKelas(kelas);
+  const rootFolder = DriveApp.getFolderById(DRIVE_FOLDER_ABSEN_ROOT_ID);
+  const jurusanFolder = getOrCreateSubfolder(rootFolder, jurusan);
+
+  const namaFile = 'Absen_' + groupKey;
+  let spreadsheetId;
+  const existingFiles = jurusanFolder.getFilesByName(namaFile);
+  if (existingFiles.hasNext()) {
+    // Sudah pernah dibuat sebelumnya tapi entah kenapa hilang dari
+    // Properties (mis. properties direset admin) -- pakai yang ada,
+    // jangan bikin file duplikat.
+    spreadsheetId = existingFiles.next().getId();
+  } else {
+    const ssBaru = SpreadsheetApp.create(namaFile);
+    spreadsheetId = ssBaru.getId();
+    DriveApp.getFileById(spreadsheetId).moveTo(jurusanFolder);
+  }
+
+  const props = PropertiesService.getScriptProperties();
+  groupMap[groupKey] = spreadsheetId;
+  props.setProperty('ABSEN_GROUP_MAP', JSON.stringify(groupMap));
+  invalidateConfigCache('ABSEN_GROUP_MAP');
+
+  return spreadsheetId;
 }
 
 const MAPEL_ABSEN_WALI = "Absen Harian";
@@ -454,13 +487,23 @@ function gantiMasterSiswaSpreadsheet(spreadsheetIdBaru) {
  * absen selalu kirim tanggal absen yang sebenarnya, bukan default ini,
  * supaya entri yang telat disimpan tetap masuk ke file semester yang
  * benar sesuai tanggal kejadiannya.
+ *
+ * PATCH KRITIS: parameter `sudahDikunci` (opsional, default false) --
+ * isi `true` HANYA kalau pemanggil SUDAH memegang
+ * LockService.getScriptLock() sendiri (mis. handleSubmit(),
+ * simpanAbsenWali(), hapusAbsensi()), supaya provisioning grup baru
+ * tidak mencoba mengunci lagi di eksekusi yang sama (lihat penjelasan
+ * lengkap risikonya di getOrProvisionAbsenSpreadsheetId(), Config.gs).
+ * Pemanggil yang TIDAK memegang lock sendiri (getDashboardData(),
+ * getRiwayatAbsensi(), dst) cukup panggil seperti biasa tanpa parameter
+ * ini (default false -- tetap dikunci sendiri seperti sebelumnya).
  */
-function getAbsenSs(kelas, tanggalStr) {
+function getAbsenSs(kelas, tanggalStr, sudahDikunci) {
   if (!kelas) {
     throw new Error('getAbsenSs() sekarang wajib diberi parameter kelas -- data absen dipecah per grup jurusan+angkatan+semester supaya tidak melebihi batas 200 tab/spreadsheet Google Sheets. Lihat Config.gs.');
   }
   const tgl = tanggalStr || Utilities.formatDate(new Date(), ZONA_WAKTU_DIHARAPKAN, 'yyyy-MM-dd');
-  const spreadsheetId = getOrProvisionAbsenSpreadsheetId(kelas, tgl);
+  const spreadsheetId = getOrProvisionAbsenSpreadsheetId(kelas, tgl, !!sudahDikunci);
   return DB_CACHE.getAbsen(spreadsheetId);
 }
 
