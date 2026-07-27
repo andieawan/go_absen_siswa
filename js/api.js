@@ -285,6 +285,26 @@ export async function getRiwayatAbsensi(mapel, kelas) {
     }
 }
 
+// Hapus 1 baris absen (salah tanggal, dsb) -- backend membatasi hanya
+// tanggal dalam 7 hari terakhir yang boleh dihapus (lihat hapusAbsensi()
+// di Absensi.gs).
+export async function hapusAbsen(mapel, kelas, tanggal) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({
+            action: 'hapusAbsen',
+            mapel: mapel,
+            kelas: kelas,
+            tanggal: tanggal,
+            username: username,
+            token: token
+        });
+    } catch (error) {
+        console.error('Hapus absen error:', error);
+        throw error;
+    }
+}
+
 // Ambil data dashboard (per mapel)
 export async function getDashboardData(mapel, kelas) {
     try {
@@ -364,6 +384,24 @@ export async function getRiwayatAbsenWali(kelas) {
         });
     } catch (error) {
         console.error('Get riwayat wali error:', error);
+        throw error;
+    }
+}
+
+// Hapus 1 baris absen wali kelas (salah tanggal, dsb) -- backend
+// membatasi hanya tanggal dalam 7 hari terakhir yang boleh dihapus.
+export async function hapusAbsenWali(kelas, tanggal) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({
+            action: 'hapusAbsenWali',
+            kelas: kelas,
+            tanggal: tanggal,
+            username: username,
+            token: token
+        });
+    } catch (error) {
+        console.error('Hapus absen wali error:', error);
         throw error;
     }
 }
@@ -612,10 +650,12 @@ export default {
     getSiswaByKelas,
     getExistingAttendance,
     getRiwayatAbsensi,
+    hapusAbsen,
     getDashboardData,
     getDashboardDataWali,
     getRekapKelasSaya,
     getAbsenWaliExisting,
     getRiwayatAbsenWali,
+    hapusAbsenWali,
     downloadRekapExcel
 };
