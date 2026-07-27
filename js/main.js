@@ -49,6 +49,7 @@ import { initDashboard } from './dashboard.js?v=20260726b';
 // pun -- termasuk navigasi tab-nya sendiri. Modul ini sekarang dipulihkan dan
 // diinisialisasi di sini, sejajar dengan initDashboard().
 import { initAbsensi } from './absensi.js?v=20260726';
+import { initProfil } from './profil.js?v=20260727';
 import { showNotification } from './utils.js?v=20260726';
 import { showAlert, showConfirm } from './modal.js?v=20260726';
 import { initModalHandlers } from './modal.js?v=20260726';
@@ -148,6 +149,8 @@ async function renderDashboard() {
         initDashboard();
         // PATCH: inisialisasi panel Input/Riwayat/Rekap/Wali (lihat js/absensi.js)
         initAbsensi();
+        // PATCH: inisialisasi panel Profil (nama, password, foto profil)
+        initProfil(currentUser);
     }
 }
 
