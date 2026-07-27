@@ -261,6 +261,13 @@ function renderRiwayatList(res, containerId, konteks) {
         return;
     }
 
+    // PATCH: pakai tanggal "hari ini" dari SERVER (res.hariIniServer,
+    // zona waktu Asia/Jakarta -- lihat getRiwayatAbsensi() di Absensi.gs)
+    // sebagai acuan cek 7 hari terakhir, bukan jam/zona waktu perangkat
+    // guru sendiri -- supaya tombol Hapus muncul/tidak-muncul konsisten
+    // dengan aturan yang SEBENARNYA ditegakkan backend.
+    const hariIniServer = res.hariIniServer;
+
     container.innerHTML = data.map(item => {
         const detailList = [];
         if (item.namaIzin && item.namaIzin.length) detailList.push(`<p><strong>Izin:</strong> ${item.namaIzin.map(escapeHtml).join(', ')}</p>`);
@@ -273,7 +280,7 @@ function renderRiwayatList(res, containerId, konteks) {
         // ditolak); aturan SEBENARNYA tetap dijaga di backend
         // (apakahDalam7HariTerakhir() di Utils.gs), bukan bergantung ke
         // cek di sini.
-        const bolehHapus = dalam7HariTerakhir(item.tanggal);
+        const bolehHapus = dalam7HariTerakhir(item.tanggal, hariIniServer);
         const tombolHapus = bolehHapus
             ? `<button type="button" class="btn-hapus-riwayat" data-tanggal="${escapeHtml(item.tanggal)}" title="Hapus absensi tanggal ini">🗑️ Hapus</button>`
             : '';
@@ -313,13 +320,20 @@ function renderRiwayatList(res, containerId, konteks) {
 // Cek apakah `tanggalStr` ("yyyy-MM-dd") ada dalam 7 hari terakhir
 // (termasuk hari ini) -- versi frontend dari apakahDalam7HariTerakhir()
 // di Utils.gs, cuma dipakai untuk UX (tampil/sembunyikan tombol Hapus).
-function dalam7HariTerakhir(tanggalStr) {
-    const hariIni = new Date();
+// PATCH: `hariIniStr` (opsional, "yyyy-MM-dd") -- kalau diisi (dari
+// res.hariIniServer), dipakai sebagai acuan "hari ini" alih-alih jam
+// lokal browser, supaya konsisten dengan zona waktu yang ditegakkan
+// backend. Kalau tidak diisi (mis. dipanggil dari tempat lain tanpa
+// akses ke response server), fallback ke jam lokal browser seperti
+// sebelumnya -- lebih baik ada fallback yang sedikit meleset daripada
+// error kalau parameter ini tidak tersedia.
+function dalam7HariTerakhir(tanggalStr, hariIniStr) {
+    const hariIni = hariIniStr ? new Date(hariIniStr + 'T00:00:00') : new Date();
     hariIni.setHours(0, 0, 0, 0);
     const batasAwal = new Date(hariIni);
     batasAwal.setDate(batasAwal.getDate() - 6);
     const tgl = new Date(tanggalStr + 'T00:00:00');
-    if (isNaN(tgl.getTime())) return false;
+    if (isNaN(tgl.getTime()) || isNaN(hariIni.getTime())) return false;
     return tgl >= batasAwal && tgl <= hariIni;
 }
 
