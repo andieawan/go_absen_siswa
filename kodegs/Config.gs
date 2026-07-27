@@ -149,6 +149,11 @@ const DRIVE_FOLDER_BACKUP_ID = getConfigValue('DRIVE_FOLDER_BACKUP_ID', '1wxDqJ3
 
 const DRIVE_FOLDER_ABSEN_ROOT_ID = getConfigValue('DRIVE_FOLDER_ABSEN_ROOT_ID', 'GANTI_DENGAN_ID_FOLDER_ROOT_ABSEN');
 
+// Folder Drive untuk menyimpan foto profil guru (fitur Panel Profil --
+// lihat kodegs/Profil.gs). Buat 1 folder Drive kosong khusus untuk ini,
+// isi ID-nya lewat setupConfig() atau langsung lewat Script Properties.
+const DRIVE_FOLDER_FOTO_PROFIL_ID = getConfigValue('DRIVE_FOLDER_FOTO_PROFIL_ID', 'GANTI_DENGAN_ID_FOLDER_FOTO_PROFIL');
+
 // Tidak ada seed manual -- SEMUA grup (termasuk kelas yang sebelumnya
 // memakai spreadsheet dummy lama) akan ter-provision otomatis sendiri
 // saat dipakai pertama kali. Spreadsheet dummy lama sengaja TIDAK
@@ -392,6 +397,11 @@ function setupConfig() {
   if (!props.getProperty('DRIVE_FOLDER_BACKUP_ID')) {
     props.setProperty('DRIVE_FOLDER_BACKUP_ID', '1wxDqJ3YcMR0ubK6Ni-uIByFmtdmnU6sa');
   }
+  if (!props.getProperty('DRIVE_FOLDER_FOTO_PROFIL_ID')) {
+    // GANTI nilai di bawah dengan ID folder Drive kosong khusus untuk
+    // menyimpan foto profil guru (fitur Panel Profil).
+    props.setProperty('DRIVE_FOLDER_FOTO_PROFIL_ID', 'GANTI_DENGAN_ID_FOLDER_FOTO_PROFIL');
+  }
   
   // Invalidate cache agar config terbaru langsung terbaca
   invalidateConfigCache('SPREADSHEET_MASTER_SISWA_ID');
@@ -399,6 +409,7 @@ function setupConfig() {
   invalidateConfigCache('DRIVE_FOLDER_REKAP_ID');
   invalidateConfigCache('DRIVE_FOLDER_ABSEN_ROOT_ID');
   invalidateConfigCache('DRIVE_FOLDER_BACKUP_ID');
+  invalidateConfigCache('DRIVE_FOLDER_FOTO_PROFIL_ID');
   
   Logger.log('Konfigurasi berhasil disetup!');
   Logger.log('SPREADSHEET_MASTER_SISWA_ID: ' + props.getProperty('SPREADSHEET_MASTER_SISWA_ID'));
@@ -406,6 +417,7 @@ function setupConfig() {
   Logger.log('DRIVE_FOLDER_REKAP_ID: ' + props.getProperty('DRIVE_FOLDER_REKAP_ID'));
   Logger.log('DRIVE_FOLDER_ABSEN_ROOT_ID: ' + props.getProperty('DRIVE_FOLDER_ABSEN_ROOT_ID') + ' (GANTI kalau masih placeholder!)');
   Logger.log('DRIVE_FOLDER_BACKUP_ID: ' + props.getProperty('DRIVE_FOLDER_BACKUP_ID'));
+  Logger.log('DRIVE_FOLDER_FOTO_PROFIL_ID: ' + props.getProperty('DRIVE_FOLDER_FOTO_PROFIL_ID') + ' (GANTI kalau masih placeholder!)');
   Logger.log('CATATAN: spreadsheet absen sekarang dipecah per grup jurusan+angkatan+semester, dan dibuat OTOMATIS saat pertama kali dipakai -- tidak perlu diisi manual satu-satu lagi.');
 }
 
