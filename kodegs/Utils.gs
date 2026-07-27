@@ -72,6 +72,20 @@ function todayISO() {
   return Utilities.formatDate(new Date(), ZONA_WAKTU_DIHARAPKAN, 'yyyy-MM-dd');
 }
 
+// Cek apakah `tanggalStr` (format "yyyy-MM-dd") berada dalam 7 hari
+// terakhir (termasuk hari ini), berdasarkan zona waktu sekolah. Dipakai
+// untuk membatasi fitur hapus absensi -- guru/wali cuma boleh hapus
+// entri BARU-BARU INI, bukan data lama sembarangan.
+function apakahDalam7HariTerakhir(tanggalStr) {
+  const hariIni = todayISO();
+  const batasAwal = new Date(hariIni);
+  batasAwal.setDate(batasAwal.getDate() - 6); // 6 hari ke belakang + hari ini = 7 hari
+  const tglDicek = new Date(tanggalStr);
+  const tglHariIni = new Date(hariIni);
+  if (isNaN(tglDicek.getTime())) return false;
+  return tglDicek >= batasAwal && tglDicek <= tglHariIni;
+}
+
 // ===== VALIDASI & SANITASI INPUT =====
 
 /**
