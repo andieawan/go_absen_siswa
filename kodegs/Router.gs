@@ -218,6 +218,22 @@ function doPost(e) {
     } else if (data.action === 'submitAbsenKetuaKelas' && data.ketuaToken && data.dataKehadiran) {
       response = submitAbsenViaKetuaKelas(data.ketuaToken, data.tanggal, data.dataKehadiran);
 
+    // ===== FITUR: Panel Profil (nama, ganti password, foto profil) =====
+    } else if (data.action === 'getProfilSaya') {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        return getProfilSaya(data.username);
+      });
+
+    } else if (data.action === 'updateProfil' && data.dataBaru) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        return updateProfilSaya(data.username, data.dataBaru);
+      });
+
+    } else if (data.action === 'uploadFotoProfil' && data.base64Data) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        return uploadFotoProfilSaya(data.username, data.base64Data, data.mimeType);
+      });
+
     // ===== FIX: fallback eksplisit untuk action tak dikenal / parameter kurang =====
     } else {
       response.message = "Aksi tidak dikenali atau parameter tidak lengkap: " + (data.action || '(kosong)');
