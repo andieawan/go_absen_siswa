@@ -369,6 +369,31 @@
   margin-bottom: var(--spacing-2);
   padding-bottom: var(--spacing-2);
   border-bottom: 1px solid var(--gray-100);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+}
+
+/* PATCH HAPUS ABSEN: tombol hapus di kartu riwayat (cuma muncul untuk
+   tanggal dalam 7 hari terakhir -- lihat dalam7HariTerakhir() di
+   js/absensi.js). z-index & stopPropagation() di JS memastikan klik
+   tombol ini tidak ikut memicu navigasi-ke-edit dari klik kartu. */
+.btn-hapus-riwayat {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--danger-color);
+  color: var(--danger-color);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-1) var(--spacing-2);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.btn-hapus-riwayat:hover {
+  background: var(--danger-color);
+  color: var(--white);
 }
 
 .riwayat-detail {
