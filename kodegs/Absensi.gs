@@ -209,3 +209,45 @@ function getRiwayatAbsensi(mapel, kelas) {
   riwayat.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
   return { success: true, data: riwayat };
 }
+
+// --- HAPUS ABSEN (salah tanggal, dsb) ---
+// Guru cuma boleh hapus entri absen dalam 7 hari terakhir -- supaya
+// tidak sembarangan menghapus data lama (mis. yang sudah masuk rekap
+// resmi semester). Otorisasi kelas+mapel guru dicek di Router.gs
+// (sama seperti handleSubmit/getRiwayatAbsensi), fungsi ini fokus ke
+// logika hapusnya saja.
+function hapusAbsensi(mapel, kelas, tanggal) {
+  if (!apakahDalam7HariTerakhir(tanggal)) {
+    return { success: false, message: "Absen tanggal " + tanggal + " sudah lebih dari 7 hari yang lalu -- tidak bisa dihapus lewat aplikasi. Hubungi admin kalau memang perlu dikoreksi." };
+  }
+
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    return { success: false, message: "Server sedang memproses absen lain, silakan coba lagi beberapa saat." };
+  }
+
+  try {
+    let ss = getAbsenSs(kelas, tanggal);
+    let sheetName = (kelas + "_" + mapel).replace(/[^a-zA-Z0-9]/g, "_");
+    let sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return { success: false, message: "Data absen untuk kelas/mapel ini tidak ditemukan." };
+
+    let data = sheet.getDataRange().getValues();
+    let targetRow = -1;
+    for (let i = 1; i < data.length; i++) {
+      let rawDate = data[i][4];
+      if (rawDate && isDateMatch(rawDate, tanggal)) { targetRow = i + 1; break; }
+    }
+
+    if (targetRow === -1) {
+      return { success: false, message: "Data absen tanggal " + tanggal + " tidak ditemukan (mungkin sudah terhapus sebelumnya)." };
+    }
+
+    sheet.deleteRow(targetRow);
+    return { success: true, message: "Data absen tanggal " + tanggal + " berhasil dihapus." };
+  } finally {
+    lock.releaseLock();
+  }
+}
