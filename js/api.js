@@ -322,6 +322,22 @@ export async function getDashboardData(mapel, kelas) {
     }
 }
 
+// Ambil data dashboard SELURUH SEKOLAH (Tahap 2 -- khusus role
+// kepsek/admin/superadmin, ditolak backend kalau bukan salah satunya).
+export async function getDashboardSekolah() {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({
+            action: 'getDashboardSekolah',
+            username: username,
+            token: token
+        });
+    } catch (error) {
+        console.error('Get dashboard sekolah error:', error);
+        throw error;
+    }
+}
+
 // Ambil detail 1 siswa (klik nama di kotak "Perlu Perhatian", konteks
 // dashboard Per Mapel) -- `mapel` boleh 1 mapel (lagi difilter ke 1
 // kombinasi) atau daftar dipisah koma (tampilan gabungan semua mapel).
@@ -743,6 +759,7 @@ export default {
     getRiwayatAbsensi,
     hapusAbsen,
     getDashboardData,
+    getDashboardSekolah,
     getDetailSiswaPerhatian,
     getDetailSiswaPerhatianWali,
     getDashboardDataWali,
