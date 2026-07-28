@@ -234,6 +234,24 @@ function doPost(e) {
         return uploadFotoProfilSaya(data.username, data.base64Data, data.mimeType);
       });
 
+    // ===== FITUR: Detail siswa (klik nama di kotak "Perlu Perhatian") =====
+    } else if (data.action === 'getDetailSiswaPerhatian' && data.nis && data.kelas && data.mapel) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        const mapelDiminta = splitList(data.mapel);
+        if (akun.kelasList.indexOf(data.kelas) === -1 || mapelDiminta.length === 0 || !mapelDiminta.every(m => akun.mapelList.indexOf(m) !== -1)) {
+          return { success: false, message: "Anda tidak berhak mengakses data ini." };
+        }
+        return getDetailSiswaPerhatian(data.nis, data.kelas, data.mapel);
+      });
+
+    } else if (data.action === 'getDetailSiswaPerhatianWali' && data.nis && data.kelas) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!akun.kelasWali || akun.kelasWali !== data.kelas) {
+          return { success: false, message: "Anda bukan wali kelas " + data.kelas + "." };
+        }
+        return getDetailSiswaPerhatian(data.nis, data.kelas, MAPEL_ABSEN_WALI);
+      });
+
     // ===== FIX: fallback eksplisit untuk action tak dikenal / parameter kurang =====
     } else {
       response.message = "Aksi tidak dikenali atau parameter tidak lengkap: " + (data.action || '(kosong)');
