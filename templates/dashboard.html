@@ -30,6 +30,7 @@
         <button class="tab-btn" data-tab="panelRiwayat" role="tab"><span class="tab-icon">🕒</span><span class="tab-label">Riwayat</span></button>
         <button class="tab-btn" data-tab="panelRekap" role="tab"><span class="tab-icon">📁</span><span class="tab-label">Rekap</span></button>
         <button class="tab-btn" data-tab="panelProfil" role="tab"><span class="tab-icon">👤</span><span class="tab-label">Profil</span></button>
+        <button class="tab-btn hidden" data-tab="panelAdmin" id="tabBtnAdmin" role="tab"><span class="tab-icon">⚙️</span><span class="tab-label">Admin</span></button>
     </div>
 
     <!-- PANEL: DASHBOARD -->
@@ -495,6 +496,56 @@
                 </button>
                 <p id="profilPasswordMsg" class="login-msg"></p>
             </form>
+        </div>
+    </div>
+
+    <!-- PANEL: ADMIN (kelola akun guru -- Tahap 3, khusus role admin/superadmin) -->
+    <div id="panelAdmin" class="tab-panel hidden">
+        <div class="panel-header">
+            <h3>⚙️ Panel Admin</h3>
+            <p class="panel-subtitle">Kelola akun guru -- tambah, ubah, reset password, nonaktifkan</p>
+        </div>
+
+        <div class="card">
+            <h4 id="formAkunJudul">➕ Tambah Akun Guru</h4>
+            <form id="formAkunGuru">
+                <div class="form-group">
+                    <label for="akunUsername">Username</label>
+                    <input type="text" id="akunUsername" required placeholder="huruf kecil, angka, underscore -- mis. budi123">
+                </div>
+                <div class="form-group">
+                    <label for="akunNama">Nama Lengkap</label>
+                    <input type="text" id="akunNama" required placeholder="Nama lengkap guru">
+                </div>
+                <div class="form-group" id="akunPasswordGroup">
+                    <label for="akunPassword">Password Awal</label>
+                    <input type="password" id="akunPassword" placeholder="Minimal 6 karakter">
+                </div>
+                <div class="form-group">
+                    <label for="akunMapelList">Mata Pelajaran yang Diampu</label>
+                    <input type="text" id="akunMapelList" placeholder="Pisahkan dengan koma, mis. DKV,KIK">
+                </div>
+                <div class="form-group">
+                    <label for="akunKelasList">Kelas yang Diampu</label>
+                    <input type="text" id="akunKelasList" placeholder="Pisahkan dengan koma, mis. XI DKV 1,XI DKV 4">
+                </div>
+                <div class="form-group">
+                    <label for="akunKelasWali">Wali Kelas (kosongkan kalau bukan wali kelas)</label>
+                    <input type="text" id="akunKelasWali" placeholder="mis. XI DKV 1">
+                </div>
+                <button type="submit" class="btn-primary btn-full">
+                    <span class="btn-text">💾 Simpan</span>
+                    <span class="btn-loader hidden">⏳ Menyimpan...</span>
+                </button>
+                <button type="button" id="btnBatalEditAkun" class="btn-secondary btn-full hidden">✖️ Batal Edit</button>
+                <p id="formAkunMsg" class="login-msg"></p>
+            </form>
+        </div>
+
+        <div class="card">
+            <h4>📋 Daftar Akun Guru</h4>
+            <p class="card-subtitle" id="daftarAkunSubtitle">Memuat...</p>
+            <div id="daftarAkunList"></div>
         </div>
     </div>
 </section>
