@@ -64,19 +64,21 @@
                         </div>
                     </div>
                 </div>
-                <div class="card">
-                    <h4>🔍 Cek Riwayat Siswa</h4>
-                    <p class="card-subtitle">Lihat riwayat & tren kehadiran siswa mana pun di kelas ini -- termasuk yang belum masuk daftar "Perlu Perhatian", supaya perubahan bisa terdeteksi lebih dini</p>
-                    <div class="form-group">
-                        <select id="waliPilihSiswa"><option value="">-- Pilih siswa --</option></select>
-                    </div>
-                    <button type="button" id="waliBtnLihatDetailSiswa" class="btn-secondary btn-full">Lihat Detail</button>
-                </div>
                 <div class="stats-grid">
                     <div class="stat-card stat-hadir"><div class="stat-icon">✓</div><div class="stat-info"><div class="stat-value" id="waliStatPertemuan">0</div><div class="stat-label">Total Pertemuan</div></div></div>
                     <div class="stat-card stat-izin"><div class="stat-icon">📊</div><div class="stat-info"><div class="stat-value" id="waliStatSiswa">0</div><div class="stat-label">Total Siswa</div></div></div>
                     <div class="stat-card stat-sakit"><div class="stat-icon">📈</div><div class="stat-info"><div class="stat-value" id="waliStatRataHadir">0%</div><div class="stat-label">Rata-rata Hadir</div></div></div>
                     <div class="stat-card stat-alpa"><div class="stat-icon">⚠️</div><div class="stat-info"><div class="stat-value" id="waliStatRataAlpa">0%</div><div class="stat-label">Rata-rata Alpa</div></div></div>
+                </div>
+                <div class="card">
+                    <h4>📝 Ringkasan untuk Wali Kelas</h4>
+                    <p class="card-subtitle">Penjelasan singkat kondisi & tren kehadiran kelas ini dalam kata-kata</p>
+                    <div id="waliRingkasanNarasi" class="ringkasan-narasi"></div>
+                </div>
+                <div class="card">
+                    <h4>✅ Langkah yang Disarankan</h4>
+                    <p class="card-subtitle">Saran umum berdasarkan kondisi di atas -- bukan keputusan final</p>
+                    <div id="waliSaranTindakLanjut" class="ringkasan-narasi"></div>
                 </div>
                 <div class="card">
                     <h4>📈 Tren Kehadiran Harian</h4>
@@ -109,6 +111,19 @@
                             <div id="waliTopJarangMasukList"></div>
                         </div>
                     </div>
+                </div>
+                <!-- PATCH TATA ULANG: dipindah ke PALING BAWAH (sebelumnya di
+                     posisi ke-2, tepat setelah info-banner) -- ini alat
+                     pencarian yang lebih cocok dipakai SETELAH wali kelas
+                     tahu ada yang perlu ditelusuri (dari Ringkasan/Perlu
+                     Perhatian di atas), bukan hal pertama yang dilihat. -->
+                <div class="card">
+                    <h4>🔍 Cek Riwayat Siswa</h4>
+                    <p class="card-subtitle">Lihat riwayat & tren kehadiran siswa mana pun di kelas ini -- termasuk yang belum masuk daftar "Perlu Perhatian", supaya perubahan bisa terdeteksi lebih dini</p>
+                    <div class="form-group">
+                        <select id="waliPilihSiswa"><option value="">-- Pilih siswa --</option></select>
+                    </div>
+                    <button type="button" id="waliBtnLihatDetailSiswa" class="btn-secondary btn-full">Lihat Detail</button>
                 </div>
             </div>
             <p id="dashboardWaliEmpty" class="empty-state hidden">Anda bukan wali kelas, tidak ada dashboard untuk ditampilkan di sini.</p>
