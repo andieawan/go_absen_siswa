@@ -644,3 +644,73 @@
   font-size: 3rem;
   color: var(--gray-400);
 }
+
+/* =========================================================
+   PATCH KLIK-DETAIL SISWA: nama di kotak "Perlu Perhatian" bisa
+   diklik untuk membuka popup riwayat tanggal Alpa/Izin/Sakit siswa itu
+   -- lihat renderTopAlpaList()/bukaModalDetailSiswa() di js/dashboard.js.
+   ========================================================= */
+.nama-siswa-klik {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--primary-color);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  cursor: pointer;
+  text-align: left;
+}
+
+.nama-siswa-klik:hover {
+  color: var(--primary-dark);
+}
+
+.detail-siswa-header {
+  margin-bottom: var(--spacing-2);
+}
+
+.detail-siswa-kategori {
+  margin-bottom: var(--spacing-4);
+}
+
+.detail-siswa-kategori:last-child {
+  margin-bottom: 0;
+}
+
+.detail-siswa-kategori h5 {
+  margin: 0 0 var(--spacing-2) 0;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--gray-600);
+}
+
+.detail-siswa-tanggal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.detail-siswa-tanggal-klik {
+  width: 100%;
+  text-align: left;
+  background: var(--gray-100);
+  border: none;
+  border-radius: var(--radius-md);
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.detail-siswa-tanggal-klik:hover {
+  background: var(--gray-200);
+}
+
+.detail-siswa-mapel {
+  color: var(--gray-500);
+  font-size: var(--font-size-xs);
+}
