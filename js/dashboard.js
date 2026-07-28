@@ -943,52 +943,38 @@ function setupDashboardSubTabs() {
  * untuk akun guru biasa yang jelas tidak akan diizinkan.
  */
 /**
- * TAHAP 2+: bangun ringkasan berbentuk KALIMAT (bukan cuma angka/grafik)
- * dari data dashboard sekolah -- supaya Kepala Sekolah bisa langsung
- * paham kondisinya tanpa perlu membaca grafik sendiri. Mencakup 3 hal:
- *   1) Kondisi kehadiran terkini (persentase + label kualitatif)
- *   2) Arah tren (membandingkan separuh awal vs separuh akhir periode
- *      data yang tercatat -- membaik / menurun / relatif stabil)
- *   3) Pola hari yang mencurigakan (kalau ada 1 hari yang kehadirannya
- *      cukup jauh di bawah rata-rata hari lain -- ini yang paling dekat
- *      dengan "gejala" pola tidak masuk, bukan cuma angka mentah)
- * Dipanggil murni di frontend, semua bahan sudah ada dari respons
- * getDashboardSekolah() yang sama dipakai untuk grafik -- tidak perlu
- * request tambahan ke server.
+ * TAHAP 2+: hitung SEMUA sinyal analisis dari data dashboard sekolah --
+ * dipakai BERSAMA oleh buatRingkasanTrenSekolah() (kalimat "apa yang
+ * terjadi") dan buatSaranTindakLanjut() (kalimat "apa yang sebaiknya
+ * dilakukan"), supaya keduanya selalu konsisten memakai angka & ambang
+ * batas yang SAMA PERSIS -- tidak dihitung 2x terpisah dengan risiko
+ * beda hasil kalau salah satu diubah belakangan tapi yang lain lupa.
  */
-function buatRingkasanTrenSekolah(data) {
-    const kalimat = [];
+function analisisTrenSekolah(data) {
     const trend = data.trend || [];
     const persenSekarang = data.persenHadirKeseluruhan || 0;
 
-    // --- 1) Kondisi kehadiran terkini ---
     let labelKondisi;
     if (persenSekarang >= 90) labelKondisi = 'sangat baik';
     else if (persenSekarang >= 80) labelKondisi = 'cukup baik';
     else if (persenSekarang >= 70) labelKondisi = 'perlu diperhatikan';
     else labelKondisi = 'cukup mengkhawatirkan';
 
-    kalimat.push(`Secara keseluruhan, tingkat kehadiran siswa se-sekolah pada periode ini adalah <strong>${persenSekarang}%</strong>, tergolong <strong>${labelKondisi}</strong>, dari total ${data.jumlahKombinasi} kombinasi kelas dan mata pelajaran yang tercatat.`);
-
-    // --- 2) Arah tren (bandingkan separuh awal vs separuh akhir) ---
+    let arahTren = null; // 'membaik' | 'menurun' | 'stabil' | null (data belum cukup)
+    let rataAwal = null, rataAkhir = null;
     if (trend.length >= 4) {
         const tengah = Math.floor(trend.length / 2);
-        const rataAwal = rataRataArray(trend.slice(0, tengah).map(t => t.persenHadir));
-        const rataAkhir = rataRataArray(trend.slice(tengah).map(t => t.persenHadir));
+        rataAwal = rataRataArray(trend.slice(0, tengah).map(t => t.persenHadir));
+        rataAkhir = rataRataArray(trend.slice(tengah).map(t => t.persenHadir));
         const selisih = Math.round((rataAkhir - rataAwal) * 10) / 10;
-
-        if (selisih >= 3) {
-            kalimat.push(`Tren dalam periode ini menunjukkan <strong>peningkatan</strong> -- dari rata-rata ${rataAwal.toFixed(1)}% di awal periode menjadi ${rataAkhir.toFixed(1)}% belakangan ini (naik ${Math.abs(selisih)} poin persen).`);
-        } else if (selisih <= -3) {
-            kalimat.push(`Tren dalam periode ini menunjukkan <strong>penurunan</strong> -- dari rata-rata ${rataAwal.toFixed(1)}% di awal periode menjadi ${rataAkhir.toFixed(1)}% belakangan ini (turun ${Math.abs(selisih)} poin persen). Ini perlu ditindaklanjuti.`);
-        } else {
-            kalimat.push(`Tren dalam periode ini <strong>relatif stabil</strong>, berkisar di angka ${rataAwal.toFixed(1)}%-${rataAkhir.toFixed(1)}%, tanpa perubahan besar.`);
-        }
+        if (selisih >= 3) arahTren = 'membaik';
+        else if (selisih <= -3) arahTren = 'menurun';
+        else arahTren = 'stabil';
     }
 
-    // --- 3) Pola hari yang mencurigakan ---
+    let hariTerendah = null, nilaiTerendahHari = null, rataKeseluruhanTren = null;
     if (trend.length >= 7) {
-        const rataPerHari = {}; // { "Senin": [persen, persen, ...], ... }
+        const rataPerHari = {};
         trend.forEach(t => {
             const d = new Date(t.tanggal + 'T00:00:00');
             if (isNaN(d.getTime())) return;
@@ -997,32 +983,100 @@ function buatRingkasanTrenSekolah(data) {
             rataPerHari[namaHari].push(t.persenHadir);
         });
 
-        const rataKeseluruhanTren = rataRataArray(trend.map(t => t.persenHadir));
-        let hariTerendah = null;
-        let nilaiTerendah = 101;
+        rataKeseluruhanTren = rataRataArray(trend.map(t => t.persenHadir));
+        let terendahSementara = 101;
         Object.keys(rataPerHari).forEach(hari => {
-            if (rataPerHari[hari].length < 2) return; // data 1x kejadian belum cukup untuk disebut pola
+            if (rataPerHari[hari].length < 2) return; // 1x kejadian belum cukup disebut pola
             const rataHari = rataRataArray(rataPerHari[hari]);
-            if (rataHari < nilaiTerendah) { nilaiTerendah = rataHari; hariTerendah = hari; }
+            if (rataHari < terendahSementara) { terendahSementara = rataHari; hariTerendah = hari; }
         });
-
-        if (hariTerendah && (rataKeseluruhanTren - nilaiTerendah) >= 5) {
-            kalimat.push(`Terlihat pola menarik: kehadiran cenderung lebih rendah pada hari <strong>${hariTerendah}</strong> (rata-rata ${nilaiTerendah.toFixed(1)}%) dibanding hari-hari lain (rata-rata keseluruhan ${rataKeseluruhanTren.toFixed(1)}%). Ini bisa jadi indikasi pola yang perlu ditelusuri lebih lanjut, misalnya siswa yang sering izin/alpa menjelang atau sesudah akhir pekan.`);
+        if (hariTerendah && (rataKeseluruhanTren - terendahSementara) >= 5) {
+            nilaiTerendahHari = terendahSementara;
+        } else {
+            hariTerendah = null; // selisihnya tidak cukup besar untuk disebut "pola"
         }
     }
 
-    // --- 4) Siswa perlu perhatian paling menonjol ---
     const p = data.perhatian || {};
     const totalAlpaSiswa = (p.alpa || []).length;
     const totalJarangMasuk = (p.jarangMasuk || []).length;
-    if (totalJarangMasuk > 0) {
-        const teratas = p.jarangMasuk[0];
-        kalimat.push(`Tercatat <strong>${totalJarangMasuk} siswa</strong> dengan riwayat jarang masuk (gabungan Alpa/Izin/Sakit) yang perlu mendapat perhatian, dengan yang paling menonjol adalah <strong>${escapeHtml(teratas.nama)}</strong> (${teratas.jumlahAlpa} kali tidak hadir).`);
-    } else if (totalAlpaSiswa === 0) {
+    const siswaMenonjol = totalJarangMasuk > 0 ? p.jarangMasuk[0] : null;
+
+    return {
+        persenSekarang, labelKondisi, jumlahKombinasi: data.jumlahKombinasi,
+        arahTren, rataAwal, rataAkhir,
+        hariTerendah, nilaiTerendahHari, rataKeseluruhanTren,
+        totalAlpaSiswa, totalJarangMasuk, siswaMenonjol
+    };
+}
+
+/**
+ * Bangun ringkasan berbentuk KALIMAT (bukan cuma angka/grafik) dari
+ * hasil analisisTrenSekolah() -- supaya Kepala Sekolah bisa langsung
+ * paham kondisinya tanpa perlu membaca grafik sendiri.
+ */
+function buatRingkasanTrenSekolah(a) {
+    const kalimat = [];
+
+    kalimat.push(`Secara keseluruhan, tingkat kehadiran siswa se-sekolah pada periode ini adalah <strong>${a.persenSekarang}%</strong>, tergolong <strong>${a.labelKondisi}</strong>, dari total ${a.jumlahKombinasi} kombinasi kelas dan mata pelajaran yang tercatat.`);
+
+    if (a.arahTren === 'membaik') {
+        kalimat.push(`Tren dalam periode ini menunjukkan <strong>peningkatan</strong> -- dari rata-rata ${a.rataAwal.toFixed(1)}% di awal periode menjadi ${a.rataAkhir.toFixed(1)}% belakangan ini.`);
+    } else if (a.arahTren === 'menurun') {
+        kalimat.push(`Tren dalam periode ini menunjukkan <strong>penurunan</strong> -- dari rata-rata ${a.rataAwal.toFixed(1)}% di awal periode menjadi ${a.rataAkhir.toFixed(1)}% belakangan ini. Ini perlu ditindaklanjuti.`);
+    } else if (a.arahTren === 'stabil') {
+        kalimat.push(`Tren dalam periode ini <strong>relatif stabil</strong>, berkisar di angka ${a.rataAwal.toFixed(1)}%-${a.rataAkhir.toFixed(1)}%, tanpa perubahan besar.`);
+    }
+
+    if (a.hariTerendah) {
+        kalimat.push(`Terlihat pola menarik: kehadiran cenderung lebih rendah pada hari <strong>${a.hariTerendah}</strong> (rata-rata ${a.nilaiTerendahHari.toFixed(1)}%) dibanding hari-hari lain (rata-rata keseluruhan ${a.rataKeseluruhanTren.toFixed(1)}%). Ini bisa jadi indikasi pola yang perlu ditelusuri lebih lanjut, misalnya siswa yang sering izin/alpa menjelang atau sesudah akhir pekan.`);
+    }
+
+    if (a.totalJarangMasuk > 0) {
+        kalimat.push(`Tercatat <strong>${a.totalJarangMasuk} siswa</strong> dengan riwayat jarang masuk (gabungan Alpa/Izin/Sakit) yang perlu mendapat perhatian, dengan yang paling menonjol adalah <strong>${escapeHtml(a.siswaMenonjol.nama)}</strong> (${a.siswaMenonjol.jumlahAlpa} kali tidak hadir).`);
+    } else if (a.totalAlpaSiswa === 0) {
         kalimat.push('Tidak ada siswa dengan catatan Alpa pada periode ini -- kondisi kedisiplinan kehadiran tergolong baik.');
     }
 
     return kalimat;
+}
+
+/**
+ * Bangun daftar LANGKAH YANG DISARANKAN dari hasil analisisTrenSekolah()
+ * yang SAMA -- saran umum tapi jelas arahnya, BUKAN instruksi teknis
+ * rinci (keputusan akhir tetap di Kepala Sekolah, aplikasi cuma
+ * membantu mengarahkan perhatian ke mana). Disepakati: kartu terpisah
+ * dari ringkasan, dengan disclaimer bahwa ini saran otomatis sistem --
+ * lihat renderSaranTindakLanjutSekolah() untuk teks disclaimer-nya.
+ */
+function buatSaranTindakLanjut(a) {
+    const saran = [];
+
+    if (a.persenSekarang >= 90) {
+        saran.push('Kondisi kehadiran sudah sangat baik. Pertahankan kebijakan yang sedang berjalan -- tidak ada tindakan mendesak yang diperlukan saat ini.');
+    } else if (a.persenSekarang >= 80) {
+        saran.push('Kondisi kehadiran cukup baik. Cukup pantau secara berkala, dengan fokus utama pada kelas/siswa yang disebutkan pada bagian "Perlu Perhatian" di bawah.');
+    } else if (a.persenSekarang >= 70) {
+        saran.push('Disarankan menginstruksikan wali kelas untuk menindaklanjuti siswa dengan catatan tidak hadir, dan mengecek apakah ada faktor eksternal (jadwal kegiatan sekolah, cuaca, dll.) yang memengaruhi periode ini.');
+    } else {
+        saran.push('Kondisi kehadiran perlu perhatian serius. Disarankan mengadakan rapat koordinasi dengan wali kelas dan/atau BK, serta mempertimbangkan pemberitahuan resmi kepada orang tua/wali siswa.');
+    }
+
+    if (a.arahTren === 'menurun') {
+        saran.push('Karena tren sedang menurun, disarankan segera ditelusuri sebelum berlanjut lebih jauh -- cek lewat Dashboard Per Mapel apakah penurunan ini terkonsentrasi di kelas/jurusan tertentu, atau menyebar merata di semua kelas.');
+    } else if (a.arahTren === 'membaik') {
+        saran.push('Karena tren sedang membaik, disarankan mengidentifikasi & mempertahankan faktor yang sedang berjalan baik saat ini, supaya perbaikannya berkelanjutan.');
+    }
+
+    if (a.hariTerendah) {
+        saran.push(`Disarankan menelusuri penyebab spesifik rendahnya kehadiran pada hari ${a.hariTerendah} bersama wali kelas terkait -- misalnya jadwal pelajaran tertentu, kegiatan pada hari sebelumnya, atau kendala transportasi yang berulang.`);
+    }
+
+    if (a.siswaMenonjol) {
+        saran.push(`Disarankan koordinasi dengan wali kelas terkait siswa <strong>${escapeHtml(a.siswaMenonjol.nama)}</strong> untuk tindak lanjut individual, termasuk kemungkinan memanggil orang tua/wali sesuai prosedur BK sekolah, kalau memang belum dilakukan.`);
+    }
+
+    return saran;
 }
 
 function rataRataArray(arr) {
@@ -1034,13 +1088,28 @@ function renderRingkasanNarasiSekolah(data) {
     const container = document.getElementById('sekolahRingkasanNarasi');
     if (!container) return;
 
-    const kalimat = buatRingkasanTrenSekolah(data);
-    if (kalimat.length === 0) {
-        container.innerHTML = '<p class="empty-state">Belum cukup data untuk membuat ringkasan.</p>';
+    const a = analisisTrenSekolah(data);
+    const kalimat = buatRingkasanTrenSekolah(a);
+    container.innerHTML = kalimat.length > 0
+        ? kalimat.map(k => `<p>${k}</p>`).join('')
+        : '<p class="empty-state">Belum cukup data untuk membuat ringkasan.</p>';
+
+    renderSaranTindakLanjutSekolah(a);
+}
+
+function renderSaranTindakLanjutSekolah(a) {
+    const container = document.getElementById('sekolahSaranTindakLanjut');
+    if (!container) return;
+
+    const saran = buatSaranTindakLanjut(a);
+    if (saran.length === 0) {
+        container.innerHTML = '<p class="empty-state">Belum ada saran -- data masih terlalu sedikit.</p>';
         return;
     }
 
-    container.innerHTML = kalimat.map(k => `<p>${k}</p>`).join('');
+    const daftarHtml = '<ul class="saran-tindak-lanjut-list">' + saran.map(s => `<li>${s}</li>`).join('') + '</ul>';
+    const disclaimer = '<p class="saran-tindak-lanjut-disclaimer">⚠️ Saran ini dihasilkan otomatis oleh sistem berdasarkan data kehadiran, bukan pengganti penilaian profesional. Keputusan akhir tetap berada di tangan Kepala Sekolah.</p>';
+    container.innerHTML = daftarHtml + disclaimer;
 }
 
 async function loadDashboardSekolah() {
