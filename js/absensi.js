@@ -383,7 +383,7 @@ async function hapusKartuRiwayat(konteks, tanggal, containerId) {
  * mengambil daftar siswa + data existing) otomatis ikut jalan, tanpa
  * perlu mengekspos ulang fungsi reload-nya secara terpisah.
  */
-function navigasiKeEditAbsensi(konteks, tanggal) {
+export function navigasiKeEditAbsensi(konteks, tanggal) {
     if (!tanggal) return;
     switchTab('panelAbsensi');
 
