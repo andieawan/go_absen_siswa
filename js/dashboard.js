@@ -28,7 +28,7 @@
  * =========================================================
  */
 
-import { getDashboardData, getDetailSiswaPerhatian, getDetailSiswaPerhatianWali, getDashboardDataWali, getDashboardSekolah, getCurrentUser } from './api.js?v=20260726';
+import { getDashboardData, getDetailSiswaPerhatian, getDetailSiswaPerhatianWali, getDashboardDataWali, getDashboardSekolah, getSiswaByKelas, getCurrentUser } from './api.js?v=20260726';
 // PATCH PERFORMA: escapeHtml dipakai dari utils.js (regex string-replace),
 // bukan implementasi lokal yang sebelumnya ada di file ini. Implementasi
 // lama membuat elemen <div> DOM baru pada SETIAP pemanggilan (lihat riwayat
@@ -236,6 +236,27 @@ function renderTopAlpaList(data, containerId, labelKolom = 'Jumlah Alpa', kontek
  * dialihkan ke form Input pada tanggal itu (pakai navigasiKeEditAbsensi
  * yang sama seperti fitur klik-kartu-riwayat).
  */
+// Sama seperti arah tren di Dashboard Sekolah (lihat analisisTrenSekolah()
+// di bawah -- ambang batas ±3 poin persen SAMA PERSIS), cuma diterapkan
+// ke 1 siswa saja, bukan seluruh sekolah. Dipanggil dari
+// bukaModalDetailSiswa() supaya wali kelas/guru bisa tahu siswa ini
+// sedang membaik/menurun/stabil, TANPA aplikasi menebak-nebak penyebabnya
+// -- murni perbandingan angka periode awal vs akhir.
+function buatKalimatTrenSiswa(trend) {
+    if (!trend || trend.length < 4) return null; // data terlalu sedikit untuk disimpulkan, sama seperti Dashboard Sekolah
+    const tengah = Math.floor(trend.length / 2);
+    const rataAwal = rataRataArray(trend.slice(0, tengah).map(t => t.persenHadir));
+    const rataAkhir = rataRataArray(trend.slice(tengah).map(t => t.persenHadir));
+    const selisih = Math.round((rataAkhir - rataAwal) * 10) / 10;
+
+    if (selisih >= 3) {
+        return `📈 Dalam periode ini, kehadiran siswa menunjukkan <strong>peningkatan</strong> -- dari rata-rata ${rataAwal.toFixed(1)}% menjadi ${rataAkhir.toFixed(1)}% belakangan ini.`;
+    } else if (selisih <= -3) {
+        return `📉 Dalam periode ini, kehadiran siswa menunjukkan <strong>penurunan</strong> -- dari rata-rata ${rataAwal.toFixed(1)}% menjadi ${rataAkhir.toFixed(1)}% belakangan ini. Perlu ditelusuri lebih lanjut oleh wali kelas -- misalnya lewat komunikasi langsung dengan siswa atau orang tua.`;
+    }
+    return `Kehadiran siswa ini <strong>relatif stabil</strong> pada periode ini, berkisar ${rataAwal.toFixed(1)}%-${rataAkhir.toFixed(1)}%.`;
+}
+
 async function bukaModalDetailSiswa(nis, kelas, konteks) {
     showGlobalLoading('Memuat detail siswa...');
     try {
@@ -287,6 +308,7 @@ async function bukaModalDetailSiswa(nis, kelas, konteks) {
         }
 
         const adaKejadian = (d.kejadian || []).length > 0;
+        const kalimatTren = buatKalimatTrenSiswa(d.trend);
         const isiModal = `
             <div class="detail-siswa">
                 <p class="detail-siswa-header"><strong>${escapeHtml(d.nama)}</strong> — ${escapeHtml(d.kelas)}</p>
@@ -296,6 +318,7 @@ async function bukaModalDetailSiswa(nis, kelas, konteks) {
                     <span class="badge badge-info">Sakit: ${d.totalSakit}</span>
                     <span class="badge badge-danger">Alpa: ${d.totalAlpa}</span>
                 </div>
+                ${kalimatTren ? `<p class="detail-siswa-tren">${kalimatTren}</p>` : ''}
                 ${adaKejadian
                     ? bangunDaftarTanggal('A') + bangunDaftarTanggal('I') + bangunDaftarTanggal('S')
                     : '<p class="empty-state">Tidak ada catatan Alpa/Izin/Sakit pada periode ini.</p>'}
@@ -1173,10 +1196,103 @@ async function loadDashboardSekolah() {
  * Inisialisasi dashboard
  * Dipanggil saat panel Dashboard ditampilkan
  */
+/**
+ * PATCH (deteksi dini): isi dropdown pencarian siswa di Dashboard Wali
+ * Kelas dengan SEMUA siswa di kelas wali itu -- bukan cuma yang sudah
+ * masuk daftar "Perlu Perhatian". Tujuannya supaya wali kelas bisa cek
+ * tren siswa mana pun, termasuk yang kelihatannya baik-baik saja,
+ * sebelum sempat memburuk cukup jauh untuk masuk daftar itu.
+ */
+async function setupPencarianSiswaWali(user) {
+    if (!user || !user.kelasWali) return; // bukan wali kelas, tidak relevan
+
+    const selectSiswa = document.getElementById('waliPilihSiswa');
+    const btnLihat = document.getElementById('waliBtnLihatDetailSiswa');
+    if (!selectSiswa || !btnLihat) return;
+
+    try {
+        const res = await getSiswaByKelas(user.kelasWali);
+        if (!res.success || !res.data) return;
+
+        selectSiswa.innerHTML = '<option value="">-- Pilih siswa --</option>' +
+            res.data.map(s => `<option value="${escapeHtml(s.nis)}">${escapeHtml(s.nama)}</option>`).join('');
+    } catch (error) {
+        console.error('Gagal memuat daftar siswa untuk pencarian (wali):', error);
+    }
+
+    btnLihat.addEventListener('click', () => {
+        const nis = selectSiswa.value;
+        if (!nis) {
+            showNotification('Pilih siswa terlebih dahulu.', 'error');
+            return;
+        }
+        bukaModalDetailSiswa(nis, user.kelasWali, { mode: 'wali' });
+    });
+}
+
+/**
+ * Sama seperti setupPencarianSiswaWali(), versi Dashboard Per Mapel --
+ * bedanya guru mapel bisa mengajar BEBERAPA kelas, jadi perlu pilih
+ * kelas dulu baru daftar siswanya dimuat.
+ */
+function setupPencarianSiswaMapel(user) {
+    const selectKelas = document.getElementById('mapelPilihKelasSiswa');
+    const selectSiswa = document.getElementById('mapelPilihSiswa');
+    const btnLihat = document.getElementById('mapelBtnLihatDetailSiswa');
+    if (!selectKelas || !selectSiswa || !btnLihat) return;
+
+    const kelasList = (user && user.kelasList) || [];
+    if (kelasList.length === 0) return;
+
+    selectKelas.innerHTML = '<option value="">-- Pilih kelas --</option>' +
+        kelasList.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
+
+    selectKelas.addEventListener('change', async () => {
+        const kelas = selectKelas.value;
+        selectSiswa.innerHTML = '<option value="">Memuat...</option>';
+        selectSiswa.disabled = true;
+        if (!kelas) {
+            selectSiswa.innerHTML = '<option value="">-- Pilih kelas dulu --</option>';
+            return;
+        }
+
+        try {
+            const res = await getSiswaByKelas(kelas);
+            if (!res.success || !res.data) {
+                selectSiswa.innerHTML = '<option value="">Gagal memuat siswa</option>';
+                return;
+            }
+            selectSiswa.innerHTML = '<option value="">-- Pilih siswa --</option>' +
+                res.data.map(s => `<option value="${escapeHtml(s.nis)}">${escapeHtml(s.nama)}</option>`).join('');
+            selectSiswa.disabled = false;
+        } catch (error) {
+            selectSiswa.innerHTML = '<option value="">Gagal memuat siswa</option>';
+        }
+    });
+
+    btnLihat.addEventListener('click', () => {
+        const kelas = selectKelas.value;
+        const nis = selectSiswa.value;
+        if (!kelas || !nis) {
+            showNotification('Pilih kelas dan siswa terlebih dahulu.', 'error');
+            return;
+        }
+        // Pakai SELURUH mapel yang diampu guru ini (bukan 1 mapel saja) --
+        // konsisten dengan cakupan "tampilan gabungan" yang sudah ada di
+        // Dashboard Per Mapel, supaya riwayat yang ditampilkan lengkap
+        // lintas semua mapel guru ini di kelas tsb, bukan cuma sebagian.
+        const mapelListStr = (user.mapelList || []).join(',');
+        bukaModalDetailSiswa(nis, kelas, { mode: 'mapel', mapel: mapelListStr });
+    });
+}
+
 export async function initDashboard() {
     console.log('Initializing dashboard...');
 
     setupDashboardSubTabs();
+    const userData = getCurrentUser();
+    setupPencarianSiswaWali(userData);
+    setupPencarianSiswaMapel(userData);
     // PATCH PERFORMA: ketiga fungsi ini independen (beda seksi DOM, beda
     // endpoint API) -- dijalankan paralel dengan Promise.all supaya total
     // waktu tunggu awal = waktu yang paling lambat di antara ketiganya,
