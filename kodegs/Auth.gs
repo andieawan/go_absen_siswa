@@ -181,6 +181,16 @@ function handleLogin(username, password) {
       }
 
       if (passwordValid) {
+        // PATCH TAHAP 3 (Panel Admin): akun yang dinonaktifkan admin
+        // (lihat nonaktifkanAkunGuru() di Admin.gs) ditandai lewat role
+        // "nonaktif" -- password-nya sendiri TETAP benar (memang tidak
+        // diubah saat dinonaktifkan), tapi login WAJIB ditolak di sini,
+        // dengan pesan yang jelas bedanya dari "password salah" biasa.
+        const roleListUser = parseRoleList(data[i][KOLOM_ROLE_0INDEXED]);
+        if (roleListUser.indexOf('nonaktif') !== -1) {
+          return { success: false, message: "Akun ini telah dinonaktifkan. Hubungi admin sekolah." };
+        }
+
         cache.remove(cacheKey);
 
         // ===== AUTO-HASH SAAT LOGIN PERTAMA =====
