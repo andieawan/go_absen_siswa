@@ -338,6 +338,82 @@ export async function getDashboardSekolah() {
     }
 }
 
+// ===== TAHAP 3: PANEL ADMIN -- kelola akun guru =====
+// Semua fungsi di bawah ini ditolak backend kalau akun yang login bukan
+// admin/superadmin (updateRoleAkun malah wajib superadmin) -- lihat
+// Router.gs. Frontend tidak perlu cek ulang di sini, backend yang
+// menjaga; js/admin.js cukup sembunyikan tombol/tab-nya saja untuk UX.
+
+export async function getDaftarAkunUntukAdmin() {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'getDaftarAkunUntukAdmin', username, token });
+    } catch (error) {
+        console.error('Get daftar akun error:', error);
+        throw error;
+    }
+}
+
+export async function tambahAkunGuru(dataBaru) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'tambahAkunGuru', dataBaru, username, token });
+    } catch (error) {
+        console.error('Tambah akun guru error:', error);
+        throw error;
+    }
+}
+
+export async function updateAkunGuru(targetUsername, dataBaru) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'updateAkunGuru', targetUsername, dataBaru, username, token });
+    } catch (error) {
+        console.error('Update akun guru error:', error);
+        throw error;
+    }
+}
+
+export async function resetPasswordAkunOlehAdmin(targetUsername, passwordBaru) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'resetPasswordAkunOlehAdmin', targetUsername, passwordBaru, username, token });
+    } catch (error) {
+        console.error('Reset password akun error:', error);
+        throw error;
+    }
+}
+
+export async function nonaktifkanAkunGuru(targetUsername) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'nonaktifkanAkunGuru', targetUsername, username, token });
+    } catch (error) {
+        console.error('Nonaktifkan akun error:', error);
+        throw error;
+    }
+}
+
+export async function aktifkanKembaliAkunGuru(targetUsername) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'aktifkanKembaliAkunGuru', targetUsername, username, token });
+    } catch (error) {
+        console.error('Aktifkan akun error:', error);
+        throw error;
+    }
+}
+
+export async function updateRoleAkun(targetUsername, roleCsvBaru) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'updateRoleAkun', targetUsername, roleCsvBaru, username, token });
+    } catch (error) {
+        console.error('Update role akun error:', error);
+        throw error;
+    }
+}
+
 // Ambil detail 1 siswa (klik nama di kotak "Perlu Perhatian", konteks
 // dashboard Per Mapel) -- `mapel` boleh 1 mapel (lagi difilter ke 1
 // kombinasi) atau daftar dipisah koma (tampilan gabungan semua mapel).
@@ -760,6 +836,13 @@ export default {
     hapusAbsen,
     getDashboardData,
     getDashboardSekolah,
+    getDaftarAkunUntukAdmin,
+    tambahAkunGuru,
+    updateAkunGuru,
+    resetPasswordAkunOlehAdmin,
+    nonaktifkanAkunGuru,
+    aktifkanKembaliAkunGuru,
+    updateRoleAkun,
     getDetailSiswaPerhatian,
     getDetailSiswaPerhatianWali,
     getDashboardDataWali,
