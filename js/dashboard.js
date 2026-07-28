@@ -271,11 +271,12 @@ async function bukaModalDetailSiswa(nis, kelas, konteks) {
             const items = daftar.map(k => {
                 const tglTampil = formatTanggalIndonesia(k.tanggal);
                 const mapelTeks = tampilkanNamaMapel ? ` <span class="detail-siswa-mapel">(${escapeHtml(k.mapel)})</span>` : '';
+                const badgeStatus = `<span class="badge ${kelasBadge[kode]} detail-siswa-badge-kecil">${labelStatus[kode]}</span>`;
                 return `<li>
                     <button type="button" class="detail-siswa-tanggal-klik"
                         data-tanggal="${escapeHtml(k.tanggal)}" data-mapel="${escapeHtml(k.mapel)}" data-kelas="${escapeHtml(kelas)}"
                         title="Klik untuk edit absensi tanggal ini">
-                        ${escapeHtml(tglTampil)}${mapelTeks}
+                        ${badgeStatus} ${escapeHtml(tglTampil)}${mapelTeks}
                     </button>
                 </li>`;
             }).join('');
