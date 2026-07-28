@@ -322,6 +322,44 @@ export async function getDashboardData(mapel, kelas) {
     }
 }
 
+// Ambil detail 1 siswa (klik nama di kotak "Perlu Perhatian", konteks
+// dashboard Per Mapel) -- `mapel` boleh 1 mapel (lagi difilter ke 1
+// kombinasi) atau daftar dipisah koma (tampilan gabungan semua mapel).
+export async function getDetailSiswaPerhatian(nis, kelas, mapel) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({
+            action: 'getDetailSiswaPerhatian',
+            nis: nis,
+            kelas: kelas,
+            mapel: mapel,
+            username: username,
+            token: token
+        });
+    } catch (error) {
+        console.error('Get detail siswa error:', error);
+        throw error;
+    }
+}
+
+// Sama seperti di atas, versi dashboard Wali Kelas (mapel selalu
+// "Absen Harian" -- ditentukan backend sendiri, tidak perlu dikirim).
+export async function getDetailSiswaPerhatianWali(nis, kelas) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({
+            action: 'getDetailSiswaPerhatianWali',
+            nis: nis,
+            kelas: kelas,
+            username: username,
+            token: token
+        });
+    } catch (error) {
+        console.error('Get detail siswa wali error:', error);
+        throw error;
+    }
+}
+
 // Ambil data dashboard wali kelas
 export async function getDashboardDataWali(kelas) {
     try {
@@ -705,6 +743,8 @@ export default {
     getRiwayatAbsensi,
     hapusAbsen,
     getDashboardData,
+    getDetailSiswaPerhatian,
+    getDetailSiswaPerhatianWali,
     getDashboardDataWali,
     getRekapKelasSaya,
     getAbsenWaliExisting,
