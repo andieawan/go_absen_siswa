@@ -28,7 +28,7 @@
  * =========================================================
  */
 
-import { getDashboardData, getDashboardDataWali, getCurrentUser } from './api.js?v=20260726';
+import { getDashboardData, getDetailSiswaPerhatian, getDetailSiswaPerhatianWali, getDashboardDataWali, getCurrentUser } from './api.js?v=20260726';
 // PATCH PERFORMA: escapeHtml dipakai dari utils.js (regex string-replace),
 // bukan implementasi lokal yang sebelumnya ada di file ini. Implementasi
 // lama membuat elemen <div> DOM baru pada SETIAP pemanggilan (lihat riwayat
@@ -37,6 +37,8 @@ import { getDashboardData, getDashboardDataWali, getCurrentUser } from './api.js
 // topAlpa & rekap kelas/mapel. Juga menghapus duplikasi kode yang sama
 // persis fungsinya dengan utils.js.
 import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260726';
+import { showRichModal } from './modal.js?v=20260727';
+import { navigasiKeEditAbsensi } from './absensi.js?v=20260727';
 
 // Cache untuk data dashboard
 let dashboardCache = {
@@ -113,7 +115,9 @@ function toggleFilterKombinasi(card, listContainer) {
     if (sedangAktif) {
         // Klik ulang kartu yang sama -> reset ke tampilan gabungan.
         const jumlahKombinasi = (data.rekapKelasMapel || []).length;
-        renderPerhatianEmpat(data.perhatian);
+        const userData = getCurrentUser() || {};
+        const mapelListStrGabungan = (userData.mapelList || []).join(',');
+        renderPerhatianEmpat(data.perhatian, mapelListStrGabungan);
         renderTrendChart(data.trend, 'trendChart');
         if (data.rataRata) {
             renderDistribusiStatus(data.rataRata, 'distribusiMapelList');
@@ -133,7 +137,11 @@ function toggleFilterKombinasi(card, listContainer) {
         return;
     }
 
-    renderPerhatianEmpat(perKombinasi.perhatian);
+    // kombinasiKey formatnya "kelas|mapel" -- ambil bagian mapel saja
+    // supaya detail siswa nanti cuma menyisir 1 sheet ini (lebih cepat),
+    // bukan semua mapel guru.
+    const mapelKombinasiIni = (kombinasiKey.split('|')[1] || '').trim();
+    renderPerhatianEmpat(perKombinasi.perhatian, mapelKombinasiIni);
     renderTrendChart(perKombinasi.trend, 'trendChart');
     if (perKombinasi.rataRata) {
         renderDistribusiStatus(perKombinasi.rataRata, 'distribusiMapelList');
@@ -181,7 +189,16 @@ function tampilkanLabelFilterTren(teks) {
  * (lihat updateDashboardMapel()/updateDashboardWali() di bawah) memberi
  * label yang sesuai kategorinya masing-masing.
  */
-function renderTopAlpaList(data, containerId, labelKolom = 'Jumlah Alpa') {
+/**
+ * PATCH KLIK-DETAIL: `konteks` (opsional) -- kalau diisi, nama siswa jadi
+ * bisa diklik untuk membuka popup detail (riwayat tanggal Alpa/Izin/Sakit
+ * siswa itu -- lihat bukaModalDetailSiswa() di bawah). Bentuknya:
+ *   { mode: 'mapel', mapel: 'DKV,KIK' }  -- dashboard Per Mapel
+ *   { mode: 'wali' }                     -- dashboard Wali Kelas
+ * Kalau tidak diisi (null/undefined), nama tetap teks biasa (tidak bisa
+ * diklik) -- dipakai kalau data item tidak punya nis/kelas mentah.
+ */
+function renderTopAlpaList(data, containerId, labelKolom = 'Jumlah Alpa', konteks = null) {
     const container = document.getElementById(containerId);
     if (!container || !data || data.length === 0) {
         if (container) container.innerHTML = '<p class="empty-state">Tidak ada siswa perlu perhatian</p>';
@@ -190,13 +207,123 @@ function renderTopAlpaList(data, containerId, labelKolom = 'Jumlah Alpa') {
 
     let html = `<div class="table-wrapper"><table class="simple-table"><thead><tr><th>Nama</th><th>${escapeHtml(labelKolom)}</th></tr></thead><tbody>`;
     data.slice(0, 10).forEach(siswa => {
+        const bisaDiklik = konteks && siswa.nis && siswa.kelas;
+        const namaCell = bisaDiklik
+            ? `<button type="button" class="nama-siswa-klik" data-nis="${escapeHtml(siswa.nis)}" data-kelas="${escapeHtml(siswa.kelas)}" title="Klik untuk lihat detail">${escapeHtml(siswa.nama)}</button>`
+            : escapeHtml(siswa.nama);
         html += `<tr>
-            <td>${escapeHtml(siswa.nama)}</td>
+            <td>${namaCell}</td>
             <td><span class="badge badge-danger">${siswa.jumlahAlpa || 0}</span></td>
         </tr>`;
     });
     html += '</tbody></table></div>';
     container.innerHTML = html;
+
+    if (konteks) {
+        container.querySelectorAll('.nama-siswa-klik').forEach(btn => {
+            btn.addEventListener('click', () => {
+                bukaModalDetailSiswa(btn.dataset.nis, btn.dataset.kelas, konteks);
+            });
+        });
+    }
+}
+
+/**
+ * Buka popup detail 1 siswa (klik nama di kotak "Perlu Perhatian") --
+ * ambil data BELAKANGAN (baru saat diklik, bukan sejak awal dashboard
+ * dimuat), tampilkan ringkasan + daftar tanggal Alpa/Izin/Sakit
+ * terkelompok & berwarna. Tiap tanggal bisa diklik lagi untuk langsung
+ * dialihkan ke form Input pada tanggal itu (pakai navigasiKeEditAbsensi
+ * yang sama seperti fitur klik-kartu-riwayat).
+ */
+async function bukaModalDetailSiswa(nis, kelas, konteks) {
+    showGlobalLoading('Memuat detail siswa...');
+    try {
+        const res = konteks.mode === 'wali'
+            ? await getDetailSiswaPerhatianWali(nis, kelas)
+            : await getDetailSiswaPerhatian(nis, kelas, konteks.mapel);
+        hideGlobalLoading();
+
+        if (!res.success) {
+            showNotification(res.message || 'Gagal memuat detail siswa.', 'error');
+            return;
+        }
+
+        const d = res.data;
+        const labelStatus = { I: 'Izin', S: 'Sakit', A: 'Alpa' };
+        const kelasBadge = { I: 'badge-warning', S: 'badge-info', A: 'badge-danger' };
+        const ikonStatus = { I: '🟡', S: '🔵', A: '🔴' };
+
+        // Kelompokkan kejadian per status, supaya tampil terpisah rapi
+        // (bukan 1 daftar campur aduk) -- sesuai rancangan yang disepakati.
+        const kelompok = { A: [], I: [], S: [] };
+        (d.kejadian || []).forEach(k => { if (kelompok[k.status]) kelompok[k.status].push(k); });
+
+        // Tampilkan nama mapel per tanggal HANYA kalau konteksnya lebih
+        // dari 1 mapel sekaligus (mode gabungan) -- kalau sudah difilter
+        // ke 1 kombinasi kelas+mapel, nama mapelnya sudah jelas dari
+        // konteks, jadi tidak perlu diulang di tiap baris.
+        const tampilkanNamaMapel = konteks.mode === 'mapel' && konteks.mapel && konteks.mapel.split(',').length > 1;
+
+        function bangunDaftarTanggal(kode) {
+            const daftar = kelompok[kode];
+            if (!daftar || daftar.length === 0) return '';
+            const items = daftar.map(k => {
+                const tglTampil = formatTanggalIndonesia(k.tanggal);
+                const mapelTeks = tampilkanNamaMapel ? ` <span class="detail-siswa-mapel">(${escapeHtml(k.mapel)})</span>` : '';
+                return `<li>
+                    <button type="button" class="detail-siswa-tanggal-klik"
+                        data-tanggal="${escapeHtml(k.tanggal)}" data-mapel="${escapeHtml(k.mapel)}" data-kelas="${escapeHtml(kelas)}"
+                        title="Klik untuk edit absensi tanggal ini">
+                        ${escapeHtml(tglTampil)}${mapelTeks}
+                    </button>
+                </li>`;
+            }).join('');
+            return `<div class="detail-siswa-kategori">
+                <h5>${ikonStatus[kode]} ${labelStatus[kode]} (${daftar.length})</h5>
+                <ul class="detail-siswa-tanggal-list">${items}</ul>
+            </div>`;
+        }
+
+        const adaKejadian = (d.kejadian || []).length > 0;
+        const isiModal = `
+            <div class="detail-siswa">
+                <p class="detail-siswa-header"><strong>${escapeHtml(d.nama)}</strong> — ${escapeHtml(d.kelas)}</p>
+                <div class="stats-grid" style="margin: 8px 0 16px 0;">
+                    <span class="badge badge-success">Hadir: ${d.persenHadir}%</span>
+                    <span class="badge badge-warning">Izin: ${d.totalIzin}</span>
+                    <span class="badge badge-info">Sakit: ${d.totalSakit}</span>
+                    <span class="badge badge-danger">Alpa: ${d.totalAlpa}</span>
+                </div>
+                ${adaKejadian
+                    ? bangunDaftarTanggal('A') + bangunDaftarTanggal('I') + bangunDaftarTanggal('S')
+                    : '<p class="empty-state">Tidak ada catatan Alpa/Izin/Sakit pada periode ini.</p>'}
+            </div>`;
+
+        await showRichModal(`Detail Siswa`, isiModal);
+
+        // Pasang klik-untuk-edit SETELAH modal tampil (elemennya baru ada
+        // di DOM setelah showRichModal menyuntikkan innerHTML).
+        document.querySelectorAll('.detail-siswa-tanggal-klik').forEach(btn => {
+            btn.addEventListener('click', () => {
+                window.closeCustomAlert && window.closeCustomAlert();
+                const konteksEdit = konteks.mode === 'wali'
+                    ? { mode: 'wali', kelas: btn.dataset.kelas }
+                    : { mode: 'mapel', mapel: btn.dataset.mapel, kelas: btn.dataset.kelas };
+                navigasiKeEditAbsensi(konteksEdit, btn.dataset.tanggal);
+            });
+        });
+    } catch (error) {
+        hideGlobalLoading();
+        showNotification('Gagal memuat detail siswa: ' + error.message, 'error');
+    }
+}
+
+// Format "yyyy-MM-dd" -> "Senin, 13 Juli 2026" (Bahasa Indonesia).
+function formatTanggalIndonesia(tanggalStr) {
+    const d = new Date(tanggalStr + 'T00:00:00');
+    if (isNaN(d.getTime())) return tanggalStr;
+    return d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 // =========================================================
@@ -465,12 +592,13 @@ function renderDistribusiStatus(rataRata, containerId) {
 // =========================================================
 const PETA_STATUS_KE_KATEGORI = { alpa: 'alpa', izin: 'izin', sakit: 'sakit' };
 
-function renderPerhatianEmpat(perhatian) {
+function renderPerhatianEmpat(perhatian, mapelListStr) {
     if (!perhatian) return;
-    renderTopAlpaList(perhatian.alpa, 'topAlpaList', 'Jumlah Alpa');
-    renderTopAlpaList(perhatian.izin, 'topIzinList', 'Jumlah Izin');
-    renderTopAlpaList(perhatian.sakit, 'topSakitList', 'Jumlah Sakit');
-    renderTopAlpaList(perhatian.jarangMasuk, 'topJarangMasukList', 'Jumlah Tidak Hadir');
+    const konteks = mapelListStr ? { mode: 'mapel', mapel: mapelListStr } : null;
+    renderTopAlpaList(perhatian.alpa, 'topAlpaList', 'Jumlah Alpa', konteks);
+    renderTopAlpaList(perhatian.izin, 'topIzinList', 'Jumlah Izin', konteks);
+    renderTopAlpaList(perhatian.sakit, 'topSakitList', 'Jumlah Sakit', konteks);
+    renderTopAlpaList(perhatian.jarangMasuk, 'topJarangMasukList', 'Jumlah Tidak Hadir', konteks);
 }
 
 // Tampilkan HANYA 1 kategori (sembunyikan 3 lainnya), atau tampilkan
@@ -583,7 +711,7 @@ async function loadDashboardMapel() {
         }
 
         if (data.perhatian) {
-            renderPerhatianEmpat(data.perhatian);
+            renderPerhatianEmpat(data.perhatian, mapel);
         } else if (topAlpaContainer) {
             topAlpaContainer.innerHTML = '<p class="empty-state">Tidak ada siswa perlu perhatian</p>';
         }
@@ -635,10 +763,11 @@ async function loadDashboardMapel() {
 // =========================================================
 function renderPerhatianEmpatWali(perhatian) {
     if (!perhatian) return;
-    renderTopAlpaList(perhatian.alpa, 'waliTopAlpaList', 'Jumlah Alpa');
-    renderTopAlpaList(perhatian.izin, 'waliTopIzinList', 'Jumlah Izin');
-    renderTopAlpaList(perhatian.sakit, 'waliTopSakitList', 'Jumlah Sakit');
-    renderTopAlpaList(perhatian.jarangMasuk, 'waliTopJarangMasukList', 'Jumlah Tidak Hadir');
+    const konteks = { mode: 'wali' };
+    renderTopAlpaList(perhatian.alpa, 'waliTopAlpaList', 'Jumlah Alpa', konteks);
+    renderTopAlpaList(perhatian.izin, 'waliTopIzinList', 'Jumlah Izin', konteks);
+    renderTopAlpaList(perhatian.sakit, 'waliTopSakitList', 'Jumlah Sakit', konteks);
+    renderTopAlpaList(perhatian.jarangMasuk, 'waliTopJarangMasukList', 'Jumlah Tidak Hadir', konteks);
 }
 
 function fokuskanKategoriPerhatianWali(fokusKategori) {
