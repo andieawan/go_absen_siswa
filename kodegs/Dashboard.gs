@@ -388,6 +388,12 @@ function getDetailSiswaPerhatian(nis, kelas, mapelListStr) {
   const namaSiswa = namaMap[nis] || ("NIS " + nis);
 
   const kejadian = []; // { tanggal, status: 'I'|'S'|'A', mapel }
+  // PATCH (deteksi naik/turun): peta per-tanggal, dipakai membangun
+  // `trend` di bawah -- supaya frontend bisa membandingkan separuh awal
+  // vs separuh akhir periode untuk siswa INI SAJA, persis logika yang
+  // sama dipakai Dashboard Sekolah (analisisTrenSekolah() di
+  // js/dashboard.js), cuma cakupannya 1 siswa bukan seluruh sekolah.
+  const trendMap = {}; // { "yyyy-MM-dd": {hadir: 0/1, izin, sakit, alpa} }
   let totalHadir = 0, totalIzin = 0, totalSakit = 0, totalAlpa = 0;
 
   mapelList.forEach(mapel => {
@@ -400,15 +406,16 @@ function getDetailSiswaPerhatian(nis, kelas, mapelListStr) {
       const rawDate = data[i][4];
       if (!rawDate) continue;
       const tanggalStr = Utilities.formatDate(new Date(rawDate), "GMT+7", "yyyy-MM-dd");
+      if (!trendMap[tanggalStr]) trendMap[tanggalStr] = { hadir: 0, izin: 0, sakit: 0, alpa: 0 };
 
-      if (splitList(data[i][5]).indexOf(nis) !== -1) totalHadir++;
+      if (splitList(data[i][5]).indexOf(nis) !== -1) { totalHadir++; trendMap[tanggalStr].hadir++; }
 
       const catatNonHadir = (kolomStr, kode) => {
         if (splitList(kolomStr).indexOf(nis) === -1) return;
         kejadian.push({ tanggal: tanggalStr, status: kode, mapel: mapel });
-        if (kode === 'I') totalIzin++;
-        else if (kode === 'S') totalSakit++;
-        else if (kode === 'A') totalAlpa++;
+        if (kode === 'I') { totalIzin++; trendMap[tanggalStr].izin++; }
+        else if (kode === 'S') { totalSakit++; trendMap[tanggalStr].sakit++; }
+        else if (kode === 'A') { totalAlpa++; trendMap[tanggalStr].alpa++; }
       };
       catatNonHadir(data[i][6], 'I');
       catatNonHadir(data[i][7], 'S');
@@ -417,6 +424,15 @@ function getDetailSiswaPerhatian(nis, kelas, mapelListStr) {
   });
 
   kejadian.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal)); // terbaru dulu
+
+  const trend = Object.keys(trendMap)
+    .sort((a, b) => new Date(a) - new Date(b)) // kronologis (lama -> baru), beda dari kejadian yang terbaru dulu
+    .map(tgl => {
+      const d = trendMap[tgl];
+      const totalTgl = d.hadir + d.izin + d.sakit + d.alpa;
+      const persenHadirTgl = totalTgl > 0 ? Math.round((d.hadir / totalTgl) * 1000) / 10 : 0;
+      return { tanggal: tgl, persenHadir: persenHadirTgl };
+    });
 
   const totalPertemuan = totalHadir + totalIzin + totalSakit + totalAlpa;
   const persenHadir = totalPertemuan > 0 ? Math.round((totalHadir / totalPertemuan) * 1000) / 10 : 0;
@@ -432,6 +448,7 @@ function getDetailSiswaPerhatian(nis, kelas, mapelListStr) {
       totalIzin: totalIzin,
       totalSakit: totalSakit,
       totalAlpa: totalAlpa,
+      trend: trend,
       kejadian: kejadian
     }
   };
