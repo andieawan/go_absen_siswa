@@ -755,3 +755,14 @@
   background: var(--danger-color);
   color: var(--white);
 }
+
+/* PATCH: ringkasan naratif Dashboard Sekolah (lihat
+   buatRingkasanTrenSekolah() di js/dashboard.js). */
+.ringkasan-narasi p {
+  margin: 0 0 var(--spacing-3) 0;
+  line-height: 1.6;
+}
+
+.ringkasan-narasi p:last-child {
+  margin-bottom: 0;
+}
