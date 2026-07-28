@@ -28,7 +28,7 @@
  * =========================================================
  */
 
-import { getDashboardData, getDetailSiswaPerhatian, getDetailSiswaPerhatianWali, getDashboardDataWali, getCurrentUser } from './api.js?v=20260726';
+import { getDashboardData, getDetailSiswaPerhatian, getDetailSiswaPerhatianWali, getDashboardDataWali, getDashboardSekolah, getCurrentUser } from './api.js?v=20260726';
 // PATCH PERFORMA: escapeHtml dipakai dari utils.js (regex string-replace),
 // bukan implementasi lokal yang sebelumnya ada di file ini. Implementasi
 // lama membuat elemen <div> DOM baru pada SETIAP pemanggilan (lihat riwayat
@@ -891,29 +891,108 @@ async function loadDashboardWali() {
 }
 
 /**
- * PATCH (BARU): atur sub-tab default & visibilitas tombol "Wali Kelas".
+ * PATCH (BARU): atur sub-tab default & visibilitas tombol "Wali Kelas"
+ * dan (Tahap 2) "Sekolah".
  * Default tampilan Dashboard adalah Wali Kelas -- tapi hanya kalau akun
  * ini memang wali kelas. Kalau bukan wali kelas (guru mapel murni),
  * tombol sub-tab Wali disembunyikan dan default otomatis jatuh ke
  * sub-tab Per Mapel, supaya tidak ada tab kosong yang jadi default.
+ * Tombol "Sekolah" cuma muncul untuk role kepsek/admin/superadmin, dan
+ * jadi default HANYA untuk akun yang murni kepsek (tidak mengajar mapel
+ * apa pun) -- kalau akun itu JUGA guru (multi-role), default tetap
+ * mengikuti aturan lama (Wali/Per Mapel), "Sekolah" tetap ada sebagai
+ * pilihan tambahan, bukan menggantikan tab guru.
  */
 function setupDashboardSubTabs() {
     const userData = getCurrentUser() || {};
     const btnWali = document.getElementById('subtabBtnDashboardWali');
     const btnMapel = document.getElementById('subtabBtnDashboardMapel');
+    const btnSekolah = document.getElementById('subtabBtnDashboardSekolah');
     const panelWali = document.getElementById('subtabDashboardWali');
     const panelMapel = document.getElementById('subtabDashboardMapel');
+    const panelSekolah = document.getElementById('subtabDashboardSekolah');
 
     const adalahWaliKelas = !!userData.kelasWali;
+    const roleList = userData.roleList || [];
+    const bolehLihatSekolah = ['kepsek', 'admin', 'superadmin'].some(r => roleList.indexOf(r) !== -1);
+    const adalahGuruMapel = (userData.mapelList || []).length > 0;
 
     if (btnWali) btnWali.classList.toggle('hidden', !adalahWaliKelas);
+    if (btnSekolah) btnSekolah.classList.toggle('hidden', !bolehLihatSekolah);
 
-    // Tentukan tab aktif default: Wali Kelas kalau berlaku, kalau tidak Per Mapel.
-    const aktifkanWali = adalahWaliKelas;
-    if (btnWali) btnWali.classList.toggle('active', aktifkanWali);
-    if (btnMapel) btnMapel.classList.toggle('active', !aktifkanWali);
-    if (panelWali) panelWali.classList.toggle('hidden', !aktifkanWali);
-    if (panelMapel) panelMapel.classList.toggle('hidden', aktifkanWali);
+    // Tentukan tab aktif default: Wali Kelas kalau berlaku (prioritas
+    // lama, tidak berubah) -> Sekolah kalau akun ini murni kepsek/admin
+    // TANPA mapel yang diampu -> selain itu Per Mapel (perilaku lama).
+    let tabAktif = 'mapel';
+    if (adalahWaliKelas) tabAktif = 'wali';
+    else if (bolehLihatSekolah && !adalahGuruMapel) tabAktif = 'sekolah';
+
+    if (btnWali) btnWali.classList.toggle('active', tabAktif === 'wali');
+    if (btnMapel) btnMapel.classList.toggle('active', tabAktif === 'mapel');
+    if (btnSekolah) btnSekolah.classList.toggle('active', tabAktif === 'sekolah');
+    if (panelWali) panelWali.classList.toggle('hidden', tabAktif !== 'wali');
+    if (panelMapel) panelMapel.classList.toggle('hidden', tabAktif !== 'mapel');
+    if (panelSekolah) panelSekolah.classList.toggle('hidden', tabAktif !== 'sekolah');
+}
+
+/**
+ * TAHAP 2: muat & render Dashboard Sekolah (khusus role
+ * kepsek/admin/superadmin). Kalau akun ini tidak punya role itu, fungsi
+ * ini keluar diam-diam tanpa memanggil API sama sekali -- backend juga
+ * menolak (defense in depth), tapi tidak perlu buang 1 request percuma
+ * untuk akun guru biasa yang jelas tidak akan diizinkan.
+ */
+async function loadDashboardSekolah() {
+    const userData = getCurrentUser() || {};
+    const roleList = userData.roleList || [];
+    const bolehLihatSekolah = ['kepsek', 'admin', 'superadmin'].some(r => roleList.indexOf(r) !== -1);
+    if (!bolehLihatSekolah) return;
+
+    const contentEl = document.getElementById('dashboardSekolahContent');
+    const emptyEl = document.getElementById('dashboardSekolahEmpty');
+
+    try {
+        const res = await getDashboardSekolah();
+
+        if (!res.success) {
+            if (contentEl) contentEl.classList.add('hidden');
+            if (emptyEl) {
+                emptyEl.textContent = res.message || 'Belum ada data absensi untuk ditampilkan.';
+                emptyEl.classList.remove('hidden');
+            }
+            return;
+        }
+
+        const data = res.data;
+        if (contentEl) contentEl.classList.remove('hidden');
+        if (emptyEl) emptyEl.classList.add('hidden');
+
+        const elKombinasi = document.getElementById('sekolahStatKombinasi');
+        if (elKombinasi) elKombinasi.textContent = data.jumlahKombinasi;
+        const elRataHadir = document.getElementById('sekolahStatRataHadir');
+        if (elRataHadir) elRataHadir.textContent = data.persenHadirKeseluruhan + '%';
+
+        if (data.trend && data.trend.length > 0) {
+            renderTrendChart(data.trend, 'trendChartSekolah');
+        }
+        if (data.rataRata) {
+            renderDistribusiStatus(data.rataRata, 'sekolahDistribusiList');
+        }
+        // PATCH: nama siswa DI SINI SENGAJA tidak diklik (tidak dikirim
+        // parameter konteks ke-4) -- fitur "klik nama -> detail" butuh
+        // scope 1 daftar mapel yang jelas (lihat getDetailSiswaPerhatian()),
+        // sedangkan cakupan sekolah bisa lintas puluhan mapel sekaligus per
+        // siswa. Di luar cakupan Tahap 2 yang disepakati (murni dashboard
+        // & tren) -- bisa ditambahkan di tahap berikutnya kalau dibutuhkan.
+        if (data.perhatian) {
+            renderTopAlpaList(data.perhatian.alpa, 'sekolahTopAlpaList', 'Jumlah Alpa');
+            renderTopAlpaList(data.perhatian.izin, 'sekolahTopIzinList', 'Jumlah Izin');
+            renderTopAlpaList(data.perhatian.sakit, 'sekolahTopSakitList', 'Jumlah Sakit');
+            renderTopAlpaList(data.perhatian.jarangMasuk, 'sekolahTopJarangMasukList', 'Jumlah Tidak Hadir');
+        }
+    } catch (error) {
+        showNotification('Gagal memuat dashboard sekolah: ' + error.message, 'error');
+    }
 }
 
 /**
@@ -924,12 +1003,12 @@ export async function initDashboard() {
     console.log('Initializing dashboard...');
 
     setupDashboardSubTabs();
-    // PATCH PERFORMA: kedua fungsi ini independen (beda seksi DOM, beda
-    // endpoint API) -- sebelumnya di-await berurutan sehingga dashboard wali
-    // baru mulai dimuat SETELAH dashboard mapel selesai total. Dijalankan
-    // paralel dengan Promise.all supaya total waktu tunggu awal = waktu
-    // yang paling lambat di antara keduanya, bukan jumlah keduanya.
-    await Promise.all([loadDashboardMapel(), loadDashboardWali()]);
+    // PATCH PERFORMA: ketiga fungsi ini independen (beda seksi DOM, beda
+    // endpoint API) -- dijalankan paralel dengan Promise.all supaya total
+    // waktu tunggu awal = waktu yang paling lambat di antara ketiganya,
+    // bukan jumlah semuanya. loadDashboardSekolah() keluar cepat tanpa
+    // fetch apa pun kalau akun ini bukan kepsek/admin/superadmin.
+    await Promise.all([loadDashboardMapel(), loadDashboardWali(), loadDashboardSekolah()]);
 
     const dashboardTabBtn = document.querySelector('[data-tab="panelDashboard"]');
     if (dashboardTabBtn) {
@@ -937,6 +1016,7 @@ export async function initDashboard() {
             setTimeout(() => {
                 loadDashboardMapel();
                 loadDashboardWali();
+                loadDashboardSekolah();
             }, 100);
         });
     }
