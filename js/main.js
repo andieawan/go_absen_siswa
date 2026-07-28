@@ -146,6 +146,20 @@ async function renderDashboard() {
             }
         }
 
+        // PATCH TAHAP 2 (sistem peran): akun yang TIDAK punya role "guru"
+        // sama sekali (murni kepsek/admin, tidak mengajar apa pun) tidak
+        // perlu lihat tab Input/Riwayat/Rekap -- itu semua soal mengisi &
+        // melihat riwayat absen sebagai guru, tidak relevan untuk peran
+        // read-only seperti Kepsek. Tab Dashboard & Profil tetap ada untuk
+        // semua orang.
+        const roleListUser = (currentUser && currentUser.roleList) || ['guru'];
+        const punyaRoleGuru = roleListUser.indexOf('guru') !== -1;
+        if (!punyaRoleGuru) {
+            ['panelAbsensi', 'panelRiwayat', 'panelRekap'].forEach(tabId => {
+                document.querySelector(`.tab-btn[data-tab="${tabId}"]`)?.classList.add('hidden');
+            });
+        }
+
         initDashboard();
         // PATCH: inisialisasi panel Input/Riwayat/Rekap/Wali (lihat js/absensi.js)
         initAbsensi();
@@ -176,7 +190,13 @@ function clearSessionAndGoToLogin() {
  */
 function isStaleSessionData(user) {
     if (!user) return false;
-    return !('mapelList' in user) || !('kelasList' in user);
+    // PATCH TAHAP 1 (sistem peran): `roleList` ditambahkan ke bentuk data
+    // akun (lihat Roles.gs/Auth.gs). Sesi lama yang tersimpan di browser
+    // SEBELUM patch ini tidak akan punya field ini -- ikut ditandai basi
+    // di sini supaya otomatis dipaksa login ulang begitu fitur berbasis
+    // role mulai dipakai di frontend (Tahap 2/3), bukan diam-diam jalan
+    // dengan roleList undefined.
+    return !('mapelList' in user) || !('kelasList' in user) || !('roleList' in user);
 }
 
 /**
