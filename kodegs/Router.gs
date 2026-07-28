@@ -252,6 +252,15 @@ function doPost(e) {
         return getDetailSiswaPerhatian(data.nis, data.kelas, MAPEL_ABSEN_WALI);
       });
 
+    // ===== TAHAP 2: Dashboard Sekolah (khusus kepsek/admin/superadmin) =====
+    } else if (data.action === 'getDashboardSekolah') {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'kepsek') && !punyaRole(akun, 'admin') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak mengakses dashboard sekolah." };
+        }
+        return getDashboardSekolah();
+      });
+
     // ===== FIX: fallback eksplisit untuk action tak dikenal / parameter kurang =====
     } else {
       response.message = "Aksi tidak dikenali atau parameter tidak lengkap: " + (data.action || '(kosong)');
