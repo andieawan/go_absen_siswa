@@ -720,3 +720,38 @@
   padding: 2px 6px;
   vertical-align: middle;
 }
+
+/* =========================================================
+   PATCH TAHAP 3 (Panel Admin): tombol aksi di tabel akun guru --
+   lihat renderTabelAkun() di js/admin.js.
+   ========================================================= */
+.admin-aksi-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-1);
+}
+
+.btn-admin-aksi {
+  background: var(--gray-100);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-1) var(--spacing-2);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color var(--transition-fast);
+}
+
+.btn-admin-aksi:hover {
+  background: var(--gray-200);
+}
+
+.btn-admin-aksi-bahaya {
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+}
+
+.btn-admin-aksi-bahaya:hover {
+  background: var(--danger-color);
+  color: var(--white);
+}
