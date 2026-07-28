@@ -50,6 +50,7 @@ import { initDashboard } from './dashboard.js?v=20260726b';
 // diinisialisasi di sini, sejajar dengan initDashboard().
 import { initAbsensi } from './absensi.js?v=20260726';
 import { initProfil } from './profil.js?v=20260727';
+import { initAdmin } from './admin.js?v=20260727';
 import { showNotification } from './utils.js?v=20260726';
 import { showAlert, showConfirm } from './modal.js?v=20260726';
 import { initModalHandlers } from './modal.js?v=20260726';
@@ -165,6 +166,10 @@ async function renderDashboard() {
         initAbsensi();
         // PATCH: inisialisasi panel Profil (nama, password, foto profil)
         initProfil(currentUser);
+        // PATCH TAHAP 3: inisialisasi Panel Admin (kelola akun guru) --
+        // fungsi ini sendiri yang menentukan apakah tab-nya perlu
+        // ditampilkan atau tidak berdasarkan roleList akun ini.
+        initAdmin(currentUser);
     }
 }
 
