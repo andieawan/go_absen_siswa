@@ -942,6 +942,107 @@ function setupDashboardSubTabs() {
  * menolak (defense in depth), tapi tidak perlu buang 1 request percuma
  * untuk akun guru biasa yang jelas tidak akan diizinkan.
  */
+/**
+ * TAHAP 2+: bangun ringkasan berbentuk KALIMAT (bukan cuma angka/grafik)
+ * dari data dashboard sekolah -- supaya Kepala Sekolah bisa langsung
+ * paham kondisinya tanpa perlu membaca grafik sendiri. Mencakup 3 hal:
+ *   1) Kondisi kehadiran terkini (persentase + label kualitatif)
+ *   2) Arah tren (membandingkan separuh awal vs separuh akhir periode
+ *      data yang tercatat -- membaik / menurun / relatif stabil)
+ *   3) Pola hari yang mencurigakan (kalau ada 1 hari yang kehadirannya
+ *      cukup jauh di bawah rata-rata hari lain -- ini yang paling dekat
+ *      dengan "gejala" pola tidak masuk, bukan cuma angka mentah)
+ * Dipanggil murni di frontend, semua bahan sudah ada dari respons
+ * getDashboardSekolah() yang sama dipakai untuk grafik -- tidak perlu
+ * request tambahan ke server.
+ */
+function buatRingkasanTrenSekolah(data) {
+    const kalimat = [];
+    const trend = data.trend || [];
+    const persenSekarang = data.persenHadirKeseluruhan || 0;
+
+    // --- 1) Kondisi kehadiran terkini ---
+    let labelKondisi;
+    if (persenSekarang >= 90) labelKondisi = 'sangat baik';
+    else if (persenSekarang >= 80) labelKondisi = 'cukup baik';
+    else if (persenSekarang >= 70) labelKondisi = 'perlu diperhatikan';
+    else labelKondisi = 'cukup mengkhawatirkan';
+
+    kalimat.push(`Secara keseluruhan, tingkat kehadiran siswa se-sekolah pada periode ini adalah <strong>${persenSekarang}%</strong>, tergolong <strong>${labelKondisi}</strong>, dari total ${data.jumlahKombinasi} kombinasi kelas dan mata pelajaran yang tercatat.`);
+
+    // --- 2) Arah tren (bandingkan separuh awal vs separuh akhir) ---
+    if (trend.length >= 4) {
+        const tengah = Math.floor(trend.length / 2);
+        const rataAwal = rataRataArray(trend.slice(0, tengah).map(t => t.persenHadir));
+        const rataAkhir = rataRataArray(trend.slice(tengah).map(t => t.persenHadir));
+        const selisih = Math.round((rataAkhir - rataAwal) * 10) / 10;
+
+        if (selisih >= 3) {
+            kalimat.push(`Tren dalam periode ini menunjukkan <strong>peningkatan</strong> -- dari rata-rata ${rataAwal.toFixed(1)}% di awal periode menjadi ${rataAkhir.toFixed(1)}% belakangan ini (naik ${Math.abs(selisih)} poin persen).`);
+        } else if (selisih <= -3) {
+            kalimat.push(`Tren dalam periode ini menunjukkan <strong>penurunan</strong> -- dari rata-rata ${rataAwal.toFixed(1)}% di awal periode menjadi ${rataAkhir.toFixed(1)}% belakangan ini (turun ${Math.abs(selisih)} poin persen). Ini perlu ditindaklanjuti.`);
+        } else {
+            kalimat.push(`Tren dalam periode ini <strong>relatif stabil</strong>, berkisar di angka ${rataAwal.toFixed(1)}%-${rataAkhir.toFixed(1)}%, tanpa perubahan besar.`);
+        }
+    }
+
+    // --- 3) Pola hari yang mencurigakan ---
+    if (trend.length >= 7) {
+        const rataPerHari = {}; // { "Senin": [persen, persen, ...], ... }
+        trend.forEach(t => {
+            const d = new Date(t.tanggal + 'T00:00:00');
+            if (isNaN(d.getTime())) return;
+            const namaHari = d.toLocaleDateString('id-ID', { weekday: 'long' });
+            if (!rataPerHari[namaHari]) rataPerHari[namaHari] = [];
+            rataPerHari[namaHari].push(t.persenHadir);
+        });
+
+        const rataKeseluruhanTren = rataRataArray(trend.map(t => t.persenHadir));
+        let hariTerendah = null;
+        let nilaiTerendah = 101;
+        Object.keys(rataPerHari).forEach(hari => {
+            if (rataPerHari[hari].length < 2) return; // data 1x kejadian belum cukup untuk disebut pola
+            const rataHari = rataRataArray(rataPerHari[hari]);
+            if (rataHari < nilaiTerendah) { nilaiTerendah = rataHari; hariTerendah = hari; }
+        });
+
+        if (hariTerendah && (rataKeseluruhanTren - nilaiTerendah) >= 5) {
+            kalimat.push(`Terlihat pola menarik: kehadiran cenderung lebih rendah pada hari <strong>${hariTerendah}</strong> (rata-rata ${nilaiTerendah.toFixed(1)}%) dibanding hari-hari lain (rata-rata keseluruhan ${rataKeseluruhanTren.toFixed(1)}%). Ini bisa jadi indikasi pola yang perlu ditelusuri lebih lanjut, misalnya siswa yang sering izin/alpa menjelang atau sesudah akhir pekan.`);
+        }
+    }
+
+    // --- 4) Siswa perlu perhatian paling menonjol ---
+    const p = data.perhatian || {};
+    const totalAlpaSiswa = (p.alpa || []).length;
+    const totalJarangMasuk = (p.jarangMasuk || []).length;
+    if (totalJarangMasuk > 0) {
+        const teratas = p.jarangMasuk[0];
+        kalimat.push(`Tercatat <strong>${totalJarangMasuk} siswa</strong> dengan riwayat jarang masuk (gabungan Alpa/Izin/Sakit) yang perlu mendapat perhatian, dengan yang paling menonjol adalah <strong>${escapeHtml(teratas.nama)}</strong> (${teratas.jumlahAlpa} kali tidak hadir).`);
+    } else if (totalAlpaSiswa === 0) {
+        kalimat.push('Tidak ada siswa dengan catatan Alpa pada periode ini -- kondisi kedisiplinan kehadiran tergolong baik.');
+    }
+
+    return kalimat;
+}
+
+function rataRataArray(arr) {
+    if (!arr || arr.length === 0) return 0;
+    return arr.reduce((a, b) => a + b, 0) / arr.length;
+}
+
+function renderRingkasanNarasiSekolah(data) {
+    const container = document.getElementById('sekolahRingkasanNarasi');
+    if (!container) return;
+
+    const kalimat = buatRingkasanTrenSekolah(data);
+    if (kalimat.length === 0) {
+        container.innerHTML = '<p class="empty-state">Belum cukup data untuk membuat ringkasan.</p>';
+        return;
+    }
+
+    container.innerHTML = kalimat.map(k => `<p>${k}</p>`).join('');
+}
+
 async function loadDashboardSekolah() {
     const userData = getCurrentUser() || {};
     const roleList = userData.roleList || [];
@@ -978,6 +1079,10 @@ async function loadDashboardSekolah() {
         if (data.rataRata) {
             renderDistribusiStatus(data.rataRata, 'sekolahDistribusiList');
         }
+        // Ringkasan berbentuk kalimat -- lihat buatRingkasanTrenSekolah() di
+        // bawah. Diletakkan setelah trend & rataRata siap supaya bisa
+        // memakai keduanya untuk menyusun narasinya.
+        renderRingkasanNarasiSekolah(data);
         // PATCH: nama siswa DI SINI SENGAJA tidak diklik (tidak dikirim
         // parameter konteks ke-4) -- fitur "klik nama -> detail" butuh
         // scope 1 daftar mapel yang jelas (lihat getDetailSiswaPerhatian()),
