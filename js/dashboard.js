@@ -794,6 +794,67 @@ function renderPerhatianEmpatWali(perhatian) {
     renderTopAlpaList(perhatian.jarangMasuk, 'waliTopJarangMasukList', 'Jumlah Tidak Hadir', konteks);
 }
 
+// Label & ikon per kategori -- dipakai bersama oleh ringkasan umum
+// (label kategori generik) dan ringkasan fokus-1-kategori di bawah.
+const LABEL_KATEGORI_PERHATIAN = { alpa: 'Alpa', izin: 'Izin', sakit: 'Sakit', jarangMasuk: 'Jarang Masuk (gabungan Alpa+Izin+Sakit)' };
+const IKON_KATEGORI_PERHATIAN = { alpa: '🔴', izin: '🟡', sakit: '🔵', jarangMasuk: '📉' };
+
+/**
+ * PATCH: Ringkasan & Saran versi FOKUS 1 KATEGORI -- dipanggil dari
+ * fokuskanKategoriPerhatianWali() saat 1 kotak Distribusi (Izin/Sakit/
+ * Alpa) diklik, supaya Ringkasan & Saran ikut menyesuaikan ke kategori
+ * yang sama seperti daftar "Perlu Perhatian" di bawahnya -- bukan cuma
+ * daftar namanya saja yang berubah, tapi penjelasan & sarannya juga.
+ */
+function buatRingkasanKategoriWali(daftarSiswa, kategori) {
+    const label = LABEL_KATEGORI_PERHATIAN[kategori];
+    const ikon = IKON_KATEGORI_PERHATIAN[kategori];
+    const daftar = daftarSiswa || [];
+
+    if (daftar.length === 0) {
+        return [`${ikon} Tidak ada siswa dengan catatan <strong>${label}</strong> di kelas ini pada periode ini.`];
+    }
+
+    const kalimat = [];
+    kalimat.push(`${ikon} Tercatat <strong>${daftar.length} siswa</strong> di kelas ini dengan catatan <strong>${label}</strong> pada periode ini.`);
+
+    const teratas = daftar[0];
+    kalimat.push(`Yang paling menonjol adalah <strong>${escapeHtml(teratas.nama)}</strong>, dengan ${teratas.jumlahAlpa} kali kejadian.`);
+
+    if (daftar.length > 1) {
+        const daftarNama = daftar.slice(0, 5).map(s => `${escapeHtml(s.nama)} (${s.jumlahAlpa}x)`).join(', ');
+        kalimat.push(`Siswa lain yang perlu diperhatikan: ${daftarNama}${daftar.length > 5 ? ', dan lainnya' : ''}.`);
+    }
+
+    return kalimat;
+}
+
+function buatSaranKategoriWali(daftarSiswa, kategori) {
+    const daftar = daftarSiswa || [];
+    if (daftar.length === 0) return [];
+
+    const saran = [];
+    const label = LABEL_KATEGORI_PERHATIAN[kategori];
+
+    if (kategori === 'alpa') {
+        saran.push('Disarankan segera menindaklanjuti siswa dengan catatan Alpa terbanyak -- komunikasi langsung dengan siswa & orang tua, karena Alpa (tanpa keterangan) berbeda dari Izin/Sakit yang sudah ada alasannya.');
+    } else if (kategori === 'izin' || kategori === 'sakit') {
+        saran.push(`Kalau frekuensi ${label} untuk siswa tertentu terasa tidak wajar (terlalu sering), disarankan cek langsung ke siswa/orang tua -- bisa jadi ada kondisi kesehatan atau keluarga yang perlu diperhatikan, bukan sekadar dianggap "sudah ada izin/sakit jadi aman".`);
+    } else {
+        saran.push('Disarankan menindaklanjuti siswa dengan catatan Jarang Masuk secara menyeluruh -- gabungan Alpa/Izin/Sakit yang tinggi tetap berdampak ke ketertinggalan pelajaran, apa pun alasannya.');
+    }
+
+    saran.push('Gunakan fitur "Cek Riwayat Siswa" di bawah untuk melihat detail lengkap tiap siswa yang disebutkan di atas.');
+    return saran;
+}
+
+// Cache data terbaru dari loadDashboardWali() -- dipakai
+// fokuskanKategoriPerhatianWali() untuk tahu daftar siswa per kategori
+// (saat difokuskan) dan untuk MENGEMBALIKAN ringkasan umum saat kembali
+// ke tampilan "semua kategori" (klik ulang / klik Hadir), tanpa perlu
+// fetch ulang ke server.
+let dataWaliTerakhir = null;
+
 function fokuskanKategoriPerhatianWali(fokusKategori) {
     const semuaKategori = ['alpa', 'izin', 'sakit', 'jarangMasuk'];
     semuaKategori.forEach(kat => {
@@ -806,6 +867,31 @@ function fokuskanKategoriPerhatianWali(fokusKategori) {
         subtitle.textContent = fokusKategori
             ? 'Menampilkan fokus 1 kategori saja -- klik kotak yang sama di Distribusi (atau kotak Hadir) untuk kembali melihat semua kategori.'
             : 'Siswa dengan Alpa/Izin/Sakit terbanyak, dan siswa yang jarang masuk secara keseluruhan (gabungan ketiganya)';
+    }
+
+    // PATCH: Ringkasan & Saran ikut menyesuaikan ke fokus kategori yang
+    // sama -- tanpa fetch ulang, pakai data yang sudah di-cache.
+    if (!dataWaliTerakhir) return;
+
+    if (!fokusKategori) {
+        renderRingkasanNarasiWali(dataWaliTerakhir); // kembali ke ringkasan umum
+        return;
+    }
+
+    const daftarKategori = (dataWaliTerakhir.perhatian || {})[fokusKategori] || [];
+    const containerRingkasan = document.getElementById('waliRingkasanNarasi');
+    const containerSaran = document.getElementById('waliSaranTindakLanjut');
+
+    if (containerRingkasan) {
+        const kalimat = buatRingkasanKategoriWali(daftarKategori, fokusKategori);
+        containerRingkasan.innerHTML = kalimat.map(k => `<p>${k}</p>`).join('');
+    }
+    if (containerSaran) {
+        const saran = buatSaranKategoriWali(daftarKategori, fokusKategori);
+        containerSaran.innerHTML = saran.length === 0
+            ? '<p class="empty-state">Tidak ada saran -- tidak ada siswa dalam kategori ini.</p>'
+            : '<ul class="saran-tindak-lanjut-list">' + saran.map(s => `<li>${s}</li>`).join('') + '</ul>' +
+              '<p class="saran-tindak-lanjut-disclaimer">⚠️ Saran ini dihasilkan otomatis oleh sistem berdasarkan data kehadiran, bukan pengganti penilaian profesional. Keputusan akhir tetap berada di tangan wali kelas.</p>';
     }
 }
 
@@ -1019,6 +1105,7 @@ async function loadDashboardWali() {
         }
 
         const data = response.data || {};
+        dataWaliTerakhir = data; // PATCH: cache untuk fokuskanKategoriPerhatianWali()
 
         // Stats cards
         const elPertemuan = document.getElementById('waliStatPertemuan');
