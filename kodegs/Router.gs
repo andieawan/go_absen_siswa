@@ -261,6 +261,70 @@ function doPost(e) {
         return getDashboardSekolah();
       });
 
+    // ===== TAHAP 3: Panel Admin -- kelola akun guru =====
+    // Semua action di bawah ini WAJIB admin/superadmin, KECUALI
+    // updateRoleAkun yang WAJIB superadmin SAJA (admin biasa tidak boleh
+    // atur role siapa pun, termasuk dirinya sendiri -- lihat rancangan
+    // yang disepakati soal pemisahan wewenang admin vs superadmin).
+    } else if (data.action === 'getDaftarAkunUntukAdmin') {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'admin') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak mengakses Panel Admin." };
+        }
+        return getDaftarAkunUntukAdmin();
+      });
+
+    } else if (data.action === 'tambahAkunGuru' && data.dataBaru) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'admin') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak menambah akun guru." };
+        }
+        return tambahAkunGuru(data.dataBaru);
+      });
+
+    } else if (data.action === 'updateAkunGuru' && data.targetUsername && data.dataBaru) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'admin') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak mengubah akun guru." };
+        }
+        return updateAkunGuru(data.targetUsername, data.dataBaru);
+      });
+
+    } else if (data.action === 'resetPasswordAkunOlehAdmin' && data.targetUsername && data.passwordBaru) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'admin') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak mereset password akun guru." };
+        }
+        return resetPasswordAkunOlehAdmin(data.targetUsername, data.passwordBaru);
+      });
+
+    } else if (data.action === 'nonaktifkanAkunGuru' && data.targetUsername) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'admin') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak menonaktifkan akun guru." };
+        }
+        if (data.targetUsername === data.username) {
+          return { success: false, message: "Anda tidak bisa menonaktifkan akun sendiri." };
+        }
+        return nonaktifkanAkunGuru(data.targetUsername);
+      });
+
+    } else if (data.action === 'aktifkanKembaliAkunGuru' && data.targetUsername) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'admin') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak mengaktifkan akun guru." };
+        }
+        return aktifkanKembaliAkunGuru(data.targetUsername);
+      });
+
+    } else if (data.action === 'updateRoleAkun' && data.targetUsername && data.roleCsvBaru !== undefined) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Hanya Super Admin yang boleh mengubah peran akun." };
+        }
+        return updateRoleAkunOlehSuperAdmin(data.targetUsername, data.roleCsvBaru);
+      });
+
     // ===== FIX: fallback eksplisit untuk action tak dikenal / parameter kurang =====
     } else {
       response.message = "Aksi tidak dikenali atau parameter tidak lengkap: " + (data.action || '(kosong)');
