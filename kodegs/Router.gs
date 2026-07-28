@@ -62,7 +62,12 @@ function doPost(e) {
     // ===== PATCH: action berikut dipindah dari doGet ke doPost =====
     } else if (data.action === 'getStudents' && data.kelas) {
       response = handleGetDenganValidasi(data.username, data.token, function(akun) {
-        if (akun.kelasList.indexOf(data.kelas) === -1) {
+        // PATCH BUG: sebelumnya cuma cek akun.kelasList -- wali kelas yang
+        // KEBETULAN tidak mengajar mapel apa pun di kelas walinya sendiri
+        // (murni jadi wali, kelasnya tidak masuk kelasList) akan salah
+        // ditolak di sini, padahal dia berhak lihat siswa kelas walinya
+        // sendiri. Sekarang diterima juga kalau kelas yang diminta = kelasWali.
+        if (akun.kelasList.indexOf(data.kelas) === -1 && akun.kelasWali !== data.kelas) {
           return { success: false, message: "Anda tidak berhak mengakses data kelas " + data.kelas + "." };
         }
         return getStudents(data.kelas);
