@@ -21,17 +21,26 @@ function hitungDistribusiPersen(jumlah) {
 
 // Bangun 4 daftar "Perlu Perhatian" (Sering Alpa / Sering Izin / Sering
 // Sakit / Jarang Masuk gabungan) dari peta hitungan status per siswa
-// ({ key: {alpa, izin, sakit} }). `resolveNama(key)` menentukan cara
-// mengubah key jadi teks nama yang ditampilkan (beda antara level
-// gabungan -- key "kelas|nis" -- dan level per kombinasi -- key NIS saja).
+// ({ key: {alpa, izin, sakit} }). `resolveInfo(key)` menentukan cara
+// mengubah key jadi info siswa { nama, nis, kelas } -- beda antara level
+// gabungan (key "kelas|nis") dan level per kombinasi (key NIS saja).
 // Field hasil tetap dinamai `jumlahAlpa` (bukan diganti `jumlah` generik)
 // supaya kompatibel dengan renderTopAlpaList() di frontend yang juga
 // dipakai Dashboard Wali Kelas -- di sini artinya "jumlah kejadian status
 // yang bersangkutan", bukan selalu benar-benar Alpa.
-function bangunDaftarPerhatian(counterMap, resolveNama) {
+// PATCH KLIK-DETAIL: sebelumnya resolveNama() cuma mengembalikan STRING
+// nama sudah jadi (mis. "Budi (XI DKV 1)"), jadi frontend tidak punya
+// NIS/kelas mentah untuk dipakai lagi kalau mau ambil detail siswa itu.
+// Sekarang resolveInfo() mengembalikan OBJEK { nama, nis, kelas }, dan
+// nis+kelas ikut disertakan di tiap item hasil -- dipakai
+// getDetailSiswaPerhatian() saat nama diklik di frontend.
+function bangunDaftarPerhatian(counterMap, resolveInfo) {
   function daftarUntuk(ambilJumlah) {
     return Object.keys(counterMap)
-      .map(key => ({ nama: resolveNama(key), jumlahAlpa: ambilJumlah(counterMap[key]) }))
+      .map(key => {
+        const info = resolveInfo(key); // { nama, nis, kelas }
+        return { nama: info.nama, nis: info.nis, kelas: info.kelas, jumlahAlpa: ambilJumlah(counterMap[key]) };
+      })
       .filter(item => item.jumlahAlpa > 0)
       .sort((a, b) => b.jumlahAlpa - a.jumlahAlpa)
       .slice(0, 10);
@@ -164,7 +173,11 @@ function getDashboardData(mapelListStr, kelasListStr) {
 
       const perhatianKombinasi = bangunDaftarPerhatian(
         siswaStatusCountKombinasi,
-        nis => (namaMapKelasIni[nis] || ("NIS " + nis)) + " (" + kelas + ")"
+        nis => ({
+          nama: (namaMapKelasIni[nis] || ("NIS " + nis)) + " (" + kelas + ")",
+          nis: nis,
+          kelas: kelas
+        })
       );
 
       const trendKombinasi = Object.keys(trendMapKombinasi)
@@ -201,7 +214,7 @@ function getDashboardData(mapelListStr, kelasListStr) {
     const [kelasKey, nis] = key.split("|");
     if (!nisKeNamaCache[kelasKey]) nisKeNamaCache[kelasKey] = getNisKeNamaMap(kelasKey);
     const nama = nisKeNamaCache[kelasKey][nis] || ("NIS " + nis);
-    return nama + " (" + kelasKey + ")";
+    return { nama: nama + " (" + kelasKey + ")", nis: nis, kelas: kelasKey };
   });
 
   let trend = Object.keys(trendMap)
@@ -318,7 +331,11 @@ function getDashboardDataWali(kelas) {
   // terpisah: alpa/izin/sakit/jarangMasuk) -- pakai fungsi bersama yang
   // sama seperti dashboard Per Mapel (lihat bangunDaftarPerhatian() di
   // atas getDashboardData()).
-  const perhatian = bangunDaftarPerhatian(siswaStatusCount, nis => (nisKeNama[nis] || ("NIS " + nis)));
+  const perhatian = bangunDaftarPerhatian(siswaStatusCount, nis => ({
+    nama: (nisKeNama[nis] || ("NIS " + nis)),
+    nis: nis,
+    kelas: kelas
+  }));
 
   // Rata-rata distribusi status
   const grandTotal = totalHadir + totalIzin + totalSakit + totalAlpa;
@@ -342,3 +359,80 @@ function getDashboardDataWali(kelas) {
   };
 }
 // ===== SELESAI: DASHBOARD WALI KELAS =====
+
+// =========================================================
+// DETAIL SISWA (klik nama di kotak "Perlu Perhatian")
+// ---------------------------------------------------------
+// Dipanggil BELAKANGAN, saat 1 nama diklik -- BUKAN disertakan sejak awal
+// dashboard dimuat (supaya payload awal dashboard tetap ringan). Menyisir
+// SEMUA mapel di `mapelListStr` (bisa 1 mapel kalau lagi difilter ke 1
+// kombinasi, banyak mapel kalau lagi tampilan gabungan, atau cuma
+// MAPEL_ABSEN_WALI untuk konteks dashboard Wali Kelas) untuk cari SEMUA
+// kejadian Izin/Sakit/Alpa siswa itu, plus hitung total Hadir untuk
+// persentase ringkasan.
+// =========================================================
+function getDetailSiswaPerhatian(nis, kelas, mapelListStr) {
+  const mapelList = mapelListStr.split(',').map(s => s.trim()).filter(s => s !== "");
+  if (mapelList.length === 0) {
+    return { success: false, message: "Mata pelajaran tidak valid." };
+  }
+
+  let ss;
+  try {
+    ss = getAbsenSs(kelas, todayISO());
+  } catch (e) {
+    return { success: false, message: "Gagal membuka data absen kelas " + kelas + ": " + e.message };
+  }
+
+  const namaMap = getNisKeNamaMap(kelas);
+  const namaSiswa = namaMap[nis] || ("NIS " + nis);
+
+  const kejadian = []; // { tanggal, status: 'I'|'S'|'A', mapel }
+  let totalHadir = 0, totalIzin = 0, totalSakit = 0, totalAlpa = 0;
+
+  mapelList.forEach(mapel => {
+    const sheetName = (kelas + "_" + mapel).replace(/[^a-zA-Z0-9]/g, "_");
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet) return; // guru ini mungkin tidak mengajar mapel itu di kelas ini -- lewati, bukan error
+
+    const data = sheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      const rawDate = data[i][4];
+      if (!rawDate) continue;
+      const tanggalStr = Utilities.formatDate(new Date(rawDate), "GMT+7", "yyyy-MM-dd");
+
+      if (splitList(data[i][5]).indexOf(nis) !== -1) totalHadir++;
+
+      const catatNonHadir = (kolomStr, kode) => {
+        if (splitList(kolomStr).indexOf(nis) === -1) return;
+        kejadian.push({ tanggal: tanggalStr, status: kode, mapel: mapel });
+        if (kode === 'I') totalIzin++;
+        else if (kode === 'S') totalSakit++;
+        else if (kode === 'A') totalAlpa++;
+      };
+      catatNonHadir(data[i][6], 'I');
+      catatNonHadir(data[i][7], 'S');
+      catatNonHadir(data[i][8], 'A');
+    }
+  });
+
+  kejadian.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal)); // terbaru dulu
+
+  const totalPertemuan = totalHadir + totalIzin + totalSakit + totalAlpa;
+  const persenHadir = totalPertemuan > 0 ? Math.round((totalHadir / totalPertemuan) * 1000) / 10 : 0;
+
+  return {
+    success: true,
+    data: {
+      nama: namaSiswa,
+      nis: nis,
+      kelas: kelas,
+      persenHadir: persenHadir,
+      totalHadir: totalHadir,
+      totalIzin: totalIzin,
+      totalSakit: totalSakit,
+      totalAlpa: totalAlpa,
+      kejadian: kejadian
+    }
+  };
+}
