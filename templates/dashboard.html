@@ -41,6 +41,7 @@
         <div class="sub-tab-nav" id="dashboardSubTabNav">
             <button class="sub-tab-btn hidden" data-subtab="subtabDashboardWali" id="subtabBtnDashboardWali">👪 Wali Kelas</button>
             <button class="sub-tab-btn" data-subtab="subtabDashboardMapel" id="subtabBtnDashboardMapel">📚 Per Mapel</button>
+            <button class="sub-tab-btn hidden" data-subtab="subtabDashboardSekolah" id="subtabBtnDashboardSekolah">🏫 Sekolah</button>
         </div>
 
         <p id="dashboardLoading" class="hidden">Memuat data analitik...</p>
@@ -143,6 +144,57 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- SUB-TAB: DASHBOARD SEKOLAH (khusus role kepsek/admin/superadmin --
+             lihat punyaRole() di kodegs/Roles.gs & getDashboardSekolah() di
+             kodegs/Kepsek.gs. Read-only: cuma dashboard & tren, TIDAK ada
+             tabel per-kelas+mapel (ratusan kombinasi se-sekolah tidak
+             praktis ditampilkan 1-1), dan TIDAK ada filter klik-kartu
+             seperti Per Mapel -- murni ringkasan gabungan untuk sekarang,
+             sesuai cakupan Tahap 2 yang disepakati.) -->
+        <div id="subtabDashboardSekolah" class="sub-tab-panel hidden">
+            <div id="dashboardSekolahContent" class="hidden">
+                <div class="card">
+                    <h4>🏫 Ringkasan Sekolah</h4>
+                    <p class="card-subtitle">Gabungan seluruh kelas & mata pelajaran yang tercatat</p>
+                    <div class="stats-grid">
+                        <div class="stat-card stat-hadir"><div class="stat-icon">📚</div><div class="stat-info"><div class="stat-value" id="sekolahStatKombinasi">0</div><div class="stat-label">Kombinasi Kelas+Mapel</div></div></div>
+                        <div class="stat-card stat-izin"><div class="stat-icon">📈</div><div class="stat-info"><div class="stat-value" id="sekolahStatRataHadir">0%</div><div class="stat-label">Rata-rata Hadir</div></div></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <h4>📉 Tren Kehadiran Sekolah</h4>
+                    <div class="chart-wrapper"><canvas id="trendChartSekolah"></canvas></div>
+                </div>
+                <div class="card">
+                    <h4>📊 Distribusi Status Kehadiran Sekolah</h4>
+                    <div id="sekolahDistribusiList"></div>
+                </div>
+                <div class="card">
+                    <h4>⚠️ Perlu Perhatian (Seluruh Sekolah)</h4>
+                    <p class="card-subtitle">Siswa dengan Alpa/Izin/Sakit terbanyak se-sekolah, dan siswa yang jarang masuk (gabungan ketiganya)</p>
+                    <div id="sekolahPerhatianKhususWrapper">
+                        <div class="perhatian-kategori" id="sekolahPerhatianKategori-alpa">
+                            <h5>🔴 Sering Alpa</h5>
+                            <div id="sekolahTopAlpaList"></div>
+                        </div>
+                        <div class="perhatian-kategori" id="sekolahPerhatianKategori-izin">
+                            <h5>🟡 Sering Izin</h5>
+                            <div id="sekolahTopIzinList"></div>
+                        </div>
+                        <div class="perhatian-kategori" id="sekolahPerhatianKategori-sakit">
+                            <h5>🔵 Sering Sakit</h5>
+                            <div id="sekolahTopSakitList"></div>
+                        </div>
+                        <div class="perhatian-kategori" id="sekolahPerhatianKategori-jarangMasuk">
+                            <h5>📉 Jarang Masuk (Gabungan Alpa+Izin+Sakit)</h5>
+                            <div id="sekolahTopJarangMasukList"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p id="dashboardSekolahEmpty" class="empty-state hidden">Belum ada data absensi untuk ditampilkan.</p>
         </div>
     </div>
 
