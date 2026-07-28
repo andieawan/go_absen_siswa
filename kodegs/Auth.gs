@@ -57,7 +57,14 @@ function getAkunGuru(username) {
         nama: data[i][2],
         mapelList: String(data[i][3] || '').split(',').map(s => s.trim()).filter(s => s !== ''),
         kelasList: String(data[i][4] || '').split(',').map(s => s.trim()).filter(s => s !== ''),
-        kelasWali: data[i][5] ? String(data[i][5]).trim() : ''
+        kelasWali: data[i][5] ? String(data[i][5]).trim() : '',
+        // PATCH TAHAP 1 (sistem peran): lihat Roles.gs. WAJIB pakai
+        // parseRoleList() yang SAMA dengan yang dipanggil handleLogin() di
+        // bawah -- supaya kedua sumber data akun ini SELALU konsisten
+        // bentuknya (lihat catatan "FIX KRITIS" di handleLogin() soal
+        // riwayat bug akibat 2 tempat ini pernah tidak sinkron untuk
+        // mapelList/kelasList; jangan sampai terulang untuk roleList).
+        roleList: parseRoleList(data[i][KOLOM_ROLE_0INDEXED])
       };
     }
   }
@@ -227,7 +234,12 @@ function handleLogin(username, password) {
             nama: data[i][2],
             mapelList: String(data[i][3] || '').split(',').map(s => s.trim()).filter(s => s !== ''),
             kelasList: String(data[i][4] || '').split(',').map(s => s.trim()).filter(s => s !== ''),
-            kelasWali: kelasWali
+            kelasWali: kelasWali,
+            // PATCH TAHAP 1 (sistem peran): lihat Roles.gs. Dijaga SAMA
+            // PERSIS dengan getAkunGuru() di atas -- lihat catatan "FIX
+            // KRITIS" tepat di atas ini soal kenapa 2 tempat ini wajib
+            // sinkron (riwayat bug sebelumnya untuk mapelList/kelasList).
+            roleList: parseRoleList(data[i][KOLOM_ROLE_0INDEXED])
           }
         };
       }
