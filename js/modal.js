@@ -219,8 +219,60 @@ export function showConfirm(message, title = 'Konfirmasi') {
     });
 }
 
+/**
+ * Tampilkan modal dengan KONTEN HTML (bukan cuma teks polos) -- dipakai
+ * untuk popup detail siswa (klik nama di kotak "Perlu Perhatian"), yang
+ * butuh tampilan lebih kaya (ringkasan + daftar tanggal terkelompok)
+ * daripada showAlert() yang cuma 1 baris pesan.
+ *
+ * Meminjam elemen modal `customAlert` yang sama (overlay, judul, tombol
+ * OK) supaya konsisten gayanya dengan alert biasa, cuma bagian
+ * pesannya diisi lewat innerHTML, bukan textContent.
+ *
+ * PENTING -- TANGGUNG JAWAB XSS ADA DI PEMANGGIL: `htmlContent` di sini
+ * langsung di-innerHTML-kan APA ADANYA, TIDAK di-escape otomatis oleh
+ * fungsi ini (karena memang isinya boleh mengandung tag HTML asli,
+ * itulah tujuannya). Pemanggil WAJIB sudah escapeHtml() semua data yang
+ * berasal dari server/input pengguna SEBELUM disusun jadi `htmlContent`
+ * -- lihat contoh pemakaiannya di bukaModalDetailSiswa() (js/dashboard.js).
+ */
+export function showRichModal(title, htmlContent) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('customAlert');
+        if (!modal) {
+            console.error('Modal customAlert tidak ditemukan');
+            resolve();
+            return;
+        }
+
+        const iconEl = document.getElementById('alertIcon');
+        const titleEl = document.getElementById('alertTitle');
+        const messageEl = document.getElementById('alertMessage');
+
+        // Sembunyikan ikon success/error/dst -- popup detail ini bukan
+        // pemberitahuan sukses/gagal, jadi ikonnya tidak relevan.
+        if (iconEl) iconEl.classList.add('hidden');
+        if (titleEl) titleEl.textContent = title;
+        if (messageEl) messageEl.innerHTML = htmlContent;
+
+        modal.classList.add('active');
+
+        const okBtn = modal.querySelector('.modal-btn');
+        if (okBtn) okBtn.focus();
+
+        const originalClose = window.closeCustomAlert;
+        window.closeCustomAlert = () => {
+            modal.classList.remove('active');
+            if (iconEl) iconEl.classList.remove('hidden'); // kembalikan utk showAlert() berikutnya
+            window.closeCustomAlert = originalClose;
+            resolve();
+        };
+    });
+}
+
 export default {
     initModalHandlers,
     showAlert,
-    showConfirm
+    showConfirm,
+    showRichModal
 };
