@@ -715,6 +715,15 @@
   font-size: var(--font-size-xs);
 }
 
+.detail-siswa-tren {
+  background: var(--gray-100);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-2) var(--spacing-3);
+  margin: 0 0 var(--spacing-4) 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
 .detail-siswa-badge-kecil {
   font-size: 0.65rem;
   padding: 2px 6px;
