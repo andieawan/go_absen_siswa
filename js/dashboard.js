@@ -984,13 +984,21 @@ function analisisTrenWali(data) {
     const totalAlpaSiswa = (p.alpa || []).length;
     const totalJarangMasuk = (p.jarangMasuk || []).length;
     const siswaMenonjol = totalJarangMasuk > 0 ? p.jarangMasuk[0] : null;
+    // PATCH: data Alpa & Sakit menonjol SECARA TERPISAH (bukan cuma
+    // gabungan jarangMasuk) -- dipakai buatSaranTindakLanjutWali() untuk
+    // saran spesifik per kategori, dengan Alpa diprioritaskan (lihat
+    // penjelasan lengkap di fungsi itu).
+    const siswaAlpaMenonjol = totalAlpaSiswa > 0 ? p.alpa[0] : null;
+    const totalSiswaSakit = (p.sakit || []).length;
+    const siswaSakitMenonjol = totalSiswaSakit > 0 ? p.sakit[0] : null;
 
     return {
         persenSekarang, labelKondisi,
         totalSiswa: data.totalSiswa || 0, totalPertemuan: data.totalPertemuan || 0,
         arahTren, rataAwal, rataAkhir,
         hariTerendah, nilaiTerendahHari, rataKeseluruhanTren,
-        totalAlpaSiswa, totalJarangMasuk, siswaMenonjol
+        totalAlpaSiswa, totalJarangMasuk, siswaMenonjol,
+        siswaAlpaMenonjol, totalSiswaSakit, siswaSakitMenonjol
     };
 }
 
@@ -1043,8 +1051,18 @@ function buatSaranTindakLanjutWali(a) {
         saran.push(`Disarankan menelusuri penyebab spesifik rendahnya kehadiran pada hari ${a.hariTerendah} -- misalnya jadwal pelajaran tertentu, kegiatan pada hari sebelumnya, atau kendala transportasi yang berulang.`);
     }
 
-    if (a.siswaMenonjol) {
-        saran.push(`Disarankan segera menindaklanjuti <strong>${escapeHtml(a.siswaMenonjol.nama)}</strong> secara individual -- bisa lewat fitur "Cek Riwayat Siswa" di bawah untuk lihat detail lengkapnya, dan pertimbangkan memanggil orang tua/wali sesuai prosedur BK sekolah kalau memang belum dilakukan.`);
+    // PATCH: saran spesifik Alpa DIDAHULUKAN (ditampilkan lebih dulu dari
+    // Sakit) -- karena Alpa (tidak hadir tanpa keterangan) butuh eskalasi
+    // yang lebih tegas dibanding Izin/Sakit yang sudah ada alasannya.
+    // Wording-nya SENGAJA langsung mengarahkan wali kelas ke BK, sesuai
+    // alur kerja yang diminta: wali kelas menindaklanjuti dulu, kalau
+    // belum ada perbaikan diteruskan ke BK untuk pendampingan.
+    if (a.siswaAlpaMenonjol) {
+        saran.push(`🔴 Tercatat <strong>${a.totalAlpaSiswa} siswa</strong> dengan catatan Alpa di kelas ini, dengan yang paling menonjol adalah <strong>${escapeHtml(a.siswaAlpaMenonjol.nama)}</strong> (${a.siswaAlpaMenonjol.jumlahAlpa} kali). Disarankan wali kelas segera menindaklanjuti secara langsung -- dan kalau belum menunjukkan perbaikan, diteruskan ke <strong>BK untuk pendampingan lebih lanjut</strong>.`);
+    }
+
+    if (a.siswaSakitMenonjol) {
+        saran.push(`🔵 Tercatat <strong>${a.totalSiswaSakit} siswa</strong> dengan catatan Sakit yang cukup sering di kelas ini, dengan yang paling menonjol adalah <strong>${escapeHtml(a.siswaSakitMenonjol.nama)}</strong> (${a.siswaSakitMenonjol.jumlahAlpa} kali). Disarankan dikonfirmasi ke orang tua/wali untuk memastikan kondisi kesehatan siswa, terutama kalau frekuensinya terasa di luar kewajaran.`);
     }
 
     return saran;
