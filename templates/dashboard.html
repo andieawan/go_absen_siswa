@@ -133,19 +133,6 @@
         <div id="subtabDashboardMapel" class="sub-tab-panel hidden">
             <div id="dashboardMapelContent" class="hidden">
                 <div class="card">
-                    <h4>🔍 Cek Riwayat Siswa</h4>
-                    <p class="card-subtitle">Lihat riwayat & tren kehadiran siswa mana pun -- termasuk yang belum masuk daftar "Perlu Perhatian", supaya perubahan bisa terdeteksi lebih dini</p>
-                    <div class="form-group">
-                        <label for="mapelPilihKelasSiswa">Kelas</label>
-                        <select id="mapelPilihKelasSiswa"><option value="">-- Pilih kelas --</option></select>
-                    </div>
-                    <div class="form-group">
-                        <label for="mapelPilihSiswa">Siswa</label>
-                        <select id="mapelPilihSiswa" disabled><option value="">-- Pilih kelas dulu --</option></select>
-                    </div>
-                    <button type="button" id="mapelBtnLihatDetailSiswa" class="btn-secondary btn-full">Lihat Detail</button>
-                </div>
-                <div class="card">
                     <h4>📈 Persentase Kehadiran (Per Mapel)</h4>
                     <div id="rekapKelasMapelList"></div>
                 </div>
@@ -179,6 +166,24 @@
                             <div id="topJarangMasukList"></div>
                         </div>
                     </div>
+                </div>
+                <!-- PATCH TATA ULANG: dipindah ke PALING BAWAH -- konsisten
+                     dengan Dashboard Wali Kelas & Sekolah: alat pencarian ini
+                     lebih cocok dipakai SETELAH guru tahu ada yang perlu
+                     ditelusuri (dari kartu Persentase Kehadiran / Perlu
+                     Perhatian di atas), bukan hal pertama yang dilihat. -->
+                <div class="card">
+                    <h4>🔍 Cek Riwayat Siswa</h4>
+                    <p class="card-subtitle">Lihat riwayat & tren kehadiran siswa mana pun -- termasuk yang belum masuk daftar "Perlu Perhatian", supaya perubahan bisa terdeteksi lebih dini</p>
+                    <div class="form-group">
+                        <label for="mapelPilihKelasSiswa">Kelas</label>
+                        <select id="mapelPilihKelasSiswa"><option value="">-- Pilih kelas --</option></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="mapelPilihSiswa">Siswa</label>
+                        <select id="mapelPilihSiswa" disabled><option value="">-- Pilih kelas dulu --</option></select>
+                    </div>
+                    <button type="button" id="mapelBtnLihatDetailSiswa" class="btn-secondary btn-full">Lihat Detail</button>
                 </div>
             </div>
         </div>
