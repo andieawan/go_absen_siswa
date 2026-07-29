@@ -1049,3 +1049,74 @@
     padding: var(--spacing-4) var(--spacing-3);
   }
 }
+
+/* =========================================================
+   PATCH TATA ULANG NAVIGASI: menu dropdown avatar (Profil, Admin,
+   Keluar) -- lihat templates/dashboard.html #avatarDropdownMenu dan
+   js/main.js untuk logika buka/tutupnya.
+   ========================================================= */
+.avatar-menu-wrapper {
+  position: relative;
+}
+
+#headerAvatar {
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.avatar-dropdown-menu {
+  position: absolute;
+  top: calc(100% + var(--spacing-2));
+  left: 0;
+  min-width: 190px;
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--spacing-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  z-index: var(--z-fixed);
+}
+
+/* Override tampilan .tab-btn yang aslinya vertikal (ikon di atas, teks
+   di bawah, dipakai di baris tab bawah) -- di dalam dropdown ini kita
+   mau baris horizontal biasa (ikon lalu teks bersebelahan). */
+.avatar-dropdown-item {
+  flex-direction: row;
+  justify-content: flex-start;
+  width: 100%;
+  min-width: 0;
+  text-align: left;
+  font-size: var(--font-size-sm);
+  gap: var(--spacing-2);
+}
+
+/* Jangan tampilkan highlight "active" tab di dalam dropdown -- terasa
+   aneh kalau item Profil kelihatan "menyala" terus menerus di sini
+   padahal dropdown-nya sendiri sedang tertutup. */
+.avatar-dropdown-item.active {
+  background: transparent;
+  color: var(--gray-700);
+}
+
+.avatar-dropdown-item-bahaya {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--spacing-3) var(--spacing-2);
+  border-radius: var(--radius-lg);
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-sm);
+  color: var(--danger-color);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  text-align: left;
+  transition: background-color var(--transition-fast);
+}
+
+.avatar-dropdown-item-bahaya:hover {
+  background: var(--gray-100);
+}
