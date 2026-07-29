@@ -1022,10 +1022,13 @@ function buatRingkasanTrenWali(a) {
         kalimat.push(`Terlihat pola menarik: kehadiran kelas ini cenderung lebih rendah pada hari <strong>${a.hariTerendah}</strong> (rata-rata ${a.nilaiTerendahHari.toFixed(1)}%) dibanding hari-hari lain (rata-rata keseluruhan ${a.rataKeseluruhanTren.toFixed(1)}%).`);
     }
 
-    if (a.totalJarangMasuk > 0) {
-        kalimat.push(`Tercatat <strong>${a.totalJarangMasuk} siswa</strong> di kelas ini dengan riwayat jarang masuk (gabungan Alpa/Izin/Sakit), dengan yang paling menonjol: ${sebutkanSiswaTeratas(a.daftarJarangMasuk)}.`);
-    } else if (a.totalAlpaSiswa === 0) {
+    const sebutanJarangMasuk = sebutkanSiswaTeratas(a.daftarJarangMasuk, AMBANG_URGEN_PERHATIAN.jarangMasuk);
+    if (sebutanJarangMasuk) {
+        kalimat.push(`Tercatat siswa dengan riwayat jarang masuk (gabungan Alpa/Izin/Sakit) yang cukup mengkhawatirkan (≥${AMBANG_URGEN_PERHATIAN.jarangMasuk} kali dalam periode ini): ${sebutanJarangMasuk}.`);
+    } else if (a.totalAlpaSiswa === 0 && a.totalJarangMasuk === 0) {
         kalimat.push('Tidak ada siswa dengan catatan Alpa di kelas ini pada periode ini -- kondisi kedisiplinan kehadiran tergolong baik.');
+    } else {
+        kalimat.push('Ada beberapa siswa dengan catatan tidak hadir sesekali, namun belum ada yang mencapai ambang batas urgensi pada periode ini.');
     }
 
     return kalimat;
@@ -1060,12 +1063,16 @@ function buatSaranTindakLanjutWali(a) {
     // Wording-nya SENGAJA langsung mengarahkan wali kelas ke BK, sesuai
     // alur kerja yang diminta: wali kelas menindaklanjuti dulu, kalau
     // belum ada perbaikan diteruskan ke BK untuk pendampingan.
-    if (a.siswaAlpaMenonjol) {
-        saran.push(`🔴 Tercatat <strong>${a.totalAlpaSiswa} siswa</strong> dengan catatan Alpa di kelas ini, yang paling menonjol: ${sebutkanSiswaTeratas(a.daftarAlpa)}. Disarankan wali kelas segera menindaklanjuti secara langsung -- dan kalau belum menunjukkan perbaikan, diteruskan ke <strong>BK untuk pendampingan lebih lanjut</strong>.`);
+    // Cuma tampil kalau MEMANG ADA siswa yang mencapai ambang urgensi --
+    // bukan sekadar "ada 1 kejadian Alpa", supaya tidak terlalu sensitif.
+    const sebutanAlpa = sebutkanSiswaTeratas(a.daftarAlpa, AMBANG_URGEN_PERHATIAN.alpa);
+    if (sebutanAlpa) {
+        saran.push(`🔴 Tercatat siswa dengan catatan Alpa yang cukup mengkhawatirkan (≥${AMBANG_URGEN_PERHATIAN.alpa} kali): ${sebutanAlpa}. Disarankan wali kelas segera menindaklanjuti secara langsung -- dan kalau belum menunjukkan perbaikan, diteruskan ke <strong>BK untuk pendampingan lebih lanjut</strong>.`);
     }
 
-    if (a.siswaSakitMenonjol) {
-        saran.push(`🔵 Tercatat <strong>${a.totalSiswaSakit} siswa</strong> dengan catatan Sakit yang cukup sering di kelas ini, yang paling menonjol: ${sebutkanSiswaTeratas(a.daftarSakit)}. Disarankan dikonfirmasi ke orang tua/wali untuk memastikan kondisi kesehatan siswa, terutama kalau frekuensinya terasa di luar kewajaran.`);
+    const sebutanSakit = sebutkanSiswaTeratas(a.daftarSakit, AMBANG_URGEN_PERHATIAN.sakit);
+    if (sebutanSakit) {
+        saran.push(`🔵 Tercatat siswa dengan catatan Sakit yang cukup sering (≥${AMBANG_URGEN_PERHATIAN.sakit} kali): ${sebutanSakit}. Disarankan dikonfirmasi ke orang tua/wali untuk memastikan kondisi kesehatan siswa, terutama kalau frekuensinya terasa di luar kewajaran.`);
     }
 
     return saran;
@@ -1319,10 +1326,13 @@ function buatRingkasanTrenSekolah(a) {
         kalimat.push(`Terlihat pola menarik: kehadiran cenderung lebih rendah pada hari <strong>${a.hariTerendah}</strong> (rata-rata ${a.nilaiTerendahHari.toFixed(1)}%) dibanding hari-hari lain (rata-rata keseluruhan ${a.rataKeseluruhanTren.toFixed(1)}%). Ini bisa jadi indikasi pola yang perlu ditelusuri lebih lanjut, misalnya siswa yang sering izin/alpa menjelang atau sesudah akhir pekan.`);
     }
 
-    if (a.totalJarangMasuk > 0) {
-        kalimat.push(`Tercatat <strong>${a.totalJarangMasuk} siswa</strong> dengan riwayat jarang masuk (gabungan Alpa/Izin/Sakit) yang perlu mendapat perhatian, yang paling menonjol: ${sebutkanSiswaTeratas(a.daftarJarangMasuk)}.`);
-    } else if (a.totalAlpaSiswa === 0) {
+    const sebutanJarangMasukSekolah = sebutkanSiswaTeratas(a.daftarJarangMasuk, AMBANG_URGEN_PERHATIAN.jarangMasuk);
+    if (sebutanJarangMasukSekolah) {
+        kalimat.push(`Tercatat siswa dengan riwayat jarang masuk (gabungan Alpa/Izin/Sakit) yang cukup mengkhawatirkan (≥${AMBANG_URGEN_PERHATIAN.jarangMasuk} kali dalam periode ini): ${sebutanJarangMasukSekolah}.`);
+    } else if (a.totalAlpaSiswa === 0 && a.totalJarangMasuk === 0) {
         kalimat.push('Tidak ada siswa dengan catatan Alpa pada periode ini -- kondisi kedisiplinan kehadiran tergolong baik.');
+    } else {
+        kalimat.push('Ada beberapa siswa dengan catatan tidak hadir sesekali, namun belum ada yang mencapai ambang batas urgensi pada periode ini.');
     }
 
     return kalimat;
@@ -1359,8 +1369,9 @@ function buatSaranTindakLanjut(a) {
         saran.push(`Disarankan menelusuri penyebab spesifik rendahnya kehadiran pada hari ${a.hariTerendah} bersama wali kelas terkait -- misalnya jadwal pelajaran tertentu, kegiatan pada hari sebelumnya, atau kendala transportasi yang berulang.`);
     }
 
-    if (a.siswaMenonjol) {
-        saran.push(`Disarankan koordinasi dengan wali kelas terkait siswa berikut untuk tindak lanjut individual: ${sebutkanSiswaTeratas(a.daftarJarangMasuk)} -- termasuk kemungkinan memanggil orang tua/wali sesuai prosedur BK sekolah, kalau memang belum dilakukan.`);
+    const sebutanUntukSaran = sebutkanSiswaTeratas(a.daftarJarangMasuk, AMBANG_URGEN_PERHATIAN.jarangMasuk);
+    if (sebutanUntukSaran) {
+        saran.push(`Disarankan koordinasi dengan wali kelas terkait siswa berikut untuk tindak lanjut individual (≥${AMBANG_URGEN_PERHATIAN.jarangMasuk} kali jarang masuk): ${sebutanUntukSaran} -- termasuk kemungkinan memanggil orang tua/wali sesuai prosedur BK sekolah, kalau memang belum dilakukan.`);
     }
 
     return saran;
@@ -1371,20 +1382,37 @@ function rataRataArray(arr) {
     return arr.reduce((a, b) => a + b, 0) / arr.length;
 }
 
+// Ambang batas "layak disebut namanya" per kategori -- di bawah angka
+// ini dianggap wajar/tidak perlu disebutkan secara individual. Jarang
+// Masuk (gabungan Alpa+Izin+Sakit) ambangnya lebih tinggi karena memang
+// menjumlahkan 3 kategori sekaligus.
+const AMBANG_URGEN_PERHATIAN = { alpa: 3, izin: 3, sakit: 3, jarangMasuk: 5 };
+
 /**
- * PATCH: sebutkan MINIMAL 3 siswa teratas (bukan cuma 1 "paling
- * menonjol") di kalimat Ringkasan/Saran -- kalau daftarnya lebih pendek
- * dari 3, sebutkan semua yang ada. Dipakai bersama oleh versi Wali Kelas
- * maupun Sekolah supaya formatnya konsisten.
- * Hasil: "Budi (5x), Siti (4x), dan Andi (3x)"
+ * PATCH: sebutkan siswa berdasarkan AMBANG BATAS urgensi (bukan jumlah
+ * tetap) -- jumlah nama yang disebut MENGIKUTI KONDISI DATA, bukan
+ * dipaksa. Kalau tidak ada satu pun yang mencapai ambang, kembalikan
+ * `null` supaya pemanggil bisa tampilkan kalimat netral sebagai
+ * gantinya (lihat pemakaiannya di buatRingkasanTrenWali() dkk).
+ * Dibatasi maksimal `maksTampil` nama supaya kalimat tidak kepanjangan
+ * kalau ternyata banyak yang urgent sekaligus -- sisanya diringkas jadi
+ * "dan N siswa lainnya".
  */
-function sebutkanSiswaTeratas(daftar, jumlahMin = 3) {
-    if (!daftar || daftar.length === 0) return '';
-    const dipakai = daftar.slice(0, jumlahMin);
+function sebutkanSiswaTeratas(daftar, ambangBatas, maksTampil = 5) {
+    if (!daftar || daftar.length === 0) return null;
+    const lolosAmbang = daftar.filter(s => s.jumlahAlpa >= ambangBatas);
+    if (lolosAmbang.length === 0) return null;
+
+    const dipakai = lolosAmbang.slice(0, maksTampil);
     const bagian = dipakai.map(s => `${escapeHtml(s.nama)} (${s.jumlahAlpa}x)`);
-    if (bagian.length === 1) return bagian[0];
-    if (bagian.length === 2) return bagian.join(' dan ');
-    return bagian.slice(0, -1).join(', ') + ', dan ' + bagian[bagian.length - 1];
+    let teks;
+    if (bagian.length === 1) teks = bagian[0];
+    else if (bagian.length === 2) teks = bagian.join(' dan ');
+    else teks = bagian.slice(0, -1).join(', ') + ', dan ' + bagian[bagian.length - 1];
+
+    const sisa = lolosAmbang.length - dipakai.length;
+    if (sisa > 0) teks += `, serta ${sisa} siswa lainnya`;
+    return teks;
 }
 
 function renderRingkasanNarasiSekolah(data) {
