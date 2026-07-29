@@ -2,14 +2,29 @@
 <section id="dashboardSection">
     <div class="header-card">
         <div class="header-content">
-            <div class="header-avatar" id="headerAvatar">👨‍🏫</div>
+            <!-- PATCH TATA ULANG NAVIGASI: avatar sekarang jadi TOMBOL yang
+                 bisa diklik untuk membuka menu dropdown kecil (Profil, Admin,
+                 Keluar) -- dipindah dari baris tab bawah supaya tab utama
+                 tetap ringkas (Dashboard, Input, Riwayat, Rekap) walau nanti
+                 ada fitur baru (mis. Nilai) yang perlu ditambahkan sebagai
+                 tab "Lainnya" terpisah. Menu ini murni memakai ULANG mekanisme
+                 klik-tab yang sudah ada (class "tab-btn" + atribut
+                 data-tab="panelProfil"/"panelAdmin" tetap dikenali oleh
+                 setupTabNavigation() di js/absensi.js tanpa perlu logika
+                 baru) -- cuma tambahan buka/tutup dropdown-nya saja yang baru
+                 (lihat js/main.js). -->
+            <div class="avatar-menu-wrapper" id="avatarMenuWrapper">
+                <button type="button" class="header-avatar" id="headerAvatar" aria-haspopup="true" aria-expanded="false" title="Menu akun">👨‍🏫</button>
+                <div class="avatar-dropdown-menu hidden" id="avatarDropdownMenu" role="menu">
+                    <button type="button" class="tab-btn avatar-dropdown-item" data-tab="panelProfil" role="menuitem"><span class="tab-icon">👤</span> Profil</button>
+                    <button type="button" class="tab-btn avatar-dropdown-item hidden" data-tab="panelAdmin" id="tabBtnAdmin" role="menuitem"><span class="tab-icon">⚙️</span> Admin</button>
+                    <button type="button" class="avatar-dropdown-item avatar-dropdown-item-bahaya" data-action="logout" role="menuitem"><span>🚪</span> Keluar</button>
+                </div>
+            </div>
             <div class="header-info-text">
                 <h2 id="greeting">Selamat Datang!</h2>
                 <p class="header-date" id="headerDate"></p>
             </div>
-        </div>
-        <div class="header-actions">
-            <button data-action="logout" class="btn-danger btn-sm"><span>🚪</span> Keluar</button>
         </div>
     </div>
 
@@ -24,13 +39,17 @@
     <!-- PATCH: Dashboard sekarang jadi tab DEFAULT yang tampil pertama kali
          setelah login (sebelumnya Input). Urutan tampilan menu tetap:
          Dashboard, Input, Riwayat, Rekap. -->
+    <!-- PATCH TATA ULANG NAVIGASI: Profil & Admin dipindah ke menu dropdown
+         avatar di atas (lihat #avatarDropdownMenu) -- baris tab bawah sengaja
+         dijaga tetap 4 item supaya tidak sesak di layar HP, walau nanti
+         bertambah peran/fitur baru. Kalau nanti fitur Nilai dibangun dan
+         perlu masuk baris ini juga, pertimbangkan tab "Lainnya" (overflow
+         menu) daripada menambah slot ke-5 di sini. -->
     <div class="tab-nav" role="tablist">
         <button class="tab-btn active" data-tab="panelDashboard" role="tab"><span class="tab-icon">📊</span><span class="tab-label">Dashboard</span></button>
         <button class="tab-btn" data-tab="panelAbsensi" role="tab"><span class="tab-icon">📝</span><span class="tab-label">Input</span></button>
         <button class="tab-btn" data-tab="panelRiwayat" role="tab"><span class="tab-icon">🕒</span><span class="tab-label">Riwayat</span></button>
         <button class="tab-btn" data-tab="panelRekap" role="tab"><span class="tab-icon">📁</span><span class="tab-label">Rekap</span></button>
-        <button class="tab-btn" data-tab="panelProfil" role="tab"><span class="tab-icon">👤</span><span class="tab-label">Profil</span></button>
-        <button class="tab-btn hidden" data-tab="panelAdmin" id="tabBtnAdmin" role="tab"><span class="tab-icon">⚙️</span><span class="tab-label">Admin</span></button>
     </div>
 
     <!-- PANEL: DASHBOARD -->
