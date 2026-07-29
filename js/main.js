@@ -170,7 +170,50 @@ async function renderDashboard() {
         // fungsi ini sendiri yang menentukan apakah tab-nya perlu
         // ditampilkan atau tidak berdasarkan roleList akun ini.
         initAdmin(currentUser);
+        // PATCH TATA ULANG NAVIGASI: buka/tutup menu dropdown avatar
+        // (Profil/Admin/Keluar) -- lihat setupAvatarDropdown() di bawah.
+        setupAvatarDropdown();
     }
+}
+
+/**
+ * PATCH TATA ULANG NAVIGASI: buka/tutup menu dropdown avatar. Item di
+ * dalamnya (Profil/Admin/Keluar) SUDAH otomatis berfungsi lewat
+ * mekanisme klik-tab & event delegation logout yang ada -- fungsi ini
+ * CUMA menangani buka/tutup kotak dropdown-nya, bukan aksi di
+ * dalamnya.
+ */
+function setupAvatarDropdown() {
+    const avatarBtn = document.getElementById('headerAvatar');
+    const dropdown = document.getElementById('avatarDropdownMenu');
+    if (!avatarBtn || !dropdown) return;
+
+    function tutupDropdown() {
+        dropdown.classList.add('hidden');
+        avatarBtn.setAttribute('aria-expanded', 'false');
+    }
+    function bukaDropdown() {
+        dropdown.classList.remove('hidden');
+        avatarBtn.setAttribute('aria-expanded', 'true');
+    }
+
+    avatarBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // jangan sampai langsung ketangkap listener "klik di luar" di bawah
+        const sedangTerbuka = !dropdown.classList.contains('hidden');
+        if (sedangTerbuka) tutupDropdown(); else bukaDropdown();
+    });
+
+    // Klik item di dalam dropdown (Profil/Admin/Keluar) -- tutup dropdown
+    // setelah dipilih, biar tidak menggantung terbuka begitu pindah panel.
+    dropdown.querySelectorAll('.avatar-dropdown-item').forEach(item => {
+        item.addEventListener('click', () => tutupDropdown());
+    });
+
+    // Klik di luar area dropdown & tombol avatar -- tutup juga.
+    document.addEventListener('click', (e) => {
+        if (dropdown.classList.contains('hidden')) return;
+        if (!dropdown.contains(e.target) && e.target !== avatarBtn) tutupDropdown();
+    });
 }
 
 // PATCH: helper untuk membersihkan sesi & kembali ke login,
