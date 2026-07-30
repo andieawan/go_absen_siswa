@@ -241,6 +241,12 @@ function doPost(e) {
     } else if (data.action === 'submitAbsenKetuaKelas' && data.ketuaToken && data.dataKehadiran) {
       response = submitAbsenViaKetuaKelas(data.ketuaToken, data.tanggal, data.dataKehadiran);
 
+    // PATCH: logo sekolah tampil di halaman LOGIN (sebelum ada yang
+    // login), jadi WAJIB publik -- tidak ada data.token/username untuk
+    // divalidasi di titik ini sama sekali.
+    } else if (data.action === 'getLogoSekolah') {
+      response = getLogoSekolahUrl();
+
     // ===== FITUR: Panel Profil (nama, ganti password, foto profil) =====
     } else if (data.action === 'getProfilSaya') {
       response = handleGetDenganValidasi(data.username, data.token, function(akun) {
@@ -350,6 +356,14 @@ function doPost(e) {
           return { success: false, message: "Hanya Super Admin yang boleh mengubah peran akun." };
         }
         return updateRoleAkunOlehSuperAdmin(data.targetUsername, data.roleCsvBaru);
+      });
+
+    } else if (data.action === 'uploadLogoSekolah' && data.base64Data) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'admin') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak mengubah logo sekolah." };
+        }
+        return uploadLogoSekolah(data.base64Data, data.mimeType);
       });
 
     // ===== FIX: fallback eksplisit untuk action tak dikenal / parameter kurang =====
