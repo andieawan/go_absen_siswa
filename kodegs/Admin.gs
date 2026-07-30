@@ -249,3 +249,78 @@ function updateRoleAkunOlehSuperAdmin(username, roleCsvBaru) {
   const berhasil = hasil.indexOf('Berhasil') !== -1;
   return { success: berhasil, message: hasil };
 }
+
+// =========================================================
+// LOGO SEKOLAH (tampil di halaman login)
+// ---------------------------------------------------------
+// Beda dari foto profil (per-akun, tersimpan di kolom sheet Akun_Guru),
+// logo sekolah ini SATU untuk seluruh aplikasi -- disimpan sebagai
+// Script Property (LOGO_SEKOLAH_FILE_ID), bukan di spreadsheet mana pun,
+// karena tidak terkait ke 1 akun tertentu.
+//
+// PENTING: getLogoSekolahUrl() dipanggil dari halaman LOGIN (sebelum ada
+// yang login sama sekali) -- lihat action 'getLogoSekolah' di Router.gs
+// yang SENGAJA ditaruh di bagian PUBLIK (tanpa validasi token), sama
+// seperti action untuk Ketua Kelas. Upload-nya sendiri (uploadLogoSekolah)
+// tetap wajib admin/superadmin seperti biasa.
+// =========================================================
+
+function buatUrlLogoSekolah_(fileId) {
+  return 'https://drive.google.com/uc?export=view&id=' + fileId;
+}
+
+/**
+ * Ambil URL logo sekolah yang sedang aktif, atau `null` kalau belum
+ * pernah diupload sama sekali (frontend fallback ke ikon emoji bawaan).
+ * TIDAK butuh otorisasi apa pun -- ini data publik (logo sekolah,
+ * bukan data sensitif), dipanggil dari halaman login sebelum ada yang
+ * login.
+ */
+function getLogoSekolahUrl() {
+  const fileId = PropertiesService.getScriptProperties().getProperty('LOGO_SEKOLAH_FILE_ID');
+  return { success: true, data: { logoUrl: fileId ? buatUrlLogoSekolah_(fileId) : null } };
+}
+
+/**
+ * Upload/ganti logo sekolah. Foto lama (kalau ada) otomatis dipindah ke
+ * Sampah supaya tidak menumpuk file yatim piatu di folder Drive tiap
+ * kali logo diganti -- pola yang sama dengan uploadFotoProfilSaya() di
+ * Profil.gs.
+ *
+ * Syarat Router.gs: punyaRole(akun, 'admin') atau punyaRole(akun, 'superadmin').
+ */
+function uploadLogoSekolah(base64Data, mimeType) {
+  if (!DRIVE_FOLDER_LOGO_SEKOLAH_ID || DRIVE_FOLDER_LOGO_SEKOLAH_ID.indexOf('GANTI_DENGAN_ID') === 0) {
+    return { success: false, message: 'DRIVE_FOLDER_LOGO_SEKOLAH_ID belum diisi -- hubungi developer aplikasi untuk mengaktifkan fitur ini.' };
+  }
+  if (!base64Data) {
+    return { success: false, message: 'Data logo tidak boleh kosong.' };
+  }
+
+  const props = PropertiesService.getScriptProperties();
+  const fileIdLama = props.getProperty('LOGO_SEKOLAH_FILE_ID');
+  if (fileIdLama) {
+    try { DriveApp.getFileById(fileIdLama).setTrashed(true); } catch (e) { /* sudah tidak ada / sudah terhapus, abaikan */ }
+  }
+
+  try {
+    const bytes = Utilities.base64Decode(base64Data);
+    const blob = Utilities.newBlob(bytes, mimeType || 'image/png', 'logo_sekolah');
+    const folder = DriveApp.getFolderById(DRIVE_FOLDER_LOGO_SEKOLAH_ID);
+    const file = folder.createFile(blob);
+    // WAJIB "anyone with link can view" -- halaman login diakses SEBELUM
+    // login, jadi logonya harus bisa dimuat tanpa perlu akun Google
+    // terpisah.
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+    props.setProperty('LOGO_SEKOLAH_FILE_ID', file.getId());
+
+    return {
+      success: true,
+      message: 'Logo sekolah berhasil diperbarui.',
+      data: { logoUrl: buatUrlLogoSekolah_(file.getId()) }
+    };
+  } catch (e) {
+    return { success: false, message: 'Gagal mengunggah logo: ' + e.message };
+  }
+}
