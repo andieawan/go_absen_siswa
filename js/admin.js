@@ -9,10 +9,13 @@ import {
     resetPasswordAkunOlehAdmin,
     nonaktifkanAkunGuru,
     aktifkanKembaliAkunGuru,
-    updateRoleAkun
+    updateRoleAkun,
+    getLogoSekolah,
+    uploadLogoSekolah
 } from './api.js?v=20260727';
 import { showNotification, escapeHtml } from './utils.js?v=20260727';
 import { showConfirm } from './modal.js?v=20260727';
+import { kompresGambarSebelumUpload } from './profil.js?v=20260727';
 
 let usernameSedangDiedit = null; // null = mode tambah, string = mode edit
 let adalahSuperAdminSaatIni = false; // di-set di initAdmin(), dipakai ulang di beberapa fungsi lain di file ini
@@ -43,12 +46,84 @@ export function initAdmin(user) {
 
     muatDaftarAkun(adalahSuperAdmin);
 
+    // PATCH: Logo Sekolah -- terpisah dari kelola akun guru, tapi sama-
+    // sama cuma boleh admin/superadmin (sudah dijamin `if (!bolehAksesAdmin) return;` di atas).
+    setupLogoSekolah();
+
     const adminTabBtn = document.querySelector('[data-tab="panelAdmin"]');
     if (adminTabBtn) {
         adminTabBtn.addEventListener('click', () => {
             setTimeout(() => muatDaftarAkun(adalahSuperAdmin), 100);
         });
     }
+}
+
+/**
+ * PATCH: Logo Sekolah -- muat logo yang sedang aktif untuk preview, dan
+ * pasang handler upload (dengan kompresi gambar di browser dulu, pola
+ * yang sama dengan upload foto profil di js/profil.js).
+ */
+async function setupLogoSekolah() {
+    const preview = document.getElementById('logoSekolahPreview');
+    const kosong = document.getElementById('logoSekolahKosong');
+    const inputFile = document.getElementById('inputLogoSekolah');
+    const btnPilih = document.getElementById('btnPilihLogoSekolah');
+    const msg = document.getElementById('logoSekolahMsg');
+    if (!preview || !kosong || !inputFile || !btnPilih) return;
+
+    function tampilkanLogo(url) {
+        if (url) {
+            preview.src = url;
+            preview.classList.remove('hidden');
+            kosong.classList.add('hidden');
+        } else {
+            preview.classList.add('hidden');
+            kosong.classList.remove('hidden');
+        }
+    }
+
+    try {
+        const res = await getLogoSekolah();
+        if (res.success && res.data) tampilkanLogo(res.data.logoUrl);
+    } catch (error) {
+        console.error('Gagal memuat logo sekolah saat ini:', error);
+    }
+
+    btnPilih.addEventListener('click', () => inputFile.click());
+
+    inputFile.addEventListener('change', async () => {
+        const file = inputFile.files && inputFile.files[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            showNotification('File yang dipilih bukan gambar.', 'error');
+            return;
+        }
+
+        if (msg) { msg.textContent = 'Mengompres & mengunggah logo...'; msg.className = 'login-msg'; }
+        btnPilih.disabled = true;
+
+        try {
+            const { base64Data, mimeType, dataUrl } = await kompresGambarSebelumUpload(file);
+            tampilkanLogo(dataUrl); // preview instan sebelum menunggu respons server
+
+            const res = await uploadLogoSekolah(base64Data, mimeType);
+            if (!res.success) {
+                showNotification(res.message || 'Gagal mengunggah logo.', 'error');
+                if (msg) { msg.textContent = res.message || 'Gagal mengunggah logo.'; msg.className = 'login-msg error'; }
+                return;
+            }
+            tampilkanLogo(res.data.logoUrl); // ganti ke URL asli dari Drive
+            showNotification('Logo sekolah berhasil diperbarui.', 'success');
+            if (msg) { msg.textContent = ''; msg.className = 'login-msg'; }
+        } catch (error) {
+            showNotification('Gagal mengunggah logo: ' + error.message, 'error');
+            if (msg) { msg.textContent = 'Gagal: ' + error.message; msg.className = 'login-msg error'; }
+        } finally {
+            btnPilih.disabled = false;
+            inputFile.value = ''; // supaya bisa pilih file yang sama lagi kalau mau coba ulang
+        }
+    });
 }
 
 function resetFormKeModeTambah() {
