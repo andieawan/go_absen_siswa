@@ -1114,7 +1114,7 @@
   position: absolute;
   top: calc(100% + var(--spacing-2));
   left: 0;
-  min-width: 220px;
+  width: 260px; /* PATCH v2: dilebarkan dari 220px, sekalian isinya lebih "penuh" (header identitas + ikon chip) supaya proporsinya pas, bukan cuma dilebarkan kosong */
   background: var(--white);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
@@ -1125,17 +1125,59 @@
   z-index: var(--z-modal);
 }
 
+/* PATCH v2 (visual dropdown): header identitas -- nama & peran akun yang
+   login, ditampilkan di atas daftar menu. Diisi lewat JS (main.js), lihat
+   #avatarDropdownNama/#avatarDropdownPeran di templates/dashboard.html. */
+.avatar-dropdown-header {
+  padding: var(--spacing-3) var(--spacing-3) var(--spacing-2) var(--spacing-3);
+}
+
+.avatar-dropdown-nama {
+  margin: 0;
+  font-weight: var(--font-weight-bold);
+  font-size: var(--font-size-base);
+  color: var(--gray-800);
+  /* Batasi 1 baris + "..." kalau kepanjangan -- penting di layar sempit
+     (HP) supaya nama panjang tidak bikin dropdown melebar tidak
+     terkendali atau teksnya patah berantakan. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.avatar-dropdown-peran {
+  margin: 2px 0 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--gray-500);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.avatar-dropdown-separator {
+  height: 1px;
+  background: var(--gray-100);
+  margin: var(--spacing-1) var(--spacing-2);
+}
+
 /* Override tampilan .tab-btn yang aslinya vertikal (ikon di atas, teks
    di bawah, dipakai di baris tab bawah) -- di dalam dropdown ini kita
-   mau baris horizontal biasa (ikon lalu teks bersebelahan). */
+   mau baris horizontal biasa (ikon lalu teks bersebelahan). Padding
+   diperbesar dari sebelumnya (Opsi A) -- target sentuh yang lebih besar
+   penting terutama di HP (layar sentuh butuh area tap lebih besar
+   dibanding presisi mouse di desktop). */
 .avatar-dropdown-item {
   flex-direction: row;
+  align-items: center;
   justify-content: flex-start;
   width: 100%;
   min-width: 0;
   text-align: left;
   font-size: var(--font-size-sm);
-  gap: var(--spacing-2);
+  font-weight: var(--font-weight-medium);
+  gap: var(--spacing-3);
+  padding: var(--spacing-3);
+  border-radius: var(--radius-lg);
 }
 
 /* Jangan tampilkan highlight "active" tab di dalam dropdown -- terasa
@@ -1150,18 +1192,46 @@
   background: none;
   border: none;
   cursor: pointer;
-  padding: var(--spacing-3) var(--spacing-2);
+  padding: var(--spacing-3);
   border-radius: var(--radius-lg);
   font-weight: var(--font-weight-medium);
   font-size: var(--font-size-sm);
   color: var(--danger-color);
   display: flex;
   align-items: center;
-  gap: var(--spacing-2);
+  gap: var(--spacing-3);
   text-align: left;
   transition: background-color var(--transition-fast);
 }
 
 .avatar-dropdown-item-bahaya:hover {
   background: var(--gray-100);
+}
+
+/* PATCH v2 (visual dropdown): ikon dengan latar warna lembut (icon chip)
+   -- Opsi C, supaya tiap item lebih "berisi" secara visual, bukan cuma
+   emoji polos mengambang. Ukuran cukup besar (36px) supaya proporsional
+   dengan padding item yang sudah diperbesar, sekaligus nyaman jadi
+   target sentuh di HP. */
+.avatar-dropdown-icon-chip {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.avatar-dropdown-icon-chip-biru {
+  background: rgba(var(--primary-color-rgb), 0.12);
+}
+
+.avatar-dropdown-icon-chip-abu {
+  background: var(--gray-100);
+}
+
+.avatar-dropdown-icon-chip-merah {
+  background: rgba(239, 68, 68, 0.12);
 }
