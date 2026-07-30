@@ -191,14 +191,20 @@ function setupAvatarDropdown() {
     // klik lagi karena innerHTML-nya bisa ditimpa foto).
     const avatarBtn = document.getElementById('headerTriggerBtn');
     const dropdown = document.getElementById('avatarDropdownMenu');
+    // PATCH: overlay di belakang dropdown -- lihat penjelasan lengkap di
+    // templates/dashboard.html #avatarDropdownOverlay. Ditoggle bersamaan
+    // dengan dropdown-nya di bukaDropdown()/tutupDropdown() di bawah.
+    const overlay = document.getElementById('avatarDropdownOverlay');
     if (!avatarBtn || !dropdown) return;
 
     function tutupDropdown() {
         dropdown.classList.add('hidden');
+        overlay?.classList.add('hidden');
         avatarBtn.setAttribute('aria-expanded', 'false');
     }
     function bukaDropdown() {
         dropdown.classList.remove('hidden');
+        overlay?.classList.remove('hidden');
         avatarBtn.setAttribute('aria-expanded', 'true');
     }
 
@@ -214,7 +220,13 @@ function setupAvatarDropdown() {
         item.addEventListener('click', () => tutupDropdown());
     });
 
-    // Klik di luar area dropdown & tombol avatar -- tutup juga.
+    // Klik di mana saja pada overlay -- tutup dropdown (cara paling
+    // eksplisit, karena sekarang overlay menutupi seluruh layar).
+    overlay?.addEventListener('click', () => tutupDropdown());
+
+    // Klik di luar area dropdown & tombol avatar -- tutup juga (jaring
+    // pengaman tambahan, mis. kalau ada yang berhasil klik tembus overlay
+    // lewat cara lain).
     document.addEventListener('click', (e) => {
         if (dropdown.classList.contains('hidden')) return;
         if (!dropdown.contains(e.target) && e.target !== avatarBtn) tutupDropdown();
