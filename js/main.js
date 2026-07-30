@@ -244,7 +244,12 @@ function isStaleSessionData(user) {
     // di sini supaya otomatis dipaksa login ulang begitu fitur berbasis
     // role mulai dipakai di frontend (Tahap 2/3), bukan diam-diam jalan
     // dengan roleList undefined.
-    return !('mapelList' in user) || !('kelasList' in user) || !('roleList' in user);
+    // PATCH (pasangan mapel-kelas): sama alasannya -- `pasanganMapelKelas`
+    // BOLEH bernilai `null` (memang berarti "tidak ada pengecualian"),
+    // jadi yang dicek di sini adalah KEBERADAAN key-nya (pakai `in`),
+    // bukan nilainya -- sesi lama sebelum patch ini sama sekali tidak
+    // punya key tersebut di objek user.
+    return !('mapelList' in user) || !('kelasList' in user) || !('roleList' in user) || !('pasanganMapelKelas' in user);
 }
 
 /**
