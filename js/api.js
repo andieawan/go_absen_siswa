@@ -46,9 +46,9 @@
  * =========================================================
  */
 
-import { CONFIG } from './config.js?v=20260731';
-import { showNotification } from './utils.js?v=20260731';
-import { setSsoCookie, getSsoCookie, deleteSsoCookie } from './ssocookie.js?v=20260731';
+import { CONFIG } from './config.js?v=20260731b';
+import { showNotification } from './utils.js?v=20260731b';
+import { setSsoCookie, getSsoCookie, deleteSsoCookie } from './ssocookie.js?v=20260731b';
 
 // Helper untuk fetch dengan timeout dan error handling khusus Google Apps Script
 async function fetchWithTimeout(url, options = {}, timeout = CONFIG.DEFAULT_TIMEOUT) {
@@ -437,6 +437,59 @@ export async function uploadLogoSekolah(base64Data, mimeType) {
         return await postJson({ action: 'uploadLogoSekolah', base64Data, mimeType, username, token });
     } catch (error) {
         console.error('Upload logo sekolah error:', error);
+        throw error;
+    }
+}
+
+// ===== UPLOAD ABSENSI HARDCOPY -> SOFTCOPY (link Google Sheets) =====
+
+// `opsi`: { jenis: 'mapel', kelas, mapel } atau { jenis: 'wali', kelas, bulan, tahun }
+export async function buatLinkUploadAbsensi(opsi) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'buatLinkUploadAbsensi', opsi, username, token });
+    } catch (error) {
+        console.error('Buat link upload absensi error:', error);
+        throw error;
+    }
+}
+
+export async function getDaftarLinkUploadAbsensi() {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'getDaftarLinkUploadAbsensi', username, token });
+    } catch (error) {
+        console.error('Get daftar link upload absensi error:', error);
+        throw error;
+    }
+}
+
+export async function previewImportAbsenDariLink(linkToken) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'previewImportAbsenDariLink', linkToken, username, token });
+    } catch (error) {
+        console.error('Preview import absen error:', error);
+        throw error;
+    }
+}
+
+export async function jalankanImportAbsenDariLink(linkToken) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'jalankanImportAbsenDariLink', linkToken, username, token });
+    } catch (error) {
+        console.error('Jalankan import absen error:', error);
+        throw error;
+    }
+}
+
+export async function nonaktifkanLinkUploadAbsensi(linkToken) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'nonaktifkanLinkUploadAbsensi', linkToken, username, token });
+    } catch (error) {
+        console.error('Nonaktifkan link upload absensi error:', error);
         throw error;
     }
 }
@@ -872,6 +925,11 @@ export default {
     updateRoleAkun,
     getLogoSekolah,
     uploadLogoSekolah,
+    buatLinkUploadAbsensi,
+    getDaftarLinkUploadAbsensi,
+    previewImportAbsenDariLink,
+    jalankanImportAbsenDariLink,
+    nonaktifkanLinkUploadAbsensi,
     getDetailSiswaPerhatian,
     getDetailSiswaPerhatianWali,
     getDashboardDataWali,

@@ -11,11 +11,16 @@ import {
     aktifkanKembaliAkunGuru,
     updateRoleAkun,
     getLogoSekolah,
-    uploadLogoSekolah
-} from './api.js?v=20260731';
-import { showNotification, escapeHtml } from './utils.js?v=20260731';
-import { showConfirm } from './modal.js?v=20260731';
-import { kompresGambarSebelumUpload } from './profil.js?v=20260731';
+    uploadLogoSekolah,
+    buatLinkUploadAbsensi,
+    getDaftarLinkUploadAbsensi,
+    previewImportAbsenDariLink,
+    jalankanImportAbsenDariLink,
+    nonaktifkanLinkUploadAbsensi
+} from './api.js?v=20260731b';
+import { showNotification, escapeHtml } from './utils.js?v=20260731b';
+import { showConfirm, showRichModal } from './modal.js?v=20260731b';
+import { kompresGambarSebelumUpload } from './profil.js?v=20260731b';
 
 let usernameSedangDiedit = null; // null = mode tambah, string = mode edit
 let adalahSuperAdminSaatIni = false; // di-set di initAdmin(), dipakai ulang di beberapa fungsi lain di file ini
@@ -49,6 +54,9 @@ export function initAdmin(user) {
     // PATCH: Logo Sekolah -- terpisah dari kelola akun guru, tapi sama-
     // sama cuma boleh admin/superadmin (sudah dijamin `if (!bolehAksesAdmin) return;` di atas).
     setupLogoSekolah();
+
+    // PATCH: Upload Absensi Hardcopy -> Softcopy -- sama-sama admin/superadmin.
+    setupUploadAbsenLink();
 
     const adminTabBtn = document.querySelector('[data-tab="panelAdmin"]');
     if (adminTabBtn) {
@@ -335,4 +343,238 @@ async function handleAksiTabelAkun(btn, daftar, adalahSuperAdmin) {
         if (res.success) muatDaftarAkun(adalahSuperAdmin);
         return;
     }
+}
+
+// =========================================================
+// PATCH: Upload Absensi Hardcopy -> Softcopy (link Google Sheets)
+// =========================================================
+
+function setupUploadAbsenLink() {
+    const form = document.getElementById('formBuatLinkUpload');
+    const selectJenis = document.getElementById('linkUploadJenis');
+    const mapelGroup = document.getElementById('linkUploadMapelGroup');
+    const bulanTahunGroup = document.getElementById('linkUploadBulanTahunGroup');
+    if (!form || !selectJenis) return;
+
+    // Tampilkan kolom Mapel ATAU Bulan+Tahun tergantung jenis template
+    // yang dipilih -- keduanya tidak pernah tampil bersamaan.
+    selectJenis.addEventListener('change', () => {
+        const isWali = selectJenis.value === 'wali';
+        mapelGroup?.classList.toggle('hidden', isWali);
+        bulanTahunGroup?.classList.toggle('hidden', !isWali);
+    });
+
+    form.addEventListener('submit', handleSubmitBuatLinkUpload);
+
+    muatDaftarLinkUpload();
+}
+
+async function handleSubmitBuatLinkUpload(e) {
+    e.preventDefault();
+    const msg = document.getElementById('linkUploadMsg');
+    const btn = e.target.querySelector('button[type="submit"]');
+    const btnText = btn?.querySelector('.btn-text');
+    const btnLoader = btn?.querySelector('.btn-loader');
+
+    const jenis = document.getElementById('linkUploadJenis')?.value;
+    const kelas = document.getElementById('linkUploadKelas')?.value.trim();
+    if (!kelas) {
+        showNotification('Kelas wajib diisi.', 'error');
+        return;
+    }
+
+    const opsi = { jenis, kelas };
+    if (jenis === 'mapel') {
+        const mapel = document.getElementById('linkUploadMapel')?.value.trim();
+        if (!mapel) { showNotification('Mata pelajaran wajib diisi.', 'error'); return; }
+        opsi.mapel = mapel;
+    } else {
+        opsi.bulan = document.getElementById('linkUploadBulan')?.value;
+        opsi.tahun = document.getElementById('linkUploadTahun')?.value.trim();
+        if (!opsi.tahun) { showNotification('Tahun wajib diisi.', 'error'); return; }
+    }
+
+    if (btn) btn.disabled = true;
+    btnText?.classList.add('hidden');
+    btnLoader?.classList.remove('hidden');
+    if (msg) msg.textContent = '';
+
+    try {
+        const res = await buatLinkUploadAbsensi(opsi);
+        if (!res.success) {
+            showNotification(res.message || 'Gagal membuat link.', 'error');
+            if (msg) { msg.textContent = res.message || 'Gagal membuat link.'; msg.className = 'login-msg error'; }
+            return;
+        }
+        showNotification('Link berhasil dibuat.', 'success');
+        if (msg) {
+            msg.innerHTML = `✅ Link siap dibagikan ke guru/wali kelas: <br><a href="${escapeHtml(res.data.spreadsheetUrl)}" target="_blank" rel="noopener">${escapeHtml(res.data.spreadsheetUrl)}</a>`;
+            msg.className = 'login-msg success';
+        }
+        e.target.reset();
+        mapelGroupResetHelper();
+        muatDaftarLinkUpload();
+    } catch (error) {
+        showNotification('Gagal membuat link: ' + error.message, 'error');
+        if (msg) { msg.textContent = 'Gagal: ' + error.message; msg.className = 'login-msg error'; }
+    } finally {
+        if (btn) btn.disabled = false;
+        btnText?.classList.remove('hidden');
+        btnLoader?.classList.add('hidden');
+    }
+}
+
+// Kembalikan tampilan kolom Mapel/Bulan+Tahun ke default (Per Mapel)
+// setelah form di-reset -- form.reset() sendiri tidak memicu event
+// 'change' pada <select>, jadi perlu dipanggil manual di sini.
+function mapelGroupResetHelper() {
+    document.getElementById('linkUploadMapelGroup')?.classList.remove('hidden');
+    document.getElementById('linkUploadBulanTahunGroup')?.classList.add('hidden');
+}
+
+async function muatDaftarLinkUpload() {
+    const container = document.getElementById('daftarLinkUploadList');
+    if (!container) return;
+
+    try {
+        const res = await getDaftarLinkUploadAbsensi();
+        if (!res.success) {
+            container.innerHTML = `<p class="empty-state">${escapeHtml(res.message || 'Gagal memuat daftar link.')}</p>`;
+            return;
+        }
+        renderDaftarLinkUpload(res.data, container);
+    } catch (error) {
+        container.innerHTML = `<p class="empty-state">Gagal memuat: ${escapeHtml(error.message)}</p>`;
+    }
+}
+
+function renderDaftarLinkUpload(daftar, container) {
+    if (daftar.length === 0) {
+        container.innerHTML = '<p class="empty-state">Belum ada link yang dibuat.</p>';
+        return;
+    }
+
+    let html = '<div class="table-wrapper"><table class="simple-table"><thead><tr>' +
+        '<th>Jenis</th><th>Kelas</th><th>Mapel/Bulan</th><th>Status</th><th>Dibuat</th><th>Aksi</th>' +
+        '</tr></thead><tbody>';
+
+    daftar.forEach(link => {
+        const statusBadge = link.status === 'sudah_diimpor'
+            ? '<span class="badge badge-success">Sudah Diimpor</span>'
+            : link.status === 'nonaktif'
+                ? '<span class="badge badge-danger">Nonaktif</span>'
+                : '<span class="badge badge-warning">Aktif</span>';
+
+        html += `<tr>
+            <td>${link.jenis === 'wali' ? 'Wali Kelas' : 'Per Mapel'}</td>
+            <td>${escapeHtml(link.kelas)}</td>
+            <td>${escapeHtml(link.mapel)}</td>
+            <td>${statusBadge}</td>
+            <td>${escapeHtml(link.tanggalDibuat)}</td>
+            <td class="admin-aksi-cell">
+                <button type="button" class="btn-admin-aksi" data-aksi="salin" data-url="${escapeHtml(link.spreadsheetUrl)}">📋 Salin Link</button>
+                ${link.status === 'aktif' ? `
+                    <button type="button" class="btn-admin-aksi" data-aksi="pratinjau" data-token="${escapeHtml(link.token)}">👁️ Pratinjau</button>
+                    <button type="button" class="btn-admin-aksi btn-admin-aksi-bahaya" data-aksi="nonaktifkanlink" data-token="${escapeHtml(link.token)}">🚫 Nonaktifkan</button>
+                ` : ''}
+            </td>
+        </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+
+    container.querySelectorAll('.btn-admin-aksi').forEach(btn => {
+        btn.addEventListener('click', () => handleAksiLinkUpload(btn));
+    });
+}
+
+async function handleAksiLinkUpload(btn) {
+    const aksi = btn.dataset.aksi;
+
+    if (aksi === 'salin') {
+        navigator.clipboard.writeText(btn.dataset.url)
+            .then(() => showNotification('Link disalin ke clipboard.', 'success'))
+            .catch(() => showNotification('Gagal menyalin -- salin manual dari daftar di atas.', 'error'));
+        return;
+    }
+
+    if (aksi === 'nonaktifkanlink') {
+        const konfirmasi = await showConfirm('Nonaktifkan link ini? Guru tidak akan bisa mengedit spreadsheet-nya lagi setelah ini.', 'Konfirmasi Nonaktifkan Link');
+        if (!konfirmasi) return;
+        const res = await nonaktifkanLinkUploadAbsensi(btn.dataset.token);
+        showNotification(res.message, res.success ? 'success' : 'error');
+        if (res.success) muatDaftarLinkUpload();
+        return;
+    }
+
+    if (aksi === 'pratinjau') {
+        await tampilkanPratinjauImport(btn.dataset.token);
+        return;
+    }
+}
+
+/**
+ * Tampilkan hasil PRATINJAU (baca saja) dalam modal, lengkap dengan
+ * tombol "Import Sekarang" DI DALAM modal itu sendiri -- supaya admin
+ * bisa langsung lanjut ke import tanpa perlu tutup modal & cari tombol
+ * lain di tabel.
+ */
+async function tampilkanPratinjauImport(token) {
+    showNotification('Memuat pratinjau...', 'success');
+    let res;
+    try {
+        res = await previewImportAbsenDariLink(token);
+    } catch (error) {
+        showNotification('Gagal memuat pratinjau: ' + error.message, 'error');
+        return;
+    }
+
+    if (!res.success) {
+        showNotification(res.message || 'Gagal memuat pratinjau.', 'error');
+        return;
+    }
+
+    const d = res.data;
+    const daftarTanggalHtml = d.daftarTanggal.map(t => `<li>${escapeHtml(t)}</li>`).join('');
+    // PATCH: peringatan (mis. NIS tak dikenali) ditampilkan tapi TIDAK
+    // menahan tombol Import -- sesuai kesepakatan, admin yang putuskan
+    // sendiri lanjut atau tidak berdasarkan peringatan itu.
+    const peringatanHtml = d.peringatan.length > 0
+        ? `<div class="saran-tindak-lanjut-disclaimer" style="margin-top: var(--spacing-3);">
+             ⚠️ ${d.peringatan.length} peringatan ditemukan (tidak menghalangi impor, tapi sebaiknya dicek):
+             <ul style="margin: var(--spacing-2) 0 0 var(--spacing-4);">${d.peringatan.map(p => `<li>${escapeHtml(p)}</li>`).join('')}</ul>
+           </div>`
+        : '';
+
+    const isiModal = `
+        <div class="detail-siswa">
+            <p class="detail-siswa-header"><strong>${escapeHtml(d.kelas)}</strong> — ${escapeHtml(d.mapel)}</p>
+            <div class="stats-grid" style="margin: 8px 0 16px 0;">
+                <span class="badge badge-success">${d.jumlahTanggal} Tanggal</span>
+                <span class="badge badge-info">${d.jumlahSiswaTerlibat} Siswa Terlibat</span>
+            </div>
+            <div class="detail-siswa-kategori">
+                <h5>📅 Tanggal Terdeteksi</h5>
+                <ul class="detail-siswa-tanggal-list" style="list-style: disc; padding-left: var(--spacing-5);">${daftarTanggalHtml}</ul>
+            </div>
+            ${peringatanHtml}
+            <button type="button" id="btnImportSekarangDariModal" class="btn-primary btn-full" style="margin-top: var(--spacing-4);">✅ Import Sekarang</button>
+        </div>`;
+
+    await showRichModal('Pratinjau Import Absensi', isiModal);
+
+    document.getElementById('btnImportSekarangDariModal')?.addEventListener('click', async () => {
+        window.closeCustomAlert && window.closeCustomAlert();
+        const konfirmasi = await showConfirm('Yakin lanjut import? Data ini akan langsung masuk ke data absen resmi dan tidak bisa dibatalkan.', 'Konfirmasi Import Absensi');
+        if (!konfirmasi) return;
+
+        try {
+            const resImport = await jalankanImportAbsenDariLink(token);
+            showNotification(resImport.message, resImport.success ? 'success' : 'error');
+            if (resImport.success) muatDaftarLinkUpload();
+        } catch (error) {
+            showNotification('Gagal import: ' + error.message, 'error');
+        }
+    });
 }
