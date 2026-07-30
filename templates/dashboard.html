@@ -37,9 +37,29 @@
                      overlay ini akan menutup dropdown (lihat js/main.js). -->
                 <div class="avatar-dropdown-overlay hidden" id="avatarDropdownOverlay"></div>
                 <div class="avatar-dropdown-menu hidden" id="avatarDropdownMenu" role="menu">
-                    <button type="button" class="tab-btn avatar-dropdown-item" data-tab="panelProfil" role="menuitem"><span class="tab-icon">👤</span> Profil</button>
-                    <button type="button" class="tab-btn avatar-dropdown-item hidden" data-tab="panelAdmin" id="tabBtnAdmin" role="menuitem"><span class="tab-icon">⚙️</span> Admin</button>
-                    <button type="button" class="avatar-dropdown-item avatar-dropdown-item-bahaya" data-action="logout" role="menuitem"><span>🚪</span> Keluar</button>
+                    <!-- PATCH (visual dropdown v2): header identitas di atas
+                         daftar menu -- diisi js/main.js (nama & peran akun
+                         yang login). Dipisah garis tipis dari menu di
+                         bawahnya. Teks nama dibatasi lebar + "..." kalau
+                         kepanjangan (lihat CSS .avatar-dropdown-nama) supaya
+                         tetap rapi di layar sempit. -->
+                    <div class="avatar-dropdown-header">
+                        <p class="avatar-dropdown-nama" id="avatarDropdownNama">-</p>
+                        <p class="avatar-dropdown-peran" id="avatarDropdownPeran">-</p>
+                    </div>
+                    <button type="button" class="tab-btn avatar-dropdown-item" data-tab="panelProfil" role="menuitem">
+                        <span class="avatar-dropdown-icon-chip avatar-dropdown-icon-chip-biru">👤</span>
+                        <span>Profil</span>
+                    </button>
+                    <button type="button" class="tab-btn avatar-dropdown-item hidden" data-tab="panelAdmin" id="tabBtnAdmin" role="menuitem">
+                        <span class="avatar-dropdown-icon-chip avatar-dropdown-icon-chip-abu">⚙️</span>
+                        <span>Admin</span>
+                    </button>
+                    <div class="avatar-dropdown-separator"></div>
+                    <button type="button" class="avatar-dropdown-item avatar-dropdown-item-bahaya" data-action="logout" role="menuitem">
+                        <span class="avatar-dropdown-icon-chip avatar-dropdown-icon-chip-merah">🚪</span>
+                        <span>Keluar</span>
+                    </button>
                 </div>
             </div>
         </div>
