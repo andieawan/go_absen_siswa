@@ -1110,11 +1110,20 @@
   z-index: var(--z-modal-backdrop);
 }
 
+/* PATCH v3: dropdown sekarang di TENGAH LAYAR (position: fixed + transform
+   translate), bukan lagi menggantung di bawah avatar (position: absolute
+   relatif ke .avatar-menu-wrapper). Sejak overlay gelap ditambahkan
+   (terasa seperti modal), lebih estetik & konsisten kalau kotaknya
+   benar-benar di tengah seperti modal lain di aplikasi ini (lihat
+   .modal-overlay/.modal-box di css/components.css), bukan menggantung
+   asimetris di kiri dekat avatar. */
 .avatar-dropdown-menu {
-  position: absolute;
-  top: calc(100% + var(--spacing-2));
-  left: 0;
-  width: 260px; /* PATCH v2: dilebarkan dari 220px, sekalian isinya lebih "penuh" (header identitas + ikon chip) supaya proporsinya pas, bukan cuma dilebarkan kosong */
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 260px;
+  max-width: calc(100vw - var(--spacing-8));
   background: var(--white);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
