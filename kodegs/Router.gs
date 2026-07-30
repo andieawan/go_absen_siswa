@@ -78,7 +78,10 @@ function doPost(e) {
         const guru = data.guru || akun.nama;
         const mapel = data.mapel;
         const kelas = data.kelas;
-        if (akun.mapelList.indexOf(mapel) === -1 || akun.kelasList.indexOf(kelas) === -1) {
+        // PATCH (pasangan mapel-kelas): lihat kelasBolehUntukMapel() di
+        // PasanganMapelKelas.gs -- verifikasi PASANGANNYA, bukan cuma
+        // keanggotaan independen di masing-masing daftar.
+        if (!kelasBolehUntukMapel(akun, mapel, kelas)) {
           return { success: false, message: "Anda tidak berhak mengakses data absensi ini." };
         }
         return getExistingAttendance(guru, mapel, kelas, data.tanggal);
@@ -86,7 +89,7 @@ function doPost(e) {
 
     } else if (data.action === 'getRiwayatAbsensi' && data.mapel && data.kelas) {
       response = handleGetDenganValidasi(data.username, data.token, function(akun) {
-        if (akun.mapelList.indexOf(data.mapel) === -1 || akun.kelasList.indexOf(data.kelas) === -1) {
+        if (!kelasBolehUntukMapel(akun, data.mapel, data.kelas)) {
           return { success: false, message: "Anda tidak berhak mengakses riwayat absensi ini." };
         }
         return getRiwayatAbsensi(data.mapel, data.kelas);
@@ -94,7 +97,7 @@ function doPost(e) {
 
     } else if (data.action === 'hapusAbsen' && data.mapel && data.kelas && data.tanggal) {
       response = handleGetDenganValidasi(data.username, data.token, function(akun) {
-        if (akun.mapelList.indexOf(data.mapel) === -1 || akun.kelasList.indexOf(data.kelas) === -1) {
+        if (!kelasBolehUntukMapel(akun, data.mapel, data.kelas)) {
           return { success: false, message: "Anda tidak berhak menghapus absensi ini." };
         }
         return hapusAbsensi(data.mapel, data.kelas, data.tanggal);
@@ -118,6 +121,17 @@ function doPost(e) {
         const semuaMapelValid = mapelDiminta.every(m => akun.mapelList.indexOf(m) !== -1);
         const semuaKelasValid = kelasDiminta.every(k => akun.kelasList.indexOf(k) !== -1);
 
+        // CATATAN (pasangan mapel-kelas): SENGAJA TIDAK dipersempit pakai
+        // kelasBolehUntukMapel() di sini seperti action lain (submit,
+        // riwayat, hapus, dst) -- ini request GABUNGAN semua kombinasi
+        // sekaligus, bukan 1 pasangan spesifik, jadi tidak ada 1 pasangan
+        // tunggal untuk diverifikasi. Aman: Dashboard.gs cuma menemukan
+        // data untuk kombinasi yang MEMANG PERNAH disimpan (nama tab
+        // sheet), dan penyimpanan itu sendiri sudah digerbang ketat oleh
+        // kelasBolehUntukMapel() di handleSubmitDenganValidasi() (Auth.gs)
+        // -- jadi kombinasi yang tidak valid tidak akan pernah punya data
+        // untuk ditemukan di sini, walau otorisasi baca di titik ini
+        // sendiri masih longgar.
         if (!semuaMapelValid || !semuaKelasValid) {
           return { success: false, message: "Anda tidak berhak mengakses dashboard ini." };
         }
@@ -137,6 +151,10 @@ function doPost(e) {
         const semuaMapelValid = mapelDiminta.every(m => akun.mapelList.indexOf(m) !== -1);
         const semuaKelasValid = kelasDiminta.every(k => akun.kelasList.indexOf(k) !== -1);
 
+        // CATATAN (pasangan mapel-kelas): sama seperti getDashboardData()
+        // di atas -- request gabungan, aman karena penyimpanan datanya
+        // sendiri sudah digerbang ketat lewat kelasBolehUntukMapel() di
+        // handleSubmitDenganValidasi(). Lihat penjelasan lengkap di sana.
         if (!semuaMapelValid || !semuaKelasValid) {
           return { success: false, message: "Anda tidak berhak mengunduh rekap ini." };
         }
@@ -243,7 +261,11 @@ function doPost(e) {
     } else if (data.action === 'getDetailSiswaPerhatian' && data.nis && data.kelas && data.mapel) {
       response = handleGetDenganValidasi(data.username, data.token, function(akun) {
         const mapelDiminta = splitList(data.mapel);
-        if (akun.kelasList.indexOf(data.kelas) === -1 || mapelDiminta.length === 0 || !mapelDiminta.every(m => akun.mapelList.indexOf(m) !== -1)) {
+        // PATCH (pasangan mapel-kelas): tiap mapel yang diminta harus
+        // benar-benar valid dipasangkan dengan data.kelas ini -- bukan
+        // cuma kelas-nya ada di kelasList & tiap mapel ada di mapelList
+        // secara independen.
+        if (mapelDiminta.length === 0 || !mapelDiminta.every(m => kelasBolehUntukMapel(akun, m, data.kelas))) {
           return { success: false, message: "Anda tidak berhak mengakses data ini." };
         }
         return getDetailSiswaPerhatian(data.nis, data.kelas, data.mapel);
