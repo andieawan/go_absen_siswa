@@ -16,7 +16,11 @@ const KOLOM_FOTO_PROFIL_1INDEXED = 9; // kolom I di spreadsheet (1-indexed, utk 
 // Format URL yang bisa langsung dipakai di <img src="..."> untuk file
 // Drive yang sharing-nya "siapa saja yang punya link boleh lihat".
 function buatUrlFotoProfil_(fileId) {
-  return 'https://drive.google.com/uc?export=view&id=' + fileId;
+  // PATCH: format URL sebelumnya (uc?export=view) diketahui tidak selalu
+  // andal dipakai langsung sebagai <img src> -- kadang Google
+  // mengembalikan halaman peringatan/redirect, bukan gambar mentahnya.
+  // Format "thumbnail" ini lebih dikenal stabil untuk kebutuhan ini.
+  return 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w1000';
 }
 
 /**
