@@ -75,6 +75,7 @@ function isiFormUntukEdit(akun) {
     set('akunMapelList', akun.mapelList.join(','));
     set('akunKelasList', akun.kelasList.join(','));
     set('akunKelasWali', akun.kelasWali);
+    set('akunPasanganMapelKelas', akun.pasanganMapelKelas || '');
 
     const usernameInput = document.getElementById('akunUsername');
     if (usernameInput) usernameInput.disabled = true; // username tidak boleh diubah setelah dibuat
@@ -101,6 +102,7 @@ async function handleSubmitFormAkun(e) {
     const mapelList = (document.getElementById('akunMapelList')?.value || '').split(',').map(s => s.trim()).filter(Boolean);
     const kelasList = (document.getElementById('akunKelasList')?.value || '').split(',').map(s => s.trim()).filter(Boolean);
     const kelasWali = document.getElementById('akunKelasWali')?.value.trim() || '';
+    const pasanganMapelKelas = document.getElementById('akunPasanganMapelKelas')?.value.trim() || '';
 
     if (btn) btn.disabled = true;
     if (btnText) btnText.classList.add('hidden');
@@ -110,9 +112,9 @@ async function handleSubmitFormAkun(e) {
     try {
         let res;
         if (usernameSedangDiedit) {
-            res = await updateAkunGuru(usernameSedangDiedit, { nama, mapelList, kelasList, kelasWali });
+            res = await updateAkunGuru(usernameSedangDiedit, { nama, mapelList, kelasList, kelasWali, pasanganMapelKelas });
         } else {
-            res = await tambahAkunGuru({ username, nama, password, mapelList, kelasList, kelasWali });
+            res = await tambahAkunGuru({ username, nama, password, mapelList, kelasList, kelasWali, pasanganMapelKelas });
         }
 
         if (msg) {
@@ -170,12 +172,18 @@ function renderTabelAkun(daftar, adalahSuperAdmin, container) {
         const statusBadge = nonaktif
             ? '<span class="badge badge-danger">Nonaktif</span>'
             : '<span class="badge badge-success">Aktif</span>';
+        // PATCH (pasangan mapel-kelas): indikator kecil kalau akun ini
+        // punya pengecualian pasangan mapel-kelas -- supaya kelihatan dari
+        // tabel tanpa perlu buka form Edit satu-satu.
+        const indikatorPasangan = akun.pasanganMapelKelas
+            ? ' <span class="badge badge-info" title="Dibatasi ke pasangan mapel-kelas tertentu">dibatasi</span>'
+            : '';
 
         html += `<tr>
             <td>${escapeHtml(akun.nama)}</td>
             <td>${escapeHtml(akun.username)}</td>
             <td>${escapeHtml(akun.mapelList.join(', ') || '-')}</td>
-            <td>${escapeHtml(akun.kelasList.join(', ') || '-')}</td>
+            <td>${escapeHtml(akun.kelasList.join(', ') || '-')}${indikatorPasangan}</td>
             <td>${escapeHtml(akun.kelasWali || '-')}</td>
             <td>${escapeHtml(roleTampil)}</td>
             <td>${statusBadge}</td>
