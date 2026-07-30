@@ -184,7 +184,12 @@ async function renderDashboard() {
  * dalamnya.
  */
 function setupAvatarDropdown() {
-    const avatarBtn = document.getElementById('headerAvatar');
+    // PATCH v2: id trigger klik sekarang "headerTriggerBtn" (bungkus
+    // seluruh kartu "Selamat Datang"), BUKAN lagi "headerAvatar" -- id itu
+    // sekarang cuma lingkaran foto kecil di dalamnya (dipakai js/profil.js
+    // untuk mengganti foto profil, tidak boleh dipakai sebagai trigger
+    // klik lagi karena innerHTML-nya bisa ditimpa foto).
+    const avatarBtn = document.getElementById('headerTriggerBtn');
     const dropdown = document.getElementById('avatarDropdownMenu');
     if (!avatarBtn || !dropdown) return;
 
