@@ -1059,11 +1059,18 @@
   position: relative;
 }
 
-/* PATCH TATA ULANG NAVIGASI (v2): #headerAvatar sekarang cuma lingkaran
-   foto kecil (<span>, bukan <button> lagi) -- elemen yang BISA DIKLIK
-   sekarang .header-trigger, membungkus avatar + teks + panah sekaligus,
-   supaya seluruh kartu "Selamat Datang" jadi area klik, bukan cuma
-   lingkaran foto. Lihat penjelasan lengkap di templates/dashboard.html. */
+/* =========================================================
+   PATCH TATA ULANG NAVIGASI (v3 -- ADAPTIF per ukuran layar)
+   ---------------------------------------------------------
+   MOBILE (default, di bawah 640px): kartu "Selamat Datang" tetap jadi
+   pemicu klik, menu tampil sebagai BOTTOM SHEET (geser dari bawah).
+   DESKTOP (640px ke atas, lihat @media di bagian bawah blok ini): kartu
+   "Selamat Datang" jadi tampilan biasa saja (tidak bisa diklik lagi),
+   pemicu pindah ke ikon baru pojok kanan atas (.header-menu-btn-desktop),
+   menu tampil sebagai dropdown biasa dekat ikon itu.
+   Breakpoint 640px dipakai supaya konsisten dengan breakpoint yang sudah
+   ada di tempat lain (lihat .container di bagian akhir file ini).
+   ========================================================= */
 .header-trigger {
   display: flex;
   align-items: center;
@@ -1087,21 +1094,40 @@
   transition: transform var(--transition-fast);
 }
 
-/* Panah ikut berputar 180 derajat saat dropdown terbuka -- penanda
-   visual tambahan (bukan cuma warna aria-expanded) supaya jelas
-   statusnya terbuka/tertutup. Class "buka" ditoggle di js/main.js. */
+/* Panah ikut berputar 180 derajat saat menu terbuka -- penanda visual
+   tambahan (bukan cuma warna aria-expanded), khusus mobile (di desktop
+   panahnya disembunyikan, lihat @media di bawah). */
 .header-trigger[aria-expanded="true"] .header-trigger-arrow {
   transform: rotate(180deg);
 }
 
-/* PATCH: lapisan overlay di belakang dropdown -- lihat penjelasan
-   lengkap di templates/dashboard.html #avatarDropdownOverlay. Warna &
-   blur disamakan dengan .modal-overlay (css/components.css) yang sudah
-   dipakai showAlert/showConfirm/showRichModal, supaya konsisten gaya
-   overlay-nya di seluruh aplikasi, bukan bikin gaya baru.
-   z-index pakai --z-modal-backdrop (lebih rendah dari --z-modal yang
-   dipakai .avatar-dropdown-menu di bawah, supaya dropdown-nya tetap di
-   ATAS overlay-nya sendiri, bukan malah tertutup). */
+/* PATCH v3: ikon pemicu KHUSUS DESKTOP -- disembunyikan secara default
+   (mobile), baru dimunculkan lewat @media di bawah. */
+.header-menu-btn-desktop {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-left: auto;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--gray-100);
+  color: var(--gray-600);
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.header-menu-btn-desktop:hover {
+  background: var(--gray-200);
+}
+
+/* Overlay gelap -- cuma relevan untuk bottom sheet (mobile), disembunyikan
+   otomatis di desktop lewat @media di bawah (dropdown biasa tidak perlu
+   menggelapkan seluruh layar). Warna & blur disamakan dengan
+   .modal-overlay (css/components.css) untuk konsistensi gaya. */
 .avatar-dropdown-overlay {
   position: fixed;
   inset: 0;
@@ -1110,28 +1136,39 @@
   z-index: var(--z-modal-backdrop);
 }
 
-/* PATCH v3: dropdown sekarang di TENGAH LAYAR (position: fixed + transform
-   translate), bukan lagi menggantung di bawah avatar (position: absolute
-   relatif ke .avatar-menu-wrapper). Sejak overlay gelap ditambahkan
-   (terasa seperti modal), lebih estetik & konsisten kalau kotaknya
-   benar-benar di tengah seperti modal lain di aplikasi ini (lihat
-   .modal-overlay/.modal-box di css/components.css), bukan menggantung
-   asimetris di kiri dekat avatar. */
+/* Handle kecil di atas -- penanda visual khas bottom sheet, disembunyikan
+   di desktop lewat @media di bawah. */
+.avatar-dropdown-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--gray-200);
+  margin: var(--spacing-1) auto var(--spacing-2) auto;
+  flex-shrink: 0;
+}
+
+@keyframes avatarSheetSlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+/* --- MOBILE (default): bottom sheet, geser dari bawah, lebar penuh --- */
 .avatar-dropdown-menu {
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 260px;
-  max-width: calc(100vw - var(--spacing-8));
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: none;
   background: var(--white);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   box-shadow: var(--shadow-lg);
-  padding: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-2) var(--spacing-5) var(--spacing-2);
   display: flex;
   flex-direction: column;
   gap: var(--spacing-1);
   z-index: var(--z-modal);
+  animation: avatarSheetSlideUp 0.25s ease;
 }
 
 /* PATCH v2 (visual dropdown): header identitas -- nama & peran akun yang
@@ -1170,11 +1207,10 @@
 }
 
 /* Override tampilan .tab-btn yang aslinya vertikal (ikon di atas, teks
-   di bawah, dipakai di baris tab bawah) -- di dalam dropdown ini kita
-   mau baris horizontal biasa (ikon lalu teks bersebelahan). Padding
-   diperbesar dari sebelumnya (Opsi A) -- target sentuh yang lebih besar
-   penting terutama di HP (layar sentuh butuh area tap lebih besar
-   dibanding presisi mouse di desktop). */
+   di bawah, dipakai di baris tab bawah) -- di dalam menu ini kita mau
+   baris horizontal biasa (ikon lalu teks bersebelahan). Padding lega --
+   target sentuh yang besar penting terutama di HP (layar sentuh butuh
+   area tap lebih besar dibanding presisi mouse di desktop). */
 .avatar-dropdown-item {
   flex-direction: row;
   align-items: center;
@@ -1189,9 +1225,9 @@
   border-radius: var(--radius-lg);
 }
 
-/* Jangan tampilkan highlight "active" tab di dalam dropdown -- terasa
-   aneh kalau item Profil kelihatan "menyala" terus menerus di sini
-   padahal dropdown-nya sendiri sedang tertutup. */
+/* Jangan tampilkan highlight "active" tab di dalam menu -- terasa aneh
+   kalau item Profil kelihatan "menyala" terus menerus di sini padahal
+   menunya sendiri sedang tertutup. */
 .avatar-dropdown-item.active {
   background: transparent;
   color: var(--gray-700);
@@ -1218,10 +1254,9 @@
 }
 
 /* PATCH v2 (visual dropdown): ikon dengan latar warna lembut (icon chip)
-   -- Opsi C, supaya tiap item lebih "berisi" secara visual, bukan cuma
-   emoji polos mengambang. Ukuran cukup besar (36px) supaya proporsional
-   dengan padding item yang sudah diperbesar, sekaligus nyaman jadi
-   target sentuh di HP. */
+   -- supaya tiap item lebih "berisi" secara visual, bukan cuma emoji
+   polos mengambang. Ukuran cukup besar (36px) supaya nyaman jadi target
+   sentuh di HP. */
 .avatar-dropdown-icon-chip {
   width: 36px;
   height: 36px;
@@ -1243,4 +1278,53 @@
 
 .avatar-dropdown-icon-chip-merah {
   background: rgba(239, 68, 68, 0.12);
+}
+
+/* --- DESKTOP (640px ke atas): dropdown biasa di pojok kanan atas --- */
+@media (min-width: 640px) {
+  /* Kartu "Selamat Datang" jadi tampilan biasa saja -- tidak bisa diklik
+     lagi (pointer-events:none), panahnya ikut disembunyikan supaya tidak
+     ada sisa penanda "bisa diklik" yang menyesatkan. */
+  .header-trigger {
+    cursor: default;
+    pointer-events: none;
+  }
+  .header-trigger-arrow {
+    display: none;
+  }
+
+  /* Ikon pemicu pojok kanan atas -- SATU-SATUNYA cara buka menu akun di
+     breakpoint ini. */
+  .header-menu-btn-desktop {
+    display: flex;
+  }
+
+  /* Dropdown biasa tidak perlu overlay gelap -- konvensi umum aplikasi
+     web (Gmail, GitHub, dst) tidak menggelapkan seluruh layar untuk menu
+     akun sesederhana ini. */
+  .avatar-dropdown-overlay {
+    display: none;
+  }
+
+  .avatar-dropdown-handle {
+    display: none;
+  }
+
+  @keyframes avatarDropdownFadeIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .avatar-dropdown-menu {
+    position: fixed;
+    top: 84px;
+    left: auto;
+    right: var(--spacing-6);
+    bottom: auto;
+    width: 260px;
+    max-width: 260px;
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-2);
+    animation: avatarDropdownFadeIn 0.15s ease;
+  }
 }
