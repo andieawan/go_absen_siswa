@@ -2,20 +2,26 @@
 <section id="dashboardSection">
     <div class="header-card">
         <div class="header-content">
-            <!-- PATCH TATA ULANG NAVIGASI (v2): area yang bisa diklik untuk
-                 membuka menu akun (Profil/Admin/Keluar) diperluas ke SELURUH
-                 kartu "Selamat Datang" (avatar + nama + tanggal), bukan cuma
-                 lingkaran foto kecil -- supaya lebih jelas kalau ini bisa
-                 diklik, tanpa mengandalkan pengguna mengenali ikon tertentu.
-                 Ditambah panah kecil (▾) sebagai penanda visual tambahan.
+            <!-- PATCH TATA ULANG NAVIGASI (v3 -- ADAPTIF per ukuran layar):
+                 - MOBILE (di bawah 640px): kartu "Selamat Datang" (avatar +
+                   nama + tanggal) TETAP jadi pemicu klik (seperti v2),
+                   menunya tampil sebagai BOTTOM SHEET (geser dari bawah,
+                   lebar penuh) -- paling natural untuk jempol di HP.
+                 - DESKTOP (640px ke atas): kartu "Selamat Datang" jadi
+                   TAMPILAN BIASA SAJA (tidak bisa diklik lagi -- lihat CSS
+                   .header-trigger di css/app-ui.css, pointer-events:none
+                   pada breakpoint ini). Pemicu menu pindah ke ikon BARU di
+                   pojok kanan atas (#headerMenuBtnDesktop di bawah),
+                   menunya tampil sebagai dropdown biasa (bukan modal
+                   tengah lagi) -- konvensi umum aplikasi web (mirip Gmail,
+                   GitHub, dst).
+                 Keduanya memakai KONTEN dropdown yang SAMA (satu elemen
+                 #avatarDropdownMenu) -- cuma gaya CSS-nya (posisi, bentuk)
+                 yang berbeda per breakpoint, supaya tidak perlu duplikasi
+                 markup menu 2x.
                  PENTING: id "headerAvatar" TETAP di elemen lingkaran foto
                  kecil (bukan di tombol pembungkusnya) -- js/profil.js
-                 mengganti innerHTML elemen ini dengan foto profil, jadi
-                 harus tetap elemen KECIL itu saja, bukan seluruh tombol
-                 (kalau tidak, foto profil akan menimpa teks "Selamat
-                 Datang" juga). Tombol pembungkusnya sendiri pakai id baru
-                 "headerTriggerBtn" -- lihat setupAvatarDropdown() di
-                 js/main.js. -->
+                 mengganti innerHTML elemen ini dengan foto profil. -->
             <div class="avatar-menu-wrapper" id="avatarMenuWrapper">
                 <button type="button" class="header-trigger" id="headerTriggerBtn" aria-haspopup="true" aria-expanded="false" title="Menu akun">
                     <span class="header-avatar" id="headerAvatar">👨‍🏫</span>
@@ -25,24 +31,20 @@
                     </span>
                     <span class="header-trigger-arrow" aria-hidden="true">▾</span>
                 </button>
-                <!-- PATCH: lapisan overlay di belakang dropdown -- sebelumnya
-                     dropdown ini cuma kotak sempit (~190px) mengambang di
-                     atas konten (sub-tab Wali Kelas/Per Mapel/Sekolah), jadi
-                     konten di sekitarnya "bocor" kelihatan di kanan-kirinya,
-                     terkesan seperti rendering yang salah, bukan menu yang
-                     sengaja terbuka. Overlay ini menggelapkan SELURUH layar
-                     di belakang dropdown saat terbuka -- pola umum untuk
-                     menu/modal, membuat dropdown jelas terasa sebagai
-                     lapisan terpisah yang mengambang. Klik di mana saja pada
-                     overlay ini akan menutup dropdown (lihat js/main.js). -->
+                <!-- PATCH: lapisan overlay di belakang menu -- TAMPIL hanya
+                     di mobile (bottom sheet), disembunyikan otomatis lewat
+                     CSS di breakpoint desktop (dropdown biasa tidak perlu
+                     menggelapkan seluruh layar). Klik di mana saja pada
+                     overlay ini menutup menu (lihat js/main.js). -->
                 <div class="avatar-dropdown-overlay hidden" id="avatarDropdownOverlay"></div>
                 <div class="avatar-dropdown-menu hidden" id="avatarDropdownMenu" role="menu">
-                    <!-- PATCH (visual dropdown v2): header identitas di atas
-                         daftar menu -- diisi js/main.js (nama & peran akun
-                         yang login). Dipisah garis tipis dari menu di
-                         bawahnya. Teks nama dibatasi lebar + "..." kalau
-                         kepanjangan (lihat CSS .avatar-dropdown-nama) supaya
-                         tetap rapi di layar sempit. -->
+                    <!-- Handle kecil di atas -- penanda visual KHUSUS bottom
+                         sheet (mobile), disembunyikan otomatis di desktop
+                         lewat CSS. -->
+                    <div class="avatar-dropdown-handle" aria-hidden="true"></div>
+                    <!-- Header identitas: nama & peran akun yang login --
+                         diisi js/main.js. Teks nama dibatasi 1 baris + "..."
+                         kalau kepanjangan, supaya tetap rapi di layar sempit. -->
                     <div class="avatar-dropdown-header">
                         <p class="avatar-dropdown-nama" id="avatarDropdownNama">-</p>
                         <p class="avatar-dropdown-peran" id="avatarDropdownPeran">-</p>
@@ -62,6 +64,14 @@
                     </button>
                 </div>
             </div>
+            <!-- PATCH v3: pemicu KHUSUS DESKTOP -- disembunyikan di mobile
+                 lewat CSS (lihat .header-menu-btn-desktop). Ini SATU-
+                 SATUNYA cara buka menu akun di desktop (kartu "Selamat
+                 Datang" sengaja dibuat tidak bisa diklik lagi di breakpoint
+                 ini, lihat catatan di atas). -->
+            <button type="button" class="header-menu-btn-desktop" id="headerMenuBtnDesktop" aria-haspopup="true" aria-expanded="false" title="Menu akun">
+                <span aria-hidden="true">⋮</span>
+            </button>
         </div>
     </div>
 
