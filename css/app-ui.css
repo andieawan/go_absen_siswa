@@ -1317,6 +1317,15 @@
 
   .avatar-dropdown-menu {
     position: fixed;
+    /* PATCH: top/right di sini cuma NILAI CADANGAN (fallback) -- posisi
+       sebenarnya sekarang dihitung dinamis oleh posisikanDropdownDesktop()
+       di js/main.js berdasarkan posisi NYATA ikon #headerMenuBtnDesktop
+       (lewat getBoundingClientRect()), supaya dropdown selalu menempel
+       pas di bawah ikonnya, di mana pun ikon itu berada -- bukan
+       menggantung jauh di tepi layar kalau header tidak selebar layar
+       penuh (ada .container dengan max-width). Inline style dari JS
+       otomatis menang atas nilai di sini karena spesifisitasnya lebih
+       tinggi. */
     top: 84px;
     left: auto;
     right: var(--spacing-6);
