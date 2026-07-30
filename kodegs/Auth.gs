@@ -64,7 +64,11 @@ function getAkunGuru(username) {
         // bentuknya (lihat catatan "FIX KRITIS" di handleLogin() soal
         // riwayat bug akibat 2 tempat ini pernah tidak sinkron untuk
         // mapelList/kelasList; jangan sampai terulang untuk roleList).
-        roleList: parseRoleList(data[i][KOLOM_ROLE_0INDEXED])
+        roleList: parseRoleList(data[i][KOLOM_ROLE_0INDEXED]),
+        // PATCH: Pasangan Mapel-Kelas -- lihat PasanganMapelKelas.gs. WAJIB
+        // pakai parsePasanganMapelKelas() yang SAMA dengan handleLogin() di
+        // bawah, sama seperti alasan roleList di atas.
+        pasanganMapelKelas: parsePasanganMapelKelas(data[i][KOLOM_PASANGAN_MAPEL_KELAS_0INDEXED])
       };
     }
   }
@@ -78,11 +82,18 @@ function handleSubmitDenganValidasi(username, token, payload) {
   const akun = getAkunGuru(username);
   if (!akun) return { success: false, message: "Akun tidak ditemukan." };
 
-  if (akun.mapelList.indexOf(payload.mapel) === -1) {
-    return { success: false, message: "Anda tidak berhak mengisi absensi untuk mata pelajaran " + payload.mapel + "." };
-  }
-  if (akun.kelasList.indexOf(payload.kelas) === -1) {
-    return { success: false, message: "Anda tidak berhak mengisi absensi untuk kelas " + payload.kelas + "." };
+  // PATCH (pasangan mapel-kelas): sebelumnya mapel & kelas dicek
+  // TERPISAH (akun.mapelList.indexOf(mapel) dan akun.kelasList.indexOf(kelas)
+  // sendiri-sendiri) -- artinya guru yang mengajar DKV di "Kelas A" dan KIK
+  // di "Kelas B" tetap lolos otorisasi kalau submit KIK untuk "Kelas A",
+  // padahal pasangan itu tidak pernah benar. kelasBolehUntukMapel()
+  // (PasanganMapelKelas.gs) memverifikasi PASANGANNYA, bukan cuma
+  // keanggotaan masing-masing daftar secara independen -- dengan fallback
+  // otomatis ke kelasList penuh kalau memang tidak ada pengecualian yang
+  // didefinisikan admin untuk mapel itu (perilaku lama tetap jalan apa
+  // adanya untuk semua akun yang belum diatur pengecualiannya).
+  if (!kelasBolehUntukMapel(akun, payload.mapel, payload.kelas)) {
+    return { success: false, message: "Anda tidak berhak mengisi absensi untuk mata pelajaran " + payload.mapel + " di kelas " + payload.kelas + "." };
   }
 
   payload.guru = akun.nama;
@@ -249,7 +260,10 @@ function handleLogin(username, password) {
             // PERSIS dengan getAkunGuru() di atas -- lihat catatan "FIX
             // KRITIS" tepat di atas ini soal kenapa 2 tempat ini wajib
             // sinkron (riwayat bug sebelumnya untuk mapelList/kelasList).
-            roleList: parseRoleList(data[i][KOLOM_ROLE_0INDEXED])
+            roleList: parseRoleList(data[i][KOLOM_ROLE_0INDEXED]),
+            // PATCH: Pasangan Mapel-Kelas -- dijaga SAMA PERSIS dengan
+            // getAkunGuru() di atas, sama seperti roleList.
+            pasanganMapelKelas: parsePasanganMapelKelas(data[i][KOLOM_PASANGAN_MAPEL_KELAS_0INDEXED])
           }
         };
       }
