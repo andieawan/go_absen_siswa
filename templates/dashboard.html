@@ -25,6 +25,17 @@
                     </span>
                     <span class="header-trigger-arrow" aria-hidden="true">▾</span>
                 </button>
+                <!-- PATCH: lapisan overlay di belakang dropdown -- sebelumnya
+                     dropdown ini cuma kotak sempit (~190px) mengambang di
+                     atas konten (sub-tab Wali Kelas/Per Mapel/Sekolah), jadi
+                     konten di sekitarnya "bocor" kelihatan di kanan-kirinya,
+                     terkesan seperti rendering yang salah, bukan menu yang
+                     sengaja terbuka. Overlay ini menggelapkan SELURUH layar
+                     di belakang dropdown saat terbuka -- pola umum untuk
+                     menu/modal, membuat dropdown jelas terasa sebagai
+                     lapisan terpisah yang mengambang. Klik di mana saja pada
+                     overlay ini akan menutup dropdown (lihat js/main.js). -->
+                <div class="avatar-dropdown-overlay hidden" id="avatarDropdownOverlay"></div>
                 <div class="avatar-dropdown-menu hidden" id="avatarDropdownMenu" role="menu">
                     <button type="button" class="tab-btn avatar-dropdown-item" data-tab="panelProfil" role="menuitem"><span class="tab-icon">👤</span> Profil</button>
                     <button type="button" class="tab-btn avatar-dropdown-item hidden" data-tab="panelAdmin" id="tabBtnAdmin" role="menuitem"><span class="tab-icon">⚙️</span> Admin</button>
