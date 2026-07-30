@@ -293,6 +293,19 @@
   display: block;
 }
 
+/* PATCH: logo sekolah (upload lewat Panel Admin, menggantikan ikon emoji
+   bawaan) -- ukuran dipatok relatif ke font-size .login-logo (1em) yang
+   sudah punya nilai berbeda di mobile (4rem) vs desktop (5rem, lihat
+   .login-card-brand .login-logo di atas). Dengan begini gambar logo
+   otomatis ikut menyesuaikan ukuran di kedua breakpoint TANPA perlu
+   duplikasi @media query terpisah. */
+.login-logo-img {
+  width: 1em;
+  height: 1em;
+  object-fit: contain;
+  display: inline-block;
+}
+
 .login-title {
   font-size: var(--font-size-2xl);
   font-weight: var(--font-weight-bold);
