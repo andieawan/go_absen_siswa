@@ -46,7 +46,11 @@ function getDaftarAkunUntukAdmin() {
       mapelList: String(data[i][3] || '').split(',').map(s => s.trim()).filter(s => s !== ''),
       kelasList: String(data[i][4] || '').split(',').map(s => s.trim()).filter(s => s !== ''),
       kelasWali: data[i][5] ? String(data[i][5]).trim() : '',
-      roleList: parseRoleList(data[i][KOLOM_ROLE_0INDEXED])
+      roleList: parseRoleList(data[i][KOLOM_ROLE_0INDEXED]),
+      // PATCH: dikirim MENTAH (string format "DKV:Kelas A|KIK:Kelas B"),
+      // bukan hasil parsePasanganMapelKelas() -- supaya form Edit di
+      // frontend bisa langsung isi ulang kotak teksnya apa adanya.
+      pasanganMapelKelas: data[i][KOLOM_PASANGAN_MAPEL_KELAS_0INDEXED] ? String(data[i][KOLOM_PASANGAN_MAPEL_KELAS_0INDEXED]).trim() : ''
     });
   }
 
@@ -106,14 +110,23 @@ function tambahAkunGuru(dataBaru) {
   const kelasListCsv = Array.isArray(dataBaru.kelasList) ? dataBaru.kelasList.join(',') : String(dataBaru.kelasList || '');
   const kelasWali = String(dataBaru.kelasWali || '').trim();
   const roleListCsv = String(dataBaru.roleList || 'guru').trim() || 'guru';
+  // PATCH: Pasangan Mapel-Kelas -- OPSIONAL, boleh kosong (berarti tidak
+  // ada pengecualian, semua kelas di kelasList berlaku untuk semua mapel
+  // seperti biasa). Formatnya: "DKV:XI DKV 1,XI DKV 2|KIK:XI DKV 3" --
+  // lihat PasanganMapelKelas.gs untuk detail lengkap & cara pemakaiannya.
+  const pasanganMapelKelasStr = String(dataBaru.pasanganMapelKelas || '').trim();
+  if (pasanganMapelKelasStr && parsePasanganMapelKelas(pasanganMapelKelasStr) === null) {
+    return { success: false, message: 'Format Pasangan Mapel-Kelas tidak valid. Contoh yang benar: "DKV:XI DKV 1,XI DKV 2|KIK:XI DKV 3".' };
+  }
 
   const salt = generateSalt();
   const hash = hashPassword(password, salt);
 
   // Urutan kolom HARUS persis sama dengan struktur sheet yang sudah ada:
-  // A..J = username, password_plaintext(kosong), nama, mapelList, kelasList,
-  // kelasWali, salt, password_hash, fotoProfilFileId(kosong), role.
-  sheet.appendRow([username, '', nama, mapelListCsv, kelasListCsv, kelasWali, salt, hash, '', roleListCsv]);
+  // A..K = username, password_plaintext(kosong), nama, mapelList, kelasList,
+  // kelasWali, salt, password_hash, fotoProfilFileId(kosong), role,
+  // pasanganMapelKelas(opsional, kosong secara default).
+  sheet.appendRow([username, '', nama, mapelListCsv, kelasListCsv, kelasWali, salt, hash, '', roleListCsv, pasanganMapelKelasStr]);
 
   const pesan = 'Akun "' + username + '" (' + nama + ') berhasil dibuat.';
   Logger.log(pesan);
@@ -158,6 +171,13 @@ function updateAkunGuru(username, dataBaru) {
     }
     if (dataBaru.kelasWali !== undefined) {
       sheet.getRange(baris, 6).setValue(String(dataBaru.kelasWali || '').trim());
+    }
+    if (dataBaru.pasanganMapelKelas !== undefined) {
+      const pasanganMapelKelasStr = String(dataBaru.pasanganMapelKelas || '').trim();
+      if (pasanganMapelKelasStr && parsePasanganMapelKelas(pasanganMapelKelasStr) === null) {
+        return { success: false, message: 'Format Pasangan Mapel-Kelas tidak valid. Contoh yang benar: "DKV:XI DKV 1,XI DKV 2|KIK:XI DKV 3".' };
+      }
+      sheet.getRange(baris, KOLOM_PASANGAN_MAPEL_KELAS_1INDEXED).setValue(pasanganMapelKelasStr);
     }
 
     const pesan = 'Akun "' + username + '" berhasil diperbarui.';
