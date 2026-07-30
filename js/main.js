@@ -231,6 +231,29 @@ function setupAvatarDropdown() {
     const overlay = document.getElementById('avatarDropdownOverlay');
     if (!dropdown || (!avatarBtn && !desktopBtn)) return;
 
+    // PATCH: posisikan dropdown TEPAT di bawah ikon pemicu desktop --
+    // sebelumnya pakai posisi tetap (top/right fixed relatif ke tepi
+    // layar lewat CSS), yang ternyata bisa jauh dari ikon aslinya kalau
+    // kartu header tidak selebar layar penuh (ada .container dengan
+    // max-width). Sekarang dihitung dari posisi NYATA ikon-nya
+    // (getBoundingClientRect()) setiap kali dropdown dibuka, supaya
+    // selalu menempel pas di bawahnya -- di mana pun ikon itu berada.
+    function posisikanDropdownDesktop() {
+        if (!desktopBtn || window.innerWidth < 640) {
+            // Mobile (bottom sheet): biarkan CSS yang atur posisinya.
+            // Bersihkan sisa inline style dari sesi desktop sebelumnya
+            // (mis. kalau jendela di-resize tanpa reload halaman).
+            dropdown.style.top = '';
+            dropdown.style.right = '';
+            dropdown.style.left = '';
+            return;
+        }
+        const rect = desktopBtn.getBoundingClientRect();
+        dropdown.style.top = (rect.bottom + 8) + 'px';
+        dropdown.style.left = 'auto';
+        dropdown.style.right = (window.innerWidth - rect.right) + 'px';
+    }
+
     function tutupDropdown() {
         dropdown.classList.add('hidden');
         overlay?.classList.add('hidden');
@@ -238,6 +261,7 @@ function setupAvatarDropdown() {
         desktopBtn?.setAttribute('aria-expanded', 'false');
     }
     function bukaDropdown() {
+        posisikanDropdownDesktop();
         dropdown.classList.remove('hidden');
         overlay?.classList.remove('hidden');
         avatarBtn?.setAttribute('aria-expanded', 'true');
@@ -272,6 +296,13 @@ function setupAvatarDropdown() {
     document.addEventListener('click', (e) => {
         if (dropdown.classList.contains('hidden')) return;
         if (!dropdown.contains(e.target) && e.target !== avatarBtn && e.target !== desktopBtn) tutupDropdown();
+    });
+
+    // Kalau jendela di-resize SAAT dropdown sedang terbuka (mis. ubah
+    // ukuran browser desktop), posisi ikon bisa berubah -- sesuaikan
+    // ulang supaya dropdown tidak "ketinggalan" di posisi lama.
+    window.addEventListener('resize', () => {
+        if (!dropdown.classList.contains('hidden')) posisikanDropdownDesktop();
     });
 }
 
