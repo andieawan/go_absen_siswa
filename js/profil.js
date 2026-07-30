@@ -192,7 +192,15 @@ function setTombolLoading(btn, loading) {
  * tetap kecil (beberapa puluh-ratus KB, bukan foto asli kamera yang bisa
  * beberapa MB), lebih cepat diunggah dan lebih ringan untuk kuota Drive.
  */
-export function kompresGambarSebelumUpload(file) {
+/**
+ * PATCH: parameter `format` (opsional, default 'jpeg') -- logo sekolah
+ * dipanggil dengan 'png' supaya latar TRANSPARAN aslinya tetap
+ * dipertahankan (logo jadi terlihat "menempel" ke gradasi warna halaman
+ * login, bukan kotak solid). Foto profil tetap 'jpeg' seperti sebelumnya
+ * (ukuran file lebih kecil, memang tidak butuh transparansi untuk foto
+ * wajah biasa).
+ */
+export function kompresGambarSebelumUpload(file, format = 'jpeg') {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onerror = () => reject(new Error('Gagal membaca file gambar.'));
@@ -213,21 +221,26 @@ export function kompresGambarSebelumUpload(file) {
                 canvas.width = width;
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
-                // PATCH: kanvas HTML defaultnya TRANSPARAN, dan area
-                // transparan itu jadi HITAM begitu diekspor ke JPEG (JPEG
-                // tidak punya kanal transparansi) -- gejalanya persis
-                // seperti logo dengan latar PNG transparan yang berubah
-                // jadi bersisi hitam setelah diunggah. Diperbaiki dengan
-                // mengisi latar PUTIH dulu SEBELUM gambar digambar di
-                // atasnya, supaya area transparan jadi putih (jauh lebih
-                // wajar untuk logo/foto), bukan hitam.
-                ctx.fillStyle = '#FFFFFF';
-                ctx.fillRect(0, 0, width, height);
+
+                if (format !== 'png') {
+                    // PATCH: kanvas HTML defaultnya TRANSPARAN, dan area
+                    // transparan itu jadi HITAM begitu diekspor ke JPEG
+                    // (JPEG tidak punya kanal transparansi) -- diisi latar
+                    // PUTIH dulu supaya area transparan jadi putih, bukan
+                    // hitam. TIDAK dilakukan untuk format PNG (di bawah),
+                    // karena PNG justru kita MAU pertahankan transparansi
+                    // aslinya, bukan menimpanya dengan putih.
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(0, 0, width, height);
+                }
                 ctx.drawImage(img, 0, 0, width, height);
 
-                const dataUrl = canvas.toDataURL('image/jpeg', KUALITAS_JPEG);
-                const base64Data = dataUrl.split(',')[1]; // buang prefix "data:image/jpeg;base64,"
-                resolve({ base64Data, mimeType: 'image/jpeg', dataUrl });
+                const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
+                const dataUrl = format === 'png'
+                    ? canvas.toDataURL('image/png')
+                    : canvas.toDataURL('image/jpeg', KUALITAS_JPEG);
+                const base64Data = dataUrl.split(',')[1]; // buang prefix "data:xxx;base64,"
+                resolve({ base64Data, mimeType, dataUrl });
             };
             img.src = reader.result;
         };
