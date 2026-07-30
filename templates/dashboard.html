@@ -623,6 +623,24 @@
             <p class="panel-subtitle">Kelola akun guru -- tambah, ubah, reset password, nonaktifkan</p>
         </div>
 
+        <!-- PATCH: Logo Sekolah -- tampil di halaman login, menggantikan
+             ikon emoji bawaan (🏫). Beda dari foto profil (per akun), ini
+             SATU untuk seluruh aplikasi -- lihat getLogoSekolahUrl()/
+             uploadLogoSekolah() di kodegs/Admin.gs. Pola visualnya sengaja
+             disamakan dengan kartu foto profil di Panel Profil supaya
+             konsisten. -->
+        <div class="card profil-foto-card">
+            <h4>🏫 Logo Sekolah (Halaman Login)</h4>
+            <p class="card-subtitle">Gambar ini akan menggantikan ikon 🏫 bawaan di halaman login -- terlihat oleh SEMUA orang sebelum login, bukan cuma akun ini.</p>
+            <div class="profil-foto-wrapper">
+                <img id="logoSekolahPreview" class="profil-foto-preview hidden" src="" alt="Logo sekolah">
+                <div id="logoSekolahKosong" class="profil-foto-kosong">🏫</div>
+            </div>
+            <input type="file" id="inputLogoSekolah" accept="image/*" class="hidden">
+            <button type="button" id="btnPilihLogoSekolah" class="btn-secondary btn-full">🖼️ Ganti Logo Sekolah</button>
+            <p id="logoSekolahMsg" class="login-msg"></p>
+        </div>
+
         <div class="card">
             <h4 id="formAkunJudul">➕ Tambah Akun Guru</h4>
             <form id="formAkunGuru">
