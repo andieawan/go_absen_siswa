@@ -415,6 +415,19 @@ export function navigasiKeEditAbsensi(konteks, tanggal) {
     showNotification('Menampilkan absensi tanggal ' + tanggal + ' untuk diedit.', 'info');
 }
 
+// PATCH (pasangan mapel-kelas): versi frontend dari getKelasUntukMapel()
+// di kodegs/PasanganMapelKelas.gs -- LOGIKA FALLBACK-NYA HARUS SAMA
+// PERSIS dengan backend (kosong/mapel tidak terdaftar di pasangan ->
+// semua kelasList), supaya dropdown di sini tidak pernah menampilkan
+// kombinasi yang nanti ditolak backend, ATAU menyembunyikan kombinasi
+// yang sebenarnya backend izinkan.
+function getKelasUntukMapelClient(user, mapel) {
+    if (!user.pasanganMapelKelas || !user.pasanganMapelKelas[mapel]) {
+        return user.kelasList;
+    }
+    return user.pasanganMapelKelas[mapel];
+}
+
 // =========================================================
 // PANEL 1: INPUT ABSENSI (per mata pelajaran)
 // =========================================================
@@ -433,10 +446,25 @@ function setupInputAbsensiForm(user) {
             ? user.mapelList.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('')
             : '<option value="" disabled selected>Tidak ada mapel yang diampu</option>';
     }
-    if (selectKelas) {
+
+    // PATCH (pasangan mapel-kelas): dropdown kelas sekarang mengikuti
+    // mapel yang sedang dipilih -- kalau admin sudah atur pengecualian
+    // untuk mapel itu, cuma kelas yang dipasangkan yang muncul; kalau
+    // tidak ada pengecualian, tetap semua kelasList seperti sebelumnya
+    // (perilaku lama, tidak berubah untuk guru yang belum diatur).
+    function perbaruiOpsiKelas() {
+        if (!selectKelas) return;
+        const mapelTerpilih = selectMapel?.value;
+        const kelasBoleh = mapelTerpilih ? getKelasUntukMapelClient(user, mapelTerpilih) : user.kelasList;
+        const kelasSekarang = selectKelas.value; // coba pertahankan pilihan kalau masih valid utk mapel baru
         selectKelas.innerHTML = '<option value="" disabled selected>-- Pilih Kelas --</option>' +
-            user.kelasList.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
+            kelasBoleh.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
+        if (kelasBoleh.indexOf(kelasSekarang) !== -1) {
+            selectKelas.value = kelasSekarang;
+        }
     }
+    perbaruiOpsiKelas();
+
     if (tanggalInput && !tanggalInput.value) {
         tanggalInput.valueAsDate = new Date();
     }
@@ -502,7 +530,7 @@ function setupInputAbsensiForm(user) {
         }
     }
 
-    if (selectMapel) selectMapel.addEventListener('change', reloadStudents);
+    if (selectMapel) selectMapel.addEventListener('change', () => { perbaruiOpsiKelas(); reloadStudents(); });
     if (selectKelas) selectKelas.addEventListener('change', reloadStudents);
     if (tanggalInput) tanggalInput.addEventListener('change', reloadStudents);
 
