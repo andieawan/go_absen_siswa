@@ -40,6 +40,7 @@
  */
 
 import { isLoggedIn, getCurrentUser, logout, redirectToLoginPage } from './api.js?v=20260726';
+import { CONFIG } from './config.js?v=20260727';
 import { deleteSsoCookie } from './ssocookie.js?v=20260726';
 import { initLoginForm } from './login.js?v=20260726';
 import { initDashboard } from './dashboard.js?v=20260726b';
@@ -379,12 +380,37 @@ async function route() {
     }
 }
 
+// PATCH PWA (uji coba, toggle CONFIG.PWA_AKTIF di js/config.js): kalau
+// aktif, suntikkan <link rel="manifest"> (TIDAK ditulis statis di
+// index.html, supaya benar-benar tidak ada jejak PWA sama sekali kalau
+// togglenya mati) dan daftarkan Service Worker (sw.js). Dipanggil sekali
+// di awal, TIDAK tergantung status login -- kemampuan "instal aplikasi"
+// harus tersedia bahkan di halaman login sekalipun.
+function setupPwaJikaAktif() {
+    if (!CONFIG.PWA_AKTIF) return;
+
+    if (!document.querySelector('link[rel="manifest"]')) {
+        const link = document.createElement('link');
+        link.rel = 'manifest';
+        link.href = 'manifest.json';
+        document.head.appendChild(link);
+    }
+
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').catch((err) => {
+            console.error('Gagal mendaftarkan Service Worker:', err);
+        });
+    }
+}
+
 // Inisialisasi aplikasi
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Aplikasi Absensi Sekolah dimuat');
 
     // Inisialisasi modal handlers
     initModalHandlers();
+
+    setupPwaJikaAktif();
 
     // Routing awal
     route();
