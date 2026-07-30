@@ -104,7 +104,11 @@ async function setupLogoSekolah() {
         btnPilih.disabled = true;
 
         try {
-            const { base64Data, mimeType, dataUrl } = await kompresGambarSebelumUpload(file);
+            // PATCH: format 'png' -- logo sekolah biasanya punya latar
+            // transparan (lingkaran, bentuk bebas, dst), dipertahankan
+            // supaya menyatu dengan gradasi warna halaman login, bukan
+            // jadi kotak solid berwarna putih/hitam.
+            const { base64Data, mimeType, dataUrl } = await kompresGambarSebelumUpload(file, 'png');
             tampilkanLogo(dataUrl); // preview instan sebelum menunggu respons server
 
             const res = await uploadLogoSekolah(base64Data, mimeType);
