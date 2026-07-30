@@ -1,5 +1,5 @@
-import { login } from './api.js?v=20260726';
-import { showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260726';
+import { login, getLogoSekolah } from './api.js?v=20260727';
+import { showGlobalLoading, hideGlobalLoading, escapeHtml } from './utils.js?v=20260726';
 
 /**
  * Login Module
@@ -18,6 +18,30 @@ export function initLoginForm() {
     if (!form) return;
 
     setupFormListeners(form);
+    // PATCH: logo sekolah (fitur Panel Admin) -- gagal diam-diam kalau
+    // ada error, ikon emoji bawaan (🏫) tetap tampil sebagai fallback.
+    muatLogoSekolah();
+}
+
+/**
+ * Tampilkan logo sekolah (kalau admin sudah upload lewat Panel Admin,
+ * lihat js/admin.js), menggantikan ikon emoji bawaan (🏫) di kartu
+ * login. Kalau belum pernah diupload sama sekali, atau permintaannya
+ * gagal karena apa pun, dibiarkan diam-diam -- emoji bawaan tetap
+ * tampil, jangan sampai halaman login rusak gara-gara fitur dekoratif
+ * ini.
+ */
+async function muatLogoSekolah() {
+    const logoEl = document.querySelector('.login-logo');
+    if (!logoEl) return;
+    try {
+        const res = await getLogoSekolah();
+        if (res.success && res.data && res.data.logoUrl) {
+            logoEl.innerHTML = `<img src="${escapeHtml(res.data.logoUrl)}" alt="Logo Sekolah" class="login-logo-img">`;
+        }
+    } catch (error) {
+        console.error('Gagal memuat logo sekolah (memakai ikon bawaan):', error);
+    }
 }
 
 // Setup event listeners untuk form login
