@@ -192,7 +192,7 @@ function setTombolLoading(btn, loading) {
  * tetap kecil (beberapa puluh-ratus KB, bukan foto asli kamera yang bisa
  * beberapa MB), lebih cepat diunggah dan lebih ringan untuk kuota Drive.
  */
-function kompresGambarSebelumUpload(file) {
+export function kompresGambarSebelumUpload(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
         reader.onerror = () => reject(new Error('Gagal membaca file gambar.'));
