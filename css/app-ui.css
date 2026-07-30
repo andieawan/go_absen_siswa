@@ -1059,10 +1059,39 @@
   position: relative;
 }
 
-#headerAvatar {
+/* PATCH TATA ULANG NAVIGASI (v2): #headerAvatar sekarang cuma lingkaran
+   foto kecil (<span>, bukan <button> lagi) -- elemen yang BISA DIKLIK
+   sekarang .header-trigger, membungkus avatar + teks + panah sekaligus,
+   supaya seluruh kartu "Selamat Datang" jadi area klik, bukan cuma
+   lingkaran foto. Lihat penjelasan lengkap di templates/dashboard.html. */
+.header-trigger {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-4);
+  width: 100%;
   border: none;
+  background: none;
   padding: 0;
+  margin: 0;
   cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+
+.header-trigger-arrow {
+  margin-left: auto;
+  flex-shrink: 0;
+  color: var(--gray-400);
+  font-size: 1.1rem;
+  transition: transform var(--transition-fast);
+}
+
+/* Panah ikut berputar 180 derajat saat dropdown terbuka -- penanda
+   visual tambahan (bukan cuma warna aria-expanded) supaya jelas
+   statusnya terbuka/tertutup. Class "buka" ditoggle di js/main.js. */
+.header-trigger[aria-expanded="true"] .header-trigger-arrow {
+  transform: rotate(180deg);
 }
 
 .avatar-dropdown-menu {
