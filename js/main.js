@@ -215,29 +215,42 @@ function setupAvatarDropdown() {
     // untuk mengganti foto profil, tidak boleh dipakai sebagai trigger
     // klik lagi karena innerHTML-nya bisa ditimpa foto).
     const avatarBtn = document.getElementById('headerTriggerBtn');
+    // PATCH v3: pemicu KEDUA khusus desktop (ikon pojok kanan atas) --
+    // di breakpoint desktop, avatarBtn di atas otomatis tidak bisa diklik
+    // lagi (pointer-events:none lewat CSS), jadi tombol inilah yang
+    // benar-benar aktif di sana. Keduanya sengaja dibuat SELALU terwire
+    // di JS (tidak perlu deteksi lebar layar di sini) -- CSS yang
+    // menentukan mana yang kelihatan & bisa diklik per breakpoint.
+    const desktopBtn = document.getElementById('headerMenuBtnDesktop');
     const dropdown = document.getElementById('avatarDropdownMenu');
     // PATCH: overlay di belakang dropdown -- lihat penjelasan lengkap di
     // templates/dashboard.html #avatarDropdownOverlay. Ditoggle bersamaan
-    // dengan dropdown-nya di bukaDropdown()/tutupDropdown() di bawah.
+    // dengan dropdown-nya di bukaDropdown()/tutupDropdown() di bawah
+    // (otomatis tidak kelihatan di desktop lewat CSS, meski class hidden
+    // ini tetap ditoggle sama seperti biasa).
     const overlay = document.getElementById('avatarDropdownOverlay');
-    if (!avatarBtn || !dropdown) return;
+    if (!dropdown || (!avatarBtn && !desktopBtn)) return;
 
     function tutupDropdown() {
         dropdown.classList.add('hidden');
         overlay?.classList.add('hidden');
-        avatarBtn.setAttribute('aria-expanded', 'false');
+        avatarBtn?.setAttribute('aria-expanded', 'false');
+        desktopBtn?.setAttribute('aria-expanded', 'false');
     }
     function bukaDropdown() {
         dropdown.classList.remove('hidden');
         overlay?.classList.remove('hidden');
-        avatarBtn.setAttribute('aria-expanded', 'true');
+        avatarBtn?.setAttribute('aria-expanded', 'true');
+        desktopBtn?.setAttribute('aria-expanded', 'true');
     }
-
-    avatarBtn.addEventListener('click', (e) => {
+    function toggleDropdown(e) {
         e.stopPropagation(); // jangan sampai langsung ketangkap listener "klik di luar" di bawah
         const sedangTerbuka = !dropdown.classList.contains('hidden');
         if (sedangTerbuka) tutupDropdown(); else bukaDropdown();
-    });
+    }
+
+    avatarBtn?.addEventListener('click', toggleDropdown);
+    desktopBtn?.addEventListener('click', toggleDropdown);
 
     // Klik item di dalam dropdown (Profil/Admin/Keluar) -- tutup dropdown
     // setelah dipilih, biar tidak menggantung terbuka begitu pindah panel.
@@ -246,15 +259,19 @@ function setupAvatarDropdown() {
     });
 
     // Klik di mana saja pada overlay -- tutup dropdown (cara paling
-    // eksplisit, karena sekarang overlay menutupi seluruh layar).
+    // eksplisit, karena sekarang overlay menutupi seluruh layar). Cuma
+    // relevan di mobile (bottom sheet) -- di desktop overlay-nya memang
+    // tidak dirender (display:none lewat CSS), jadi listener ini otomatis
+    // tidak pernah terpicu di sana.
     overlay?.addEventListener('click', () => tutupDropdown());
 
-    // Klik di luar area dropdown & tombol avatar -- tutup juga (jaring
-    // pengaman tambahan, mis. kalau ada yang berhasil klik tembus overlay
-    // lewat cara lain).
+    // Klik di luar area dropdown & kedua tombol pemicu -- tutup juga
+    // (jaring pengaman tambahan, mis. kalau ada yang berhasil klik tembus
+    // overlay lewat cara lain, atau di desktop yang memang tidak ada
+    // overlay-nya sama sekali).
     document.addEventListener('click', (e) => {
         if (dropdown.classList.contains('hidden')) return;
-        if (!dropdown.contains(e.target) && e.target !== avatarBtn) tutupDropdown();
+        if (!dropdown.contains(e.target) && e.target !== avatarBtn && e.target !== desktopBtn) tutupDropdown();
     });
 }
 
