@@ -2,28 +2,34 @@
 <section id="dashboardSection">
     <div class="header-card">
         <div class="header-content">
-            <!-- PATCH TATA ULANG NAVIGASI: avatar sekarang jadi TOMBOL yang
-                 bisa diklik untuk membuka menu dropdown kecil (Profil, Admin,
-                 Keluar) -- dipindah dari baris tab bawah supaya tab utama
-                 tetap ringkas (Dashboard, Input, Riwayat, Rekap) walau nanti
-                 ada fitur baru (mis. Nilai) yang perlu ditambahkan sebagai
-                 tab "Lainnya" terpisah. Menu ini murni memakai ULANG mekanisme
-                 klik-tab yang sudah ada (class "tab-btn" + atribut
-                 data-tab="panelProfil"/"panelAdmin" tetap dikenali oleh
-                 setupTabNavigation() di js/absensi.js tanpa perlu logika
-                 baru) -- cuma tambahan buka/tutup dropdown-nya saja yang baru
-                 (lihat js/main.js). -->
+            <!-- PATCH TATA ULANG NAVIGASI (v2): area yang bisa diklik untuk
+                 membuka menu akun (Profil/Admin/Keluar) diperluas ke SELURUH
+                 kartu "Selamat Datang" (avatar + nama + tanggal), bukan cuma
+                 lingkaran foto kecil -- supaya lebih jelas kalau ini bisa
+                 diklik, tanpa mengandalkan pengguna mengenali ikon tertentu.
+                 Ditambah panah kecil (▾) sebagai penanda visual tambahan.
+                 PENTING: id "headerAvatar" TETAP di elemen lingkaran foto
+                 kecil (bukan di tombol pembungkusnya) -- js/profil.js
+                 mengganti innerHTML elemen ini dengan foto profil, jadi
+                 harus tetap elemen KECIL itu saja, bukan seluruh tombol
+                 (kalau tidak, foto profil akan menimpa teks "Selamat
+                 Datang" juga). Tombol pembungkusnya sendiri pakai id baru
+                 "headerTriggerBtn" -- lihat setupAvatarDropdown() di
+                 js/main.js. -->
             <div class="avatar-menu-wrapper" id="avatarMenuWrapper">
-                <button type="button" class="header-avatar" id="headerAvatar" aria-haspopup="true" aria-expanded="false" title="Menu akun">👨‍🏫</button>
+                <button type="button" class="header-trigger" id="headerTriggerBtn" aria-haspopup="true" aria-expanded="false" title="Menu akun">
+                    <span class="header-avatar" id="headerAvatar">👨‍🏫</span>
+                    <span class="header-info-text">
+                        <h2 id="greeting">Selamat Datang!</h2>
+                        <p class="header-date" id="headerDate"></p>
+                    </span>
+                    <span class="header-trigger-arrow" aria-hidden="true">▾</span>
+                </button>
                 <div class="avatar-dropdown-menu hidden" id="avatarDropdownMenu" role="menu">
                     <button type="button" class="tab-btn avatar-dropdown-item" data-tab="panelProfil" role="menuitem"><span class="tab-icon">👤</span> Profil</button>
                     <button type="button" class="tab-btn avatar-dropdown-item hidden" data-tab="panelAdmin" id="tabBtnAdmin" role="menuitem"><span class="tab-icon">⚙️</span> Admin</button>
                     <button type="button" class="avatar-dropdown-item avatar-dropdown-item-bahaya" data-action="logout" role="menuitem"><span>🚪</span> Keluar</button>
                 </div>
-            </div>
-            <div class="header-info-text">
-                <h2 id="greeting">Selamat Datang!</h2>
-                <p class="header-date" id="headerDate"></p>
             </div>
         </div>
     </div>
