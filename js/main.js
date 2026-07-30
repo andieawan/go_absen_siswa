@@ -129,6 +129,22 @@ async function renderKetuaKelasPage(token) {
 /**
  * Render halaman Dashboard
  */
+// PATCH v2 (visual dropdown): label peran singkat untuk header dropdown
+// akun -- prioritas: Wali Kelas (paling spesifik/personal) -> Super
+// Admin/Admin -> Kepala Sekolah -> fallback "Guru Mapel". Akun multi-role
+// bisa dapat lebih dari 1 label sekaligus (dipisah "·"), mis. wakasek
+// yang juga wali kelas: "Wali Kelas XI DKV 1 · Admin".
+function buatLabelPeran(user) {
+    const bagian = [];
+    const roleList = (user && user.roleList) || [];
+    if (user && user.kelasWali) bagian.push('Wali Kelas ' + user.kelasWali);
+    if (roleList.indexOf('superadmin') !== -1) bagian.push('Super Admin');
+    else if (roleList.indexOf('admin') !== -1) bagian.push('Admin');
+    if (roleList.indexOf('kepsek') !== -1) bagian.push('Kepala Sekolah');
+    if (bagian.length === 0) bagian.push('Guru Mapel');
+    return bagian.join(' · ');
+}
+
 async function renderDashboard() {
     const template = await loadTemplate('dashboard');
     if (template) {
@@ -145,6 +161,15 @@ async function renderDashboard() {
                 const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
                 headerDateEl.textContent = now.toLocaleDateString('id-ID', options);
             }
+
+            // PATCH v2 (visual dropdown): isi header identitas di dalam
+            // dropdown akun (nama + label peran) -- lihat buatLabelPeran()
+            // di bawah dan #avatarDropdownNama/#avatarDropdownPeran di
+            // templates/dashboard.html.
+            const dropdownNamaEl = document.getElementById('avatarDropdownNama');
+            if (dropdownNamaEl) dropdownNamaEl.textContent = currentUser.nama;
+            const dropdownPeranEl = document.getElementById('avatarDropdownPeran');
+            if (dropdownPeranEl) dropdownPeranEl.textContent = buatLabelPeran(currentUser);
         }
 
         // PATCH TAHAP 2 (sistem peran): akun yang TIDAK punya role "guru"
