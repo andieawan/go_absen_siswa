@@ -15,8 +15,8 @@
  * (tanggal tetap = hari ini, tidak bisa diubah).
  */
 
-import { getInfoKetuaKelas, submitAbsenKetuaKelas } from './api.js?v=20260726';
-import { escapeHtml, showGlobalLoading, hideGlobalLoading, showNotification } from './utils.js?v=20260726';
+import { getInfoKetuaKelas, submitAbsenKetuaKelas } from './api.js?v=20260731';
+import { escapeHtml, showGlobalLoading, hideGlobalLoading, showNotification } from './utils.js?v=20260731';
 
 const STATUS_LABEL = { H: 'Hadir', I: 'Izin', S: 'Sakit', A: 'Alpa' };
 
