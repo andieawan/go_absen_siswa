@@ -213,6 +213,16 @@ export function kompresGambarSebelumUpload(file) {
                 canvas.width = width;
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
+                // PATCH: kanvas HTML defaultnya TRANSPARAN, dan area
+                // transparan itu jadi HITAM begitu diekspor ke JPEG (JPEG
+                // tidak punya kanal transparansi) -- gejalanya persis
+                // seperti logo dengan latar PNG transparan yang berubah
+                // jadi bersisi hitam setelah diunggah. Diperbaiki dengan
+                // mengisi latar PUTIH dulu SEBELUM gambar digambar di
+                // atasnya, supaya area transparan jadi putih (jauh lebih
+                // wajar untuk logo/foto), bukan hitam.
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, width, height);
                 ctx.drawImage(img, 0, 0, width, height);
 
                 const dataUrl = canvas.toDataURL('image/jpeg', KUALITAS_JPEG);
