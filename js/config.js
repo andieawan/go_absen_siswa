@@ -34,6 +34,15 @@ export const CONFIG = {
     SSO_COOKIE_MAX_AGE_SECONDS: 12 * 60 * 60,
 
     DEFAULT_TIMEOUT: 30000, // 30 detik
+
+    // PATCH PWA (uji coba): kalau true, aplikasi mendaftarkan diri sebagai
+    // PWA (bisa "Tambahkan ke Layar Utama" + bekerja offline sebagian) --
+    // lihat setupPwaJikaAktif() di js/main.js. Ubah ke true untuk mulai
+    // uji coba, false untuk mematikan sementara. CATATAN: mematikan ini
+    // TIDAK otomatis mencabut instalasi PWA yang SUDAH TERLANJUR terpasang
+    // di HP orang yang sempat menginstal saat masih true -- itu perlu
+    // dicabut manual dari pengaturan aplikasi di HP mereka masing-masing.
+    PWA_AKTIF: false,
     
     // Status Absensi
     STATUS_ABSEN: {
