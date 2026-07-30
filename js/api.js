@@ -414,6 +414,33 @@ export async function updateRoleAkun(targetUsername, roleCsvBaru) {
     }
 }
 
+// ===== LOGO SEKOLAH (tampil di halaman login) =====
+
+// PATCH: PUBLIK -- SENGAJA TIDAK pakai requireAuth() sama sekali, karena
+// dipanggil dari halaman LOGIN (sebelum ada yang login). Backend
+// (Router.gs) juga menempatkan action ini di bagian publik yang sama,
+// tanpa validasi token.
+export async function getLogoSekolah() {
+    try {
+        return await postJson({ action: 'getLogoSekolah' });
+    } catch (error) {
+        console.error('Get logo sekolah error:', error);
+        throw error;
+    }
+}
+
+// Upload/ganti logo sekolah -- BUTUH login admin/superadmin, beda dari
+// getLogoSekolah() di atas yang publik.
+export async function uploadLogoSekolah(base64Data, mimeType) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'uploadLogoSekolah', base64Data, mimeType, username, token });
+    } catch (error) {
+        console.error('Upload logo sekolah error:', error);
+        throw error;
+    }
+}
+
 // Ambil detail 1 siswa (klik nama di kotak "Perlu Perhatian", konteks
 // dashboard Per Mapel) -- `mapel` boleh 1 mapel (lagi difilter ke 1
 // kombinasi) atau daftar dipisah koma (tampilan gabungan semua mapel).
@@ -843,6 +870,8 @@ export default {
     nonaktifkanAkunGuru,
     aktifkanKembaliAkunGuru,
     updateRoleAkun,
+    getLogoSekolah,
+    uploadLogoSekolah,
     getDetailSiswaPerhatian,
     getDetailSiswaPerhatianWali,
     getDashboardDataWali,
