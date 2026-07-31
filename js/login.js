@@ -1,5 +1,5 @@
-import { login, getLogoSekolah } from './api.js?v=20260731f';
-import { showGlobalLoading, hideGlobalLoading, escapeHtml } from './utils.js?v=20260731f';
+import { login, getLogoSekolah } from './api.js?v=20260731g';
+import { showGlobalLoading, hideGlobalLoading, escapeHtml } from './utils.js?v=20260731g';
 
 /**
  * Login Module

@@ -45,9 +45,9 @@ import {
     getKegiatanNilai,
     getNilaiUntukKegiatan,
     hapusKegiatanNilai
-} from './api.js?v=20260731f';
-import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731f';
-import { showConfirm } from './modal.js?v=20260731f';
+} from './api.js?v=20260731g';
+import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731g';
+import { showConfirm } from './modal.js?v=20260731g';
 
 // Cache daftar siswa per kelas supaya tidak fetch berulang kali
 // dalam satu sesi dashboard yang sama.
@@ -594,10 +594,26 @@ function setupRiwayatPanel(user) {
             ? user.mapelList.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('')
             : '<option value="" disabled selected>Tidak ada mapel</option>';
     }
-    if (riwayatKelas) {
+
+    // PATCH BUG (pasangan mapel-kelas): sebelumnya dropdown kelas di sini
+    // diisi SEKALI SAJA dengan SELURUH user.kelasList secara statis, tidak
+    // pernah ikut difilter ulang saat mapel berganti -- beda dari form
+    // Input Absensi (setupInputAbsensiForm) dan Riwayat Nilai
+    // (setupRiwayatNilai) yang SUDAH benar. Akibatnya: guru dengan
+    // pengecualian pasangan mapel-kelas tetap melihat SEMUA kelasnya di
+    // sini, padahal harusnya cuma kelas yang dipasangkan ke mapel yang
+    // sedang dipilih. Diperbaiki dengan pola yang SAMA PERSIS dengan 2
+    // tempat lain itu.
+    function perbaruiOpsiKelasRiwayat() {
+        if (!riwayatKelas) return;
+        const mapelTerpilih = riwayatMapel?.value;
+        const kelasBoleh = mapelTerpilih ? getKelasUntukMapelClient(user, mapelTerpilih) : user.kelasList;
+        const kelasSekarang = riwayatKelas.value;
         riwayatKelas.innerHTML = '<option value="" disabled selected>-- Pilih Kelas --</option>' +
-            user.kelasList.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
+            kelasBoleh.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
+        if (kelasBoleh.indexOf(kelasSekarang) !== -1) riwayatKelas.value = kelasSekarang;
     }
+    perbaruiOpsiKelasRiwayat();
 
     async function loadRiwayatMapel() {
         const mapel = riwayatMapel?.value;
@@ -617,7 +633,7 @@ function setupRiwayatPanel(user) {
         }
     }
 
-    if (riwayatMapel) riwayatMapel.addEventListener('change', loadRiwayatMapel);
+    if (riwayatMapel) riwayatMapel.addEventListener('change', () => { perbaruiOpsiKelasRiwayat(); loadRiwayatMapel(); });
     if (riwayatKelas) riwayatKelas.addEventListener('change', loadRiwayatMapel);
     if (riwayatMapel?.value && riwayatKelas?.value) loadRiwayatMapel();
 

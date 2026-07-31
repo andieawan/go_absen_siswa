@@ -2,8 +2,8 @@
 // PANEL PROFIL AKUN (nama, ganti password, foto profil)
 // =========================================================
 
-import { getProfilSaya, updateProfil, uploadFotoProfil } from './api.js?v=20260731f';
-import { showNotification, escapeHtml } from './utils.js?v=20260731f';
+import { getProfilSaya, updateProfil, uploadFotoProfil } from './api.js?v=20260731g';
+import { showNotification, escapeHtml } from './utils.js?v=20260731g';
 
 const UKURAN_MAKS_FOTO_PX = 400; // foto diresize maks 400x400px sebelum diunggah
 const KUALITAS_JPEG = 0.8;       // 0-1, semakin kecil semakin kecil ukuran filenya
