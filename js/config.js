@@ -33,7 +33,15 @@ export const CONFIG = {
     // membingungkan antara cookie di browser vs token di backend.
     SSO_COOKIE_MAX_AGE_SECONDS: 12 * 60 * 60,
 
-    DEFAULT_TIMEOUT: 30000, // 30 detik
+    // PATCH: dinaikkan dari 30 detik -- pembuatan spreadsheet BARU
+    // (pertama kali untuk 1 kombinasi kelas+semester) melibatkan banyak
+    // panggilan Drive/Sheets API berurutan (buat file, pindah folder,
+    // buat tab, isi header) yang kadang bisa melebihi 30 detik,
+    // terutama saat koneksi/beban server Google sedang lambat. Ini
+    // BUKAN kegagalan -- backend tetap lanjut memproses walau koneksi
+    // browser sudah menyerah duluan, tapi pengguna butuh waktu tunggu
+    // yang cukup supaya tidak salah kira ada yang error.
+    DEFAULT_TIMEOUT: 60000, // 60 detik
 
     // PATCH PWA (uji coba): kalau true, aplikasi mendaftarkan diri sebagai
     // PWA (bisa "Tambahkan ke Layar Utama" + bekerja offline sebagian) --
