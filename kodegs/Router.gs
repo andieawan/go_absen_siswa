@@ -366,6 +366,105 @@ function doPost(e) {
         return uploadLogoSekolah(data.base64Data, data.mimeType);
       });
 
+    // ===== FITUR: Upload Absensi Hardcopy -> Softcopy (link Google Sheets) =====
+    } else if (data.action === 'buatLinkUploadAbsensi' && data.opsi) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'admin') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak membuat link upload absensi." };
+        }
+        return buatLinkUploadAbsensi(data.opsi, data.username);
+      });
+
+    } else if (data.action === 'getDaftarLinkUploadAbsensi') {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'admin') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak mengakses daftar link upload absensi." };
+        }
+        return getDaftarLinkUploadAbsensi();
+      });
+
+    } else if (data.action === 'previewImportAbsenDariLink' && data.linkToken) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'admin') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak mempratinjau link upload absensi." };
+        }
+        return previewImportAbsenDariLink(data.linkToken);
+      });
+
+    } else if (data.action === 'jalankanImportAbsenDariLink' && data.linkToken) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'admin') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak menjalankan import absensi." };
+        }
+        return jalankanImportAbsenDariLink(data.linkToken);
+      });
+
+    } else if (data.action === 'nonaktifkanLinkUploadAbsensi' && data.linkToken) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'admin') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak menonaktifkan link upload absensi." };
+        }
+        return nonaktifkanLinkUploadAbsensi(data.linkToken);
+      });
+
+    // ===== FITUR NILAI (Tahap 2) -- khusus guru mapel, pakai pengecekan
+    // pasangan mapel-kelas yang sama dengan action Absensi (lihat
+    // kelasBolehUntukMapel() di PasanganMapelKelas.gs). =====
+    } else if (data.action === 'simpanKegiatanNilai' && data.payload) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!kelasBolehUntukMapel(akun, data.payload.mapel, data.payload.kelas)) {
+          return { success: false, message: "Anda tidak berhak mengisi nilai untuk mata pelajaran/kelas ini." };
+        }
+        data.payload.guru = akun.nama;
+        return handleSimpanKegiatanNilai(data.payload);
+      });
+
+    } else if (data.action === 'getKegiatanNilai' && data.mapel && data.kelas) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!kelasBolehUntukMapel(akun, data.mapel, data.kelas)) {
+          return { success: false, message: "Anda tidak berhak mengakses data nilai ini." };
+        }
+        return getKegiatanNilai(data.mapel, data.kelas);
+      });
+
+    } else if (data.action === 'getNilaiUntukKegiatan' && data.mapel && data.kelas && data.kegiatanId) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!kelasBolehUntukMapel(akun, data.mapel, data.kelas)) {
+          return { success: false, message: "Anda tidak berhak mengakses data nilai ini." };
+        }
+        return getNilaiUntukKegiatan(data.mapel, data.kelas, data.kegiatanId);
+      });
+
+    } else if (data.action === 'hapusKegiatanNilai' && data.mapel && data.kelas && data.kegiatanId) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!kelasBolehUntukMapel(akun, data.mapel, data.kelas)) {
+          return { success: false, message: "Anda tidak berhak menghapus data nilai ini." };
+        }
+        return handleHapusKegiatanNilai(data.mapel, data.kelas, data.kegiatanId);
+      });
+
+    // ===== FITUR NILAI (Tahap 3): Rekap -- sama persis pola otorisasi
+    // dengan getRekapKelasSaya() di atas (request gabungan, aman karena
+    // penyimpanan data nilai sudah digerbang ketat lewat
+    // kelasBolehUntukMapel() di simpanKegiatanNilai). =====
+    } else if (data.action === 'getRekapNilaiKelasSaya' && data.mapel && data.kelas) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        const mapelDiminta = splitList(data.mapel);
+        const kelasDiminta = splitList(data.kelas);
+
+        if (mapelDiminta.length === 0 || kelasDiminta.length === 0) {
+          return { success: false, message: "Mata pelajaran atau kelas tidak valid." };
+        }
+
+        const semuaMapelValid = mapelDiminta.every(m => akun.mapelList.indexOf(m) !== -1);
+        const semuaKelasValid = kelasDiminta.every(k => akun.kelasList.indexOf(k) !== -1);
+
+        if (!semuaMapelValid || !semuaKelasValid) {
+          return { success: false, message: "Anda tidak berhak mengunduh rekap ini." };
+        }
+        return getRekapNilaiKelasSaya(data.mapel, data.kelas);
+      });
+
     // ===== FIX: fallback eksplisit untuk action tak dikenal / parameter kurang =====
     } else {
       response.message = "Aksi tidak dikenali atau parameter tidak lengkap: " + (data.action || '(kosong)');
