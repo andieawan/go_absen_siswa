@@ -28,7 +28,7 @@
  * =========================================================
  */
 
-import { getDashboardData, getDetailSiswaPerhatian, getDetailSiswaPerhatianWali, getDashboardDataWali, getDashboardSekolah, getSiswaByKelas, getCurrentUser } from './api.js?v=20260731h';
+import { getDashboardData, getDetailSiswaPerhatian, getDetailSiswaPerhatianWali, getDashboardDataWali, getDashboardSekolah, getSiswaByKelas, getCurrentUser, getRingkasanNilaiUntukDashboard } from './api.js?v=20260731i';
 // PATCH PERFORMA: escapeHtml dipakai dari utils.js (regex string-replace),
 // bukan implementasi lokal yang sebelumnya ada di file ini. Implementasi
 // lama membuat elemen <div> DOM baru pada SETIAP pemanggilan (lihat riwayat
@@ -36,9 +36,9 @@ import { getDashboardData, getDetailSiswaPerhatian, getDetailSiswaPerhatianWali,
 // terpanggil berulang kali di dalam .map()/.forEach() saat merender daftar
 // topAlpa & rekap kelas/mapel. Juga menghapus duplikasi kode yang sama
 // persis fungsinya dengan utils.js.
-import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731h';
-import { showRichModal } from './modal.js?v=20260731h';
-import { navigasiKeEditAbsensi } from './absensi.js?v=20260731h';
+import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731i';
+import { showRichModal } from './modal.js?v=20260731i';
+import { navigasiKeEditAbsensi } from './absensi.js?v=20260731i';
 
 // Cache untuk data dashboard
 let dashboardCache = {
@@ -720,7 +720,16 @@ async function loadDashboardMapel() {
         const mapel = mapelList.join(',');
         const kelas = kelasList.join(',');
 
-        const response = await getDashboardData(mapel, kelas);
+        // PATCH FITUR NILAI (Tahap 4): ambil ringkasan nilai BERBARENGAN
+        // (paralel) dengan data absensi -- gagal diam-diam ke `null` kalau
+        // errornya (mis. belum ada data nilai sama sekali, atau folder
+        // Drive Nilai belum dikonfigurasi admin) supaya dashboard absensi
+        // TETAP tampil normal, tidak ikut gagal gara-gara Nilai.
+        const [response, ringkasanNilaiRes] = await Promise.all([
+            getDashboardData(mapel, kelas),
+            getRingkasanNilaiUntukDashboard(mapel, kelas).catch(() => null)
+        ]);
+        const ringkasanNilai = (ringkasanNilaiRes && ringkasanNilaiRes.success) ? ringkasanNilaiRes.data : null;
 
         if (!response.success) {
             throw new Error(response.message || 'Gagal memuat data dashboard');
@@ -745,6 +754,11 @@ async function loadDashboardMapel() {
             renderDistribusiStatus(data.rataRata, 'distribusiMapelList');
             pasangKlikDistribusiPerMapel('distribusiMapelList');
         }
+
+        // PATCH FITUR NILAI (Tahap 4): Ringkasan & Saran -- sebelumnya
+        // dashboard Per Mapel BELUM PUNYA narasi ini sama sekali (cuma
+        // Wali & Sekolah). Digabung dengan sinyal Nilai kalau ada.
+        renderRingkasanNarasiMapel(data, ringkasanNilai);
 
         if (data.trend && data.trend.length > 0) {
             renderTrendChart(data.trend, 'trendChart');
@@ -1105,6 +1119,186 @@ function renderRingkasanNarasiWali(data) {
     }
 }
 
+// =========================================================
+// PATCH: Ringkasan & Saran -- Dashboard PER MAPEL (sebelumnya BELUM
+// ADA sama sekali, cuma Wali & Sekolah -- Tahap 4 melengkapi ini,
+// SEKALIGUS digabung dengan sinyal Nilai, lihat
+// buatSaranGabunganAbsenNilai() di bawah).
+// Pola & ambang batas SAMA PERSIS dengan versi Wali di atas, cuma
+// sumber datanya beda field (data.trend, bukan data.statistikHarian --
+// lihat catatan di getDashboardData(), Dashboard.gs).
+// =========================================================
+function analisisTrenMapel(data) {
+    const trend = data.trend || [];
+    const persenSekarang = (data.rataRata && data.rataRata.hadir) || 0;
+
+    let labelKondisi;
+    if (persenSekarang >= 90) labelKondisi = 'sangat baik';
+    else if (persenSekarang >= 80) labelKondisi = 'cukup baik';
+    else if (persenSekarang >= 70) labelKondisi = 'perlu diperhatikan';
+    else labelKondisi = 'cukup mengkhawatirkan';
+
+    let arahTren = null, rataAwal = null, rataAkhir = null;
+    if (trend.length >= 4) {
+        const tengah = Math.floor(trend.length / 2);
+        rataAwal = rataRataArray(trend.slice(0, tengah).map(t => t.persenHadir));
+        rataAkhir = rataRataArray(trend.slice(tengah).map(t => t.persenHadir));
+        const selisih = Math.round((rataAkhir - rataAwal) * 10) / 10;
+        if (selisih >= 3) arahTren = 'membaik';
+        else if (selisih <= -3) arahTren = 'menurun';
+        else arahTren = 'stabil';
+    }
+
+    // PATCH: tidak ada "totalSiswa" siap pakai di level gabungan (beda
+    // dari Wali yang cuma 1 kelas) -- Per Mapel mencakup BANYAK
+    // kombinasi kelas sekaligus, "jumlah siswa" kurang punya makna
+    // tunggal yang jelas di sini. Dipakai "jumlah kombinasi kelas" &
+    // "total pertemuan" sebagai gantinya, keduanya tersedia & bermakna.
+    const totalPertemuan = (data.rekapKelasMapel || []).reduce((sum, item) => sum + (item.pertemuan || 0), 0);
+    const jumlahKombinasi = (data.rekapKelasMapel || []).length;
+
+    const p = data.perhatian || {};
+    const daftarAlpa = p.alpa || [];
+    const daftarJarangMasuk = p.jarangMasuk || [];
+    const daftarSakit = p.sakit || [];
+    const totalAlpaSiswa = daftarAlpa.length;
+    const totalJarangMasuk = daftarJarangMasuk.length;
+    const siswaAlpaMenonjol = totalAlpaSiswa > 0 ? daftarAlpa[0] : null;
+    const totalSiswaSakit = daftarSakit.length;
+    const siswaSakitMenonjol = totalSiswaSakit > 0 ? daftarSakit[0] : null;
+
+    return {
+        persenSekarang, labelKondisi,
+        totalPertemuan, jumlahKombinasi,
+        arahTren, rataAwal, rataAkhir,
+        totalAlpaSiswa, totalJarangMasuk, daftarJarangMasuk,
+        siswaAlpaMenonjol, totalSiswaSakit, siswaSakitMenonjol, daftarAlpa, daftarSakit
+    };
+}
+
+function buatRingkasanTrenMapel(a) {
+    const kalimat = [];
+
+    kalimat.push(`Secara keseluruhan, tingkat kehadiran untuk mata pelajaran ini pada periode ini adalah <strong>${a.persenSekarang.toFixed(1)}%</strong>, tergolong <strong>${a.labelKondisi}</strong>, dari ${a.jumlahKombinasi} kombinasi kelas yang diajar dan ${a.totalPertemuan} total pertemuan yang tercatat.`);
+
+    if (a.arahTren === 'membaik') {
+        kalimat.push(`Tren kehadiran mata pelajaran ini menunjukkan <strong>peningkatan</strong> -- dari rata-rata ${a.rataAwal.toFixed(1)}% di awal periode menjadi ${a.rataAkhir.toFixed(1)}% belakangan ini.`);
+    } else if (a.arahTren === 'menurun') {
+        kalimat.push(`Tren kehadiran mata pelajaran ini menunjukkan <strong>penurunan</strong> -- dari rata-rata ${a.rataAwal.toFixed(1)}% di awal periode menjadi ${a.rataAkhir.toFixed(1)}% belakangan ini. Ini perlu ditindaklanjuti.`);
+    } else if (a.arahTren === 'stabil') {
+        kalimat.push(`Tren kehadiran mata pelajaran ini <strong>relatif stabil</strong>, berkisar di angka ${a.rataAwal.toFixed(1)}%-${a.rataAkhir.toFixed(1)}%, tanpa perubahan besar.`);
+    }
+
+    const sebutanJarangMasuk = sebutkanSiswaTeratas(a.daftarJarangMasuk, AMBANG_URGEN_PERHATIAN.jarangMasuk);
+    if (sebutanJarangMasuk) {
+        kalimat.push(`Tercatat siswa dengan riwayat jarang masuk (gabungan Alpa/Izin/Sakit) yang cukup mengkhawatirkan (≥${AMBANG_URGEN_PERHATIAN.jarangMasuk} kali dalam periode ini): ${sebutanJarangMasuk}.`);
+    } else if (a.totalAlpaSiswa === 0 && a.totalJarangMasuk === 0) {
+        kalimat.push('Tidak ada siswa dengan catatan Alpa untuk mata pelajaran ini pada periode ini -- kondisi kedisiplinan kehadiran tergolong baik.');
+    } else {
+        kalimat.push('Ada beberapa siswa dengan catatan tidak hadir sesekali, namun belum ada yang mencapai ambang batas urgensi pada periode ini.');
+    }
+
+    return kalimat;
+}
+
+function buatSaranTindakLanjutMapel(a) {
+    const saran = [];
+
+    if (a.labelKondisi === 'cukup mengkhawatirkan' || a.labelKondisi === 'perlu diperhatikan') {
+        saran.push(`Tingkat kehadiran mata pelajaran ini tergolong <strong>${a.labelKondisi}</strong> -- pertimbangkan menelusuri lebih lanjut penyebabnya, mis. lewat "Cek Riwayat Siswa" di bawah.`);
+    }
+
+    if (a.arahTren === 'menurun') {
+        saran.push('Tren kehadiran sedang menurun -- ada baiknya ditelusuri apakah ada pola tertentu (mis. jadwal, materi, atau faktor lain) yang bisa menjelaskan penurunan ini.');
+    }
+
+    const sebutanAlpa = sebutkanSiswaTeratas(a.daftarAlpa, AMBANG_URGEN_PERHATIAN.alpa);
+    if (sebutanAlpa) {
+        saran.push(`🔴 Tercatat siswa dengan catatan Alpa yang cukup mengkhawatirkan (≥${AMBANG_URGEN_PERHATIAN.alpa} kali): ${sebutanAlpa}. Disarankan dikoordinasikan dengan wali kelas masing-masing siswa.`);
+    }
+
+    const sebutanSakit = sebutkanSiswaTeratas(a.daftarSakit, AMBANG_URGEN_PERHATIAN.sakit);
+    if (sebutanSakit) {
+        saran.push(`🔵 Tercatat siswa dengan catatan Sakit yang cukup sering (≥${AMBANG_URGEN_PERHATIAN.sakit} kali): ${sebutanSakit}. Disarankan dikoordinasikan dengan wali kelas untuk konfirmasi ke orang tua/wali.`);
+    }
+
+    return saran;
+}
+
+/**
+ * PATCH FITUR NILAI (Tahap 4): titik temu absensi + nilai -- CARI
+ * siswa yang muncul di KEDUA daftar (jarang masuk DAN nilai turun di
+ * periode yang sama), tandai KHUSUS & PALING ATAS di daftar saran.
+ *
+ * PRINSIP DESAIN (disepakati sebelumnya): absensi & nilai TETAP
+ * dianalisis & ditampilkan TERPISAH (bukan dipaksa jadi 1 angka
+ * campuran) -- cuma TITIK TEMUNYA yang ditandai khusus, karena pola
+ * gabungan (menurun di KEDUA sisi) adalah sinyal yang jauh lebih kuat
+ * dibanding satu sisi saja. Tetap sekadar POLA/GEJALA, BUKAN kesimpulan
+ * sebab-akibat -- sama seperti prinsip yang dipegang di semua saran
+ * otomatis lain di aplikasi ini.
+ */
+function buatSaranGabunganAbsenNilai(analisisAbsen, ringkasanNilai) {
+    if (!ringkasanNilai || !ringkasanNilai.turunNilai || ringkasanNilai.turunNilai.length === 0) return [];
+
+    const nisJarangMasuk = new Set((analisisAbsen.daftarJarangMasuk || []).map(s => s.nis + '|' + s.kelas));
+    const keduanyaMenurun = ringkasanNilai.turunNilai.filter(s => nisJarangMasuk.has(s.nis + '|' + s.kelas));
+    if (keduanyaMenurun.length === 0) return [];
+
+    const MAKS_DISEBUT = 5;
+    const dipakai = keduanyaMenurun.slice(0, MAKS_DISEBUT).map(s => {
+        const siswaAbsen = (analisisAbsen.daftarJarangMasuk || []).find(x => x.nis === s.nis && x.kelas === s.kelas);
+        const nama = siswaAbsen ? siswaAbsen.nama : ('NIS ' + escapeHtml(s.nis) + ' (' + escapeHtml(s.kelas) + ')');
+        return `${nama} (nilai ${s.nilaiAwal.toFixed(0)}→${s.nilaiAkhir.toFixed(0)})`;
+    });
+    const sisa = keduanyaMenurun.length - dipakai.length;
+    let sebutan = dipakai.length === 1 ? dipakai[0]
+        : dipakai.length === 2 ? dipakai.join(' dan ')
+        : dipakai.slice(0, -1).join(', ') + ', dan ' + dipakai[dipakai.length - 1];
+    if (sisa > 0) sebutan += `, serta ${sisa} siswa lainnya`;
+
+    return [`⚠️ <strong>Perhatian khusus:</strong> ${keduanyaMenurun.length} siswa menunjukkan penurunan di KEDUA sisi sekaligus pada periode yang sama -- kehadiran dan nilai: ${sebutan}. Pola gabungan seperti ini biasanya sinyal yang lebih kuat dibanding satu sisi saja, layak diprioritaskan untuk ditindaklanjuti lebih dulu.`];
+}
+
+/**
+ * `ringkasanNilai` (opsional -- boleh null kalau belum sempat diambil
+ * atau memang belum ada data nilai sama sekali): hasil
+ * getRingkasanNilaiUntukDashboard() (lihat loadDashboardMapel()).
+ */
+function renderRingkasanNarasiMapel(data, ringkasanNilai) {
+    const containerRingkasan = document.getElementById('mapelRingkasanNarasi');
+    const containerSaran = document.getElementById('mapelSaranTindakLanjut');
+    if (!containerRingkasan && !containerSaran) return;
+
+    const a = analisisTrenMapel(data);
+
+    if (containerRingkasan) {
+        const kalimat = buatRingkasanTrenMapel(a);
+        // Kalimat ringkasan NILAI ditambahkan TERPISAH (bukan dicampur ke
+        // perhitungan absensi) -- sesuai prinsip desain di atas.
+        if (ringkasanNilai && ringkasanNilai.rataRataKeseluruhan !== null && ringkasanNilai.rataRataKeseluruhan !== undefined) {
+            kalimat.push(`Untuk nilai (kegiatan bertipe angka), rata-rata keseluruhan mata pelajaran ini adalah <strong>${ringkasanNilai.rataRataKeseluruhan.toFixed(1)}</strong> dari ${ringkasanNilai.jumlahKegiatanAngka} kegiatan yang tercatat.`);
+        }
+        containerRingkasan.innerHTML = kalimat.length > 0
+            ? kalimat.map(k => `<p>${k}</p>`).join('')
+            : '<p class="empty-state">Belum cukup data untuk membuat ringkasan.</p>';
+    }
+
+    if (containerSaran) {
+        // PATCH FITUR NILAI (Tahap 4): saran titik-temu absen+nilai
+        // ditaruh PALING ATAS (paling penting), sebelum saran absensi-saja.
+        const saran = buatSaranGabunganAbsenNilai(a, ringkasanNilai).concat(buatSaranTindakLanjutMapel(a));
+
+        if (saran.length === 0) {
+            containerSaran.innerHTML = '<p class="empty-state">Belum ada saran -- data masih terlalu sedikit.</p>';
+        } else {
+            const daftarHtml = '<ul class="saran-tindak-lanjut-list">' + saran.map(s => `<li>${s}</li>`).join('') + '</ul>';
+            const disclaimer = '<p class="saran-tindak-lanjut-disclaimer">⚠️ Saran ini dihasilkan otomatis oleh sistem berdasarkan data kehadiran & nilai, bukan pengganti penilaian profesional. Keputusan akhir tetap berada di tangan guru mata pelajaran.</p>';
+            containerSaran.innerHTML = daftarHtml + disclaimer;
+        }
+    }
+}
+
 async function loadDashboardWali() {
     const userData = getCurrentUser() || {};
     const kelasWali = userData.kelasWali;
@@ -1313,7 +1507,7 @@ function analisisTrenSekolah(data) {
 function buatRingkasanTrenSekolah(a) {
     const kalimat = [];
 
-    kalimat.push(`Secara keseluruhan, tingkat kehadiran siswa se-sekolah pada periode ini adalah <strong>${a.persenSekarang}%</strong>, tergolong <strong>${a.labelKondisi}</strong>, dari total ${a.jumlahKombinasi} kombinasi kelas dan mata pelajaran yang tercatat.`);
+    kalimat.push(`Secara keseluruhan, tingkat kehadiran siswa se-sekolah pada periode ini adalah <strong>${a.persenSekarang}%</strong>, tergolong <strong>${a.labelKondisi}</strong>, dari data absen harian ${a.jumlahKombinasi} kelas yang tercatat.`);
 
     if (a.arahTren === 'membaik') {
         kalimat.push(`Tren dalam periode ini menunjukkan <strong>peningkatan</strong> -- dari rata-rata ${a.rataAwal.toFixed(1)}% di awal periode menjadi ${a.rataAkhir.toFixed(1)}% belakangan ini.`);

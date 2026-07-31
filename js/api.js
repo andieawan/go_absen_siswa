@@ -46,9 +46,9 @@
  * =========================================================
  */
 
-import { CONFIG } from './config.js?v=20260731h';
-import { showNotification } from './utils.js?v=20260731h';
-import { setSsoCookie, getSsoCookie, deleteSsoCookie } from './ssocookie.js?v=20260731h';
+import { CONFIG } from './config.js?v=20260731i';
+import { showNotification } from './utils.js?v=20260731i';
+import { setSsoCookie, getSsoCookie, deleteSsoCookie } from './ssocookie.js?v=20260731i';
 
 // Helper untuk fetch dengan timeout dan error handling khusus Google Apps Script
 async function fetchWithTimeout(url, options = {}, timeout = CONFIG.DEFAULT_TIMEOUT) {
@@ -571,6 +571,19 @@ export async function uploadSiswaBatch(kelas, daftarSiswa) {
     }
 }
 
+// PATCH FITUR NILAI (Tahap 4): ringkasan nilai untuk digabung dengan
+// tren absensi di Dashboard Per Mapel -- lihat gabunganAbsenNilai() di
+// js/dashboard.js.
+export async function getRingkasanNilaiUntukDashboard(mapel, kelas) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'getRingkasanNilaiUntukDashboard', mapel, kelas, username, token });
+    } catch (error) {
+        console.error('Get ringkasan nilai untuk dashboard error:', error);
+        throw error;
+    }
+}
+
 // ===== FITUR NILAI (Tahap 2) =====
 
 // `payload`: { mapel, kelas, kegiatanId (opsional -- kosong = kegiatan
@@ -1086,6 +1099,7 @@ export default {
     nonaktifkanSiswa,
     aktifkanKembaliSiswa,
     uploadSiswaBatch,
+    getRingkasanNilaiUntukDashboard,
     simpanKegiatanNilai,
     getKegiatanNilai,
     getNilaiUntukKegiatan,
