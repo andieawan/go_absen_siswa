@@ -808,6 +808,58 @@
             <div id="daftarLinkUploadList"></div>
         </div>
 
+        <!-- PATCH: Kelola Data Siswa -- lihat kodegs/Siswa.gs. Hapus
+             permanen SENGAJA TIDAK disediakan (permintaan eksplisit),
+             tetap dilakukan manual dari Google Sheets -- lihat penjelasan
+             lengkap alasannya di Siswa.gs. -->
+        <div class="card">
+            <h4>👨‍🎓 Kelola Data Siswa</h4>
+            <p class="card-subtitle">Tambah, ubah, atau nonaktifkan siswa. Hapus permanen tetap dilakukan manual dari Google Sheets (data absen/nilai lama tetap mereferensikan NIS siswa, jadi lebih aman dinonaktifkan daripada dihapus).</p>
+
+            <div class="form-group">
+                <label for="siswaSelectKelas">Pilih Kelas</label>
+                <select id="siswaSelectKelas"><option value="" disabled selected>-- Pilih Kelas --</option></select>
+            </div>
+
+            <div id="siswaKelolaWrapper" class="hidden">
+                <p id="daftarSiswaLoading" class="hidden">Mengambil data siswa...</p>
+                <div id="daftarSiswaList"></div>
+
+                <h5 style="margin-top: var(--spacing-5);">➕ Tambah Siswa Baru</h5>
+                <form id="formTambahSiswa">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="siswaBaruNis">NIS</label>
+                            <input type="text" id="siswaBaruNis" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="siswaBaruNama">Nama</label>
+                            <input type="text" id="siswaBaruNama" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="siswaBaruJk">Jenis Kelamin</label>
+                            <select id="siswaBaruJk">
+                                <option value="">-</option>
+                                <option value="L">L</option>
+                                <option value="P">P</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn-primary btn-full">
+                        <span class="btn-text">➕ Tambah Siswa</span>
+                        <span class="btn-loader hidden">⏳ Menyimpan...</span>
+                    </button>
+                    <p id="formTambahSiswaMsg" class="login-msg"></p>
+                </form>
+
+                <h5 style="margin-top: var(--spacing-5);">📤 Upload Banyak Siswa Sekaligus</h5>
+                <p class="card-subtitle">File Excel/CSV dengan 3 kolom berurutan: NIS, Nama, Jenis Kelamin (L/P) -- baris pertama dianggap header, otomatis dilewati.</p>
+                <input type="file" id="inputUploadSiswa" accept=".xlsx,.xls,.csv" class="hidden">
+                <button type="button" id="btnPilihUploadSiswa" class="btn-secondary btn-full">📤 Pilih File untuk Upload</button>
+                <p id="uploadSiswaMsg" class="login-msg"></p>
+            </div>
+        </div>
+
         <div class="card">
             <h4 id="formAkunJudul">➕ Tambah Akun Guru</h4>
             <form id="formAkunGuru">
