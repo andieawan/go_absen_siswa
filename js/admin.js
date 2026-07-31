@@ -24,10 +24,10 @@ import {
     nonaktifkanSiswa,
     aktifkanKembaliSiswa,
     uploadSiswaBatch
-} from './api.js?v=20260731k';
-import { showNotification, escapeHtml } from './utils.js?v=20260731k';
-import { showConfirm, showRichModal } from './modal.js?v=20260731k';
-import { kompresGambarSebelumUpload } from './profil.js?v=20260731k';
+} from './api.js?v=20260731l';
+import { showNotification, escapeHtml } from './utils.js?v=20260731l';
+import { showConfirm, showRichModal } from './modal.js?v=20260731l';
+import { kompresGambarSebelumUpload } from './profil.js?v=20260731l';
 
 let usernameSedangDiedit = null; // null = mode tambah, string = mode edit
 let adalahSuperAdminSaatIni = false; // di-set di initAdmin(), dipakai ulang di beberapa fungsi lain di file ini
