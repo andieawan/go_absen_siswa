@@ -761,43 +761,156 @@
     <div id="panelAdmin" class="tab-panel hidden">
         <div class="panel-header">
             <h3>⚙️ Panel Admin</h3>
-            <p class="panel-subtitle">Kelola akun guru -- tambah, ubah, reset password, nonaktifkan</p>
+            <p class="panel-subtitle">Kelola akun guru, data siswa, upload absensi, dan pengaturan sekolah</p>
         </div>
 
-        <!-- PATCH: Logo Sekolah -- tampil di halaman login, menggantikan
-             ikon emoji bawaan (🏫). Beda dari foto profil (per akun), ini
-             SATU untuk seluruh aplikasi -- lihat getLogoSekolahUrl()/
-             uploadLogoSekolah() di kodegs/Admin.gs. Pola visualnya sengaja
-             disamakan dengan kartu foto profil di Panel Profil supaya
-             konsisten. -->
-        <div class="card profil-foto-card">
-            <h4>🏫 Logo Sekolah (Halaman Login)</h4>
-            <p class="card-subtitle">Gambar ini akan menggantikan ikon 🏫 bawaan di halaman login -- terlihat oleh SEMUA orang sebelum login, bukan cuma akun ini.</p>
-            <div class="profil-foto-wrapper">
-                <img id="logoSekolahPreview" class="profil-foto-preview hidden" src="" alt="Logo sekolah">
-                <div id="logoSekolahKosong" class="profil-foto-kosong">🏫</div>
+        <!-- PATCH: Panel Admin dipecah jadi sub-tab -- sebelumnya semua
+             kartu (Logo, Upload Absensi, Kelola Siswa, Akun Guru) berderet
+             panjang dalam 1 halaman. Pola sub-tab ini SAMA PERSIS dengan
+             yang sudah dipakai di Dashboard & Input/Riwayat (mekanisme
+             klik-nya generik & otomatis mencakup elemen baru di mana pun,
+             lihat listener .sub-tab-btn[data-subtab] global di
+             js/absensi.js -- TIDAK PERLU JS tambahan sama sekali untuk
+             sub-tab ini). Kalau nanti ada fitur admin baru, tinggal
+             tambah 1 sub-tab lagi di sini, tidak perlu restrukturisasi
+             ulang. -->
+        <div class="sub-tab-nav" id="adminSubTabNav">
+            <button class="sub-tab-btn active" data-subtab="subtabAdminAkun" id="subtabBtnAdminAkun">👤 Akun Guru</button>
+            <button class="sub-tab-btn" data-subtab="subtabAdminSiswa" id="subtabBtnAdminSiswa">👨‍🎓 Data Siswa</button>
+            <button class="sub-tab-btn" data-subtab="subtabAdminUpload" id="subtabBtnAdminUpload">📤 Upload Absensi</button>
+            <button class="sub-tab-btn" data-subtab="subtabAdminPengaturan" id="subtabBtnAdminPengaturan">⚙️ Pengaturan</button>
+        </div>
+
+        <!-- SUB-TAB: AKUN GURU -->
+        <div id="subtabAdminAkun" class="sub-tab-panel">
+            <div class="card">
+                <h4 id="formAkunJudul">➕ Tambah Akun Guru</h4>
+                <form id="formAkunGuru">
+                    <div class="form-group">
+                        <label for="akunUsername">Username</label>
+                        <input type="text" id="akunUsername" required placeholder="huruf kecil, angka, underscore -- mis. budi123">
+                    </div>
+                    <div class="form-group">
+                        <label for="akunNama">Nama Lengkap</label>
+                        <input type="text" id="akunNama" required placeholder="Nama lengkap guru">
+                    </div>
+                    <div class="form-group" id="akunPasswordGroup">
+                        <label for="akunPassword">Password Awal</label>
+                        <input type="password" id="akunPassword" placeholder="Minimal 6 karakter">
+                    </div>
+                    <div class="form-group">
+                        <label for="akunMapelList">Mata Pelajaran yang Diampu</label>
+                        <input type="text" id="akunMapelList" placeholder="Pisahkan dengan koma, mis. DKV,KIK">
+                    </div>
+                    <div class="form-group">
+                        <label for="akunKelasList">Kelas yang Diampu</label>
+                        <input type="text" id="akunKelasList" placeholder="Pisahkan dengan koma, mis. XI DKV 1,XI DKV 4">
+                    </div>
+                    <div class="form-group">
+                        <label for="akunKelasWali">Wali Kelas (kosongkan kalau bukan wali kelas)</label>
+                        <input type="text" id="akunKelasWali" placeholder="mis. XI DKV 1">
+                    </div>
+                    <div class="form-group">
+                        <label for="akunPasanganMapelKelas">Batasi Pasangan Mapel-Kelas (opsional)</label>
+                        <input type="text" id="akunPasanganMapelKelas" placeholder="Kosongkan kalau mengajar semua mapel di semua kelas di atas">
+                        <p class="card-subtitle">Isi HANYA kalau guru ini mengajar mapel tertentu cuma di kelas tertentu (bukan semua kelas di atas). Format: <code>DKV:XI DKV 1,XI DKV 2|KIK:XI DKV 3</code></p>
+                    </div>
+                    <button type="submit" class="btn-primary btn-full">
+                        <span class="btn-text">💾 Simpan</span>
+                        <span class="btn-loader hidden">⏳ Menyimpan...</span>
+                    </button>
+                    <button type="button" id="btnBatalEditAkun" class="btn-secondary btn-full hidden">✖️ Batal Edit</button>
+                    <p id="formAkunMsg" class="login-msg"></p>
+                </form>
             </div>
-            <input type="file" id="inputLogoSekolah" accept="image/*" class="hidden">
-            <button type="button" id="btnPilihLogoSekolah" class="btn-secondary btn-full">🖼️ Ganti Logo Sekolah</button>
-            <p id="logoSekolahMsg" class="login-msg"></p>
+
+            <div class="card">
+                <h4>📋 Daftar Akun Guru</h4>
+                <p class="card-subtitle" id="daftarAkunSubtitle">Memuat...</p>
+                <div id="daftarAkunList"></div>
+            </div>
         </div>
 
-        <!-- PATCH: Upload Absensi Hardcopy -> Softcopy -- lihat
-             kodegs/UploadAbsenLink.gs. Alur: admin buat link di sini ->
-             sistem otomatis bikin 1 Google Sheets baru dari template,
-             sudah terisi daftar siswa -> admin bagikan link ke guru/wali
-             kelas (di luar aplikasi, mis. WA) -> guru isi manual di
-             Sheets itu -> admin kembali ke sini, Pratinjau dulu (baca
-             saja) sebelum Import sungguhan. -->
-        <div class="card">
-            <h4>📤 Upload Absensi Hardcopy</h4>
-            <p class="card-subtitle">Buat link Google Sheets untuk guru/wali kelas isi data absen dari catatan kertas (hardcopy) secara manual -- setelah diisi, pratinjau dulu di sini sebelum benar-benar diimpor ke data absen.</p>
+        <!-- SUB-TAB: DATA SISWA -->
+        <div id="subtabAdminSiswa" class="sub-tab-panel hidden">
+            <!-- PATCH: Kelola Data Siswa -- lihat kodegs/Siswa.gs. Hapus
+                 permanen SENGAJA TIDAK disediakan (permintaan eksplisit),
+                 tetap dilakukan manual dari Google Sheets -- lihat
+                 penjelasan lengkap alasannya di Siswa.gs.
+                 PATCH v2: sebelumnya pakai dropdown "Pilih Kelas" --
+                 sekarang tabel semua kelas LANGSUNG tampil begitu sub-tab
+                 ini dibuka, klik 1 baris kelas untuk mulai kelola
+                 siswanya (tambah/edit/nonaktifkan/upload). -->
+            <div class="card">
+                <h4>👨‍🎓 Kelola Data Siswa</h4>
+                <p class="card-subtitle">Tambah, ubah, atau nonaktifkan siswa. Hapus permanen tetap dilakukan manual dari Google Sheets (data absen/nilai lama tetap mereferensikan NIS siswa, jadi lebih aman dinonaktifkan daripada dihapus).</p>
 
-            <form id="formBuatLinkUpload">
-                <div class="form-group">
-                    <label for="linkUploadJenis">Jenis Template</label>
-                    <select id="linkUploadJenis">
-                        <option value="mapel">Per Mata Pelajaran</option>
+                <div id="daftarKelasSiswaWrapper">
+                    <p id="daftarKelasSiswaLoading">Mengambil daftar kelas...</p>
+                    <div id="daftarKelasSiswaList"></div>
+                </div>
+
+                <div id="siswaKelolaWrapper" class="hidden">
+                    <button type="button" id="btnKembaliDaftarKelas" class="btn-secondary btn-full" style="margin-bottom: var(--spacing-4);">← Kembali ke Daftar Kelas</button>
+                    <h5 id="siswaKelolaJudulKelas" style="margin-top: 0;"></h5>
+
+                    <p id="daftarSiswaLoading" class="hidden">Mengambil data siswa...</p>
+                    <div id="daftarSiswaList"></div>
+
+                    <h5 style="margin-top: var(--spacing-5);">➕ Tambah Siswa Baru</h5>
+                    <form id="formTambahSiswa">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="siswaBaruNis">NIS</label>
+                                <input type="text" id="siswaBaruNis" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="siswaBaruNama">Nama</label>
+                                <input type="text" id="siswaBaruNama" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="siswaBaruJk">Jenis Kelamin</label>
+                                <select id="siswaBaruJk">
+                                    <option value="">-</option>
+                                    <option value="L">L</option>
+                                    <option value="P">P</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-primary btn-full">
+                            <span class="btn-text">➕ Tambah Siswa</span>
+                            <span class="btn-loader hidden">⏳ Menyimpan...</span>
+                        </button>
+                        <p id="formTambahSiswaMsg" class="login-msg"></p>
+                    </form>
+
+                    <h5 style="margin-top: var(--spacing-5);">📤 Upload Banyak Siswa Sekaligus (kelas ini saja)</h5>
+                    <p class="card-subtitle">File Excel/CSV dengan 3 kolom berurutan: NIS, Nama, Jenis Kelamin (L/P) -- baris pertama dianggap header, otomatis dilewati.</p>
+                    <input type="file" id="inputUploadSiswa" accept=".xlsx,.xls,.csv" class="hidden">
+                    <button type="button" id="btnPilihUploadSiswa" class="btn-secondary btn-full">📤 Pilih File untuk Upload</button>
+                    <p id="uploadSiswaMsg" class="login-msg"></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- SUB-TAB: UPLOAD ABSENSI -->
+        <div id="subtabAdminUpload" class="sub-tab-panel hidden">
+            <!-- PATCH: Upload Absensi Hardcopy -> Softcopy -- lihat
+                 kodegs/UploadAbsenLink.gs. Alur: admin buat link di sini ->
+                 sistem otomatis bikin 1 Google Sheets baru dari template,
+                 sudah terisi daftar siswa -> admin bagikan link ke guru/wali
+                 kelas (di luar aplikasi, mis. WA) -> guru isi manual di
+                 Sheets itu -> admin kembali ke sini, Pratinjau dulu (baca
+                 saja) sebelum Import sungguhan. -->
+            <div class="card">
+                <h4>📤 Upload Absensi Hardcopy</h4>
+                <p class="card-subtitle">Buat link Google Sheets untuk guru/wali kelas isi data absen dari catatan kertas (hardcopy) secara manual -- setelah diisi, pratinjau dulu di sini sebelum benar-benar diimpor ke data absen.</p>
+
+                <form id="formBuatLinkUpload">
+                    <div class="form-group">
+                        <label for="linkUploadJenis">Jenis Template</label>
+                        <select id="linkUploadJenis">
+                            <option value="mapel">Per Mata Pelajaran</option>
                         <option value="wali">Wali Kelas (Bulanan)</option>
                     </select>
                 </div>
@@ -829,113 +942,32 @@
 
             <h5 style="margin-top: var(--spacing-5);">📋 Daftar Link</h5>
             <div id="daftarLinkUploadList"></div>
-        </div>
-
-        <!-- PATCH: Kelola Data Siswa -- lihat kodegs/Siswa.gs. Hapus
-             permanen SENGAJA TIDAK disediakan (permintaan eksplisit),
-             tetap dilakukan manual dari Google Sheets -- lihat penjelasan
-             lengkap alasannya di Siswa.gs.
-             PATCH v2: sebelumnya pakai dropdown "Pilih Kelas" -- sekarang
-             tabel semua kelas LANGSUNG tampil begitu Panel Admin dibuka,
-             klik 1 baris kelas untuk mulai kelola siswanya (tambah/edit/
-             nonaktifkan/upload) -- lebih cepat diakses, tidak perlu buka
-             dropdown dulu. -->
-        <div class="card">
-            <h4>👨‍🎓 Kelola Data Siswa</h4>
-            <p class="card-subtitle">Tambah, ubah, atau nonaktifkan siswa. Hapus permanen tetap dilakukan manual dari Google Sheets (data absen/nilai lama tetap mereferensikan NIS siswa, jadi lebih aman dinonaktifkan daripada dihapus).</p>
-
-            <div id="daftarKelasSiswaWrapper">
-                <p id="daftarKelasSiswaLoading">Mengambil daftar kelas...</p>
-                <div id="daftarKelasSiswaList"></div>
-            </div>
-
-            <div id="siswaKelolaWrapper" class="hidden">
-                <button type="button" id="btnKembaliDaftarKelas" class="btn-secondary btn-full" style="margin-bottom: var(--spacing-4);">← Kembali ke Daftar Kelas</button>
-                <h5 id="siswaKelolaJudulKelas" style="margin-top: 0;"></h5>
-
-                <p id="daftarSiswaLoading" class="hidden">Mengambil data siswa...</p>
-                <div id="daftarSiswaList"></div>
-
-                <h5 style="margin-top: var(--spacing-5);">➕ Tambah Siswa Baru</h5>
-                <form id="formTambahSiswa">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="siswaBaruNis">NIS</label>
-                            <input type="text" id="siswaBaruNis" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="siswaBaruNama">Nama</label>
-                            <input type="text" id="siswaBaruNama" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="siswaBaruJk">Jenis Kelamin</label>
-                            <select id="siswaBaruJk">
-                                <option value="">-</option>
-                                <option value="L">L</option>
-                                <option value="P">P</option>
-                            </select>
-                        </div>
-                    </div>
-                    <button type="submit" class="btn-primary btn-full">
-                        <span class="btn-text">➕ Tambah Siswa</span>
-                        <span class="btn-loader hidden">⏳ Menyimpan...</span>
-                    </button>
-                    <p id="formTambahSiswaMsg" class="login-msg"></p>
-                </form>
-
-                <h5 style="margin-top: var(--spacing-5);">📤 Upload Banyak Siswa Sekaligus (kelas ini saja)</h5>
-                <p class="card-subtitle">File Excel/CSV dengan 3 kolom berurutan: NIS, Nama, Jenis Kelamin (L/P) -- baris pertama dianggap header, otomatis dilewati.</p>
-                <input type="file" id="inputUploadSiswa" accept=".xlsx,.xls,.csv" class="hidden">
-                <button type="button" id="btnPilihUploadSiswa" class="btn-secondary btn-full">📤 Pilih File untuk Upload</button>
-                <p id="uploadSiswaMsg" class="login-msg"></p>
             </div>
         </div>
 
-        <div class="card">
-            <h4 id="formAkunJudul">➕ Tambah Akun Guru</h4>
-            <form id="formAkunGuru">
-                <div class="form-group">
-                    <label for="akunUsername">Username</label>
-                    <input type="text" id="akunUsername" required placeholder="huruf kecil, angka, underscore -- mis. budi123">
+        <!-- SUB-TAB: PENGATURAN -->
+        <div id="subtabAdminPengaturan" class="sub-tab-panel hidden">
+            <!-- PATCH: Logo Sekolah -- tampil di halaman login, menggantikan
+                 ikon emoji bawaan (🏫). Beda dari foto profil (per akun), ini
+                 SATU untuk seluruh aplikasi -- lihat getLogoSekolahUrl()/
+                 uploadLogoSekolah() di kodegs/Admin.gs. Pola visualnya
+                 sengaja disamakan dengan kartu foto profil di Panel Profil
+                 supaya konsisten.
+                 Sub-tab ini sengaja dibuat GENERIK ("Pengaturan", bukan
+                 "Logo Sekolah" saja) -- supaya kalau nanti ada pengaturan
+                 sekolah lain (mis. Mode Pemeliharaan yang masih di
+                 backlog), sudah ada tempatnya di sini, tidak perlu tab baru. -->
+            <div class="card profil-foto-card">
+                <h4>🏫 Logo Sekolah (Halaman Login)</h4>
+                <p class="card-subtitle">Gambar ini akan menggantikan ikon 🏫 bawaan di halaman login -- terlihat oleh SEMUA orang sebelum login, bukan cuma akun ini.</p>
+                <div class="profil-foto-wrapper">
+                    <img id="logoSekolahPreview" class="profil-foto-preview hidden" src="" alt="Logo sekolah">
+                    <div id="logoSekolahKosong" class="profil-foto-kosong">🏫</div>
                 </div>
-                <div class="form-group">
-                    <label for="akunNama">Nama Lengkap</label>
-                    <input type="text" id="akunNama" required placeholder="Nama lengkap guru">
-                </div>
-                <div class="form-group" id="akunPasswordGroup">
-                    <label for="akunPassword">Password Awal</label>
-                    <input type="password" id="akunPassword" placeholder="Minimal 6 karakter">
-                </div>
-                <div class="form-group">
-                    <label for="akunMapelList">Mata Pelajaran yang Diampu</label>
-                    <input type="text" id="akunMapelList" placeholder="Pisahkan dengan koma, mis. DKV,KIK">
-                </div>
-                <div class="form-group">
-                    <label for="akunKelasList">Kelas yang Diampu</label>
-                    <input type="text" id="akunKelasList" placeholder="Pisahkan dengan koma, mis. XI DKV 1,XI DKV 4">
-                </div>
-                <div class="form-group">
-                    <label for="akunKelasWali">Wali Kelas (kosongkan kalau bukan wali kelas)</label>
-                    <input type="text" id="akunKelasWali" placeholder="mis. XI DKV 1">
-                </div>
-                <div class="form-group">
-                    <label for="akunPasanganMapelKelas">Batasi Pasangan Mapel-Kelas (opsional)</label>
-                    <input type="text" id="akunPasanganMapelKelas" placeholder="Kosongkan kalau mengajar semua mapel di semua kelas di atas">
-                    <p class="card-subtitle">Isi HANYA kalau guru ini mengajar mapel tertentu cuma di kelas tertentu (bukan semua kelas di atas). Format: <code>DKV:XI DKV 1,XI DKV 2|KIK:XI DKV 3</code></p>
-                </div>
-                <button type="submit" class="btn-primary btn-full">
-                    <span class="btn-text">💾 Simpan</span>
-                    <span class="btn-loader hidden">⏳ Menyimpan...</span>
-                </button>
-                <button type="button" id="btnBatalEditAkun" class="btn-secondary btn-full hidden">✖️ Batal Edit</button>
-                <p id="formAkunMsg" class="login-msg"></p>
-            </form>
-        </div>
-
-        <div class="card">
-            <h4>📋 Daftar Akun Guru</h4>
-            <p class="card-subtitle" id="daftarAkunSubtitle">Memuat...</p>
-            <div id="daftarAkunList"></div>
+                <input type="file" id="inputLogoSekolah" accept="image/*" class="hidden">
+                <button type="button" id="btnPilihLogoSekolah" class="btn-secondary btn-full">🖼️ Ganti Logo Sekolah</button>
+                <p id="logoSekolahMsg" class="login-msg"></p>
+            </div>
         </div>
     </div>
 </section>
