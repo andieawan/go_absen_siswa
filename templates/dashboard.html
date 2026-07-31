@@ -285,6 +285,15 @@
                         <div class="stat-card stat-izin"><div class="stat-icon">📈</div><div class="stat-info"><div class="stat-value" id="sekolahStatRataHadir">0%</div><div class="stat-label">Rata-rata Hadir</div></div></div>
                     </div>
                 </div>
+                <!-- PATCH: tabel daftar kelas -- klik 1 baris untuk
+                     memfilter Ringkasan & Saran di bawah ini KHUSUS kelas
+                     itu saja (klik lagi untuk kembali ke gabungan semua
+                     kelas). Lihat toggleFilterKelasSekolah(), js/dashboard.js. -->
+                <div class="card">
+                    <h4>📋 Daftar Kelas</h4>
+                    <p class="card-subtitle">Klik salah satu baris untuk melihat Ringkasan & Saran khusus kelas itu saja.</p>
+                    <div id="sekolahRekapKelasList"></div>
+                </div>
                 <div class="card">
                     <h4>📝 Ringkasan untuk Kepala Sekolah</h4>
                     <p class="card-subtitle">Penjelasan singkat kondisi & tren kehadiran dalam kata-kata</p>
