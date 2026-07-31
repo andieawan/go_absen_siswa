@@ -44,9 +44,9 @@ import {
     getKegiatanNilai,
     getNilaiUntukKegiatan,
     hapusKegiatanNilai
-} from './api.js?v=20260731c';
-import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731c';
-import { showConfirm } from './modal.js?v=20260731c';
+} from './api.js?v=20260731d';
+import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731d';
+import { showConfirm } from './modal.js?v=20260731d';
 
 // Cache daftar siswa per kelas supaya tidak fetch berulang kali
 // dalam satu sesi dashboard yang sama.
@@ -192,11 +192,11 @@ function renderStudentRows(tbodyId, students, existingMap) {
     if (!tbody) return;
 
     if (!students || students.length === 0) {
-        tbody.innerHTML = `<tr class="empty-row"><td colspan="3"><p class="empty-state">Tidak ada data siswa di kelas ini</p></td></tr>`;
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="4"><p class="empty-state">Tidak ada data siswa di kelas ini</p></td></tr>`;
         return;
     }
 
-    tbody.innerHTML = students.map(s => {
+    tbody.innerHTML = students.map((s, i) => {
         const nis = String(s.nis);
         const current = (existingMap && existingMap[nis]) || 'H';
         const groupName = `${tbodyId}-status-${nis}`;
@@ -210,6 +210,7 @@ function renderStudentRows(tbodyId, students, existingMap) {
 
         return `
             <tr data-nis="${escapeHtml(nis)}">
+                <td class="td-nomor">${i + 1}</td>
                 <td>${escapeHtml(nis)}</td>
                 <td>${escapeHtml(s.nama)}</td>
                 <td>
@@ -934,11 +935,11 @@ function renderNilaiStudentRows(students, tipeSkala, nilaiLama) {
     if (!tbody) return;
 
     if (!students || students.length === 0) {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="3"><p class="empty-state">Tidak ada siswa di kelas ini</p></td></tr>';
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="4"><p class="empty-state">Tidak ada siswa di kelas ini</p></td></tr>';
         return;
     }
 
-    tbody.innerHTML = students.map(s => {
+    tbody.innerHTML = students.map((s, i) => {
         const nilaiTersimpan = (nilaiLama && nilaiLama[s.nis]) || '';
         const inputHtml = tipeSkala === 'huruf'
             ? `<select class="nilai-input-siswa" data-nis="${escapeHtml(s.nis)}">
@@ -946,7 +947,7 @@ function renderNilaiStudentRows(students, tipeSkala, nilaiLama) {
                  ${['A', 'B', 'C', 'D', 'E'].map(h => `<option value="${h}" ${nilaiTersimpan === h ? 'selected' : ''}>${h}</option>`).join('')}
                </select>`
             : `<input type="number" class="nilai-input-siswa" data-nis="${escapeHtml(s.nis)}" min="0" max="100" step="1" value="${escapeHtml(nilaiTersimpan)}" placeholder="0-100">`;
-        return `<tr><td>${escapeHtml(s.nis)}</td><td>${escapeHtml(s.nama)}</td><td>${inputHtml}</td></tr>`;
+        return `<tr><td class="td-nomor">${i + 1}</td><td>${escapeHtml(s.nis)}</td><td>${escapeHtml(s.nama)}</td><td>${inputHtml}</td></tr>`;
     }).join('');
 }
 

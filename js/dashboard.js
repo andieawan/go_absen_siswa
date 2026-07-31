@@ -28,7 +28,7 @@
  * =========================================================
  */
 
-import { getDashboardData, getDetailSiswaPerhatian, getDetailSiswaPerhatianWali, getDashboardDataWali, getDashboardSekolah, getSiswaByKelas, getCurrentUser } from './api.js?v=20260731c';
+import { getDashboardData, getDetailSiswaPerhatian, getDetailSiswaPerhatianWali, getDashboardDataWali, getDashboardSekolah, getSiswaByKelas, getCurrentUser } from './api.js?v=20260731d';
 // PATCH PERFORMA: escapeHtml dipakai dari utils.js (regex string-replace),
 // bukan implementasi lokal yang sebelumnya ada di file ini. Implementasi
 // lama membuat elemen <div> DOM baru pada SETIAP pemanggilan (lihat riwayat
@@ -36,9 +36,9 @@ import { getDashboardData, getDetailSiswaPerhatian, getDetailSiswaPerhatianWali,
 // terpanggil berulang kali di dalam .map()/.forEach() saat merender daftar
 // topAlpa & rekap kelas/mapel. Juga menghapus duplikasi kode yang sama
 // persis fungsinya dengan utils.js.
-import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731c';
-import { showRichModal } from './modal.js?v=20260731c';
-import { navigasiKeEditAbsensi } from './absensi.js?v=20260731c';
+import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731d';
+import { showRichModal } from './modal.js?v=20260731d';
+import { navigasiKeEditAbsensi } from './absensi.js?v=20260731d';
 
 // Cache untuk data dashboard
 let dashboardCache = {
@@ -205,13 +205,14 @@ function renderTopAlpaList(data, containerId, labelKolom = 'Jumlah Alpa', kontek
         return;
     }
 
-    let html = `<div class="table-wrapper"><table class="simple-table"><thead><tr><th>Nama</th><th>${escapeHtml(labelKolom)}</th></tr></thead><tbody>`;
-    data.slice(0, 10).forEach(siswa => {
+    let html = `<div class="table-wrapper"><table class="simple-table"><thead><tr><th class="th-nomor">No</th><th>Nama</th><th>${escapeHtml(labelKolom)}</th></tr></thead><tbody>`;
+    data.slice(0, 10).forEach((siswa, i) => {
         const bisaDiklik = konteks && siswa.nis && siswa.kelas;
         const namaCell = bisaDiklik
             ? `<button type="button" class="nama-siswa-klik" data-nis="${escapeHtml(siswa.nis)}" data-kelas="${escapeHtml(siswa.kelas)}" title="Klik untuk lihat detail">${escapeHtml(siswa.nama)}</button>`
             : escapeHtml(siswa.nama);
         html += `<tr>
+            <td class="td-nomor">${i + 1}</td>
             <td>${namaCell}</td>
             <td><span class="badge badge-danger">${siswa.jumlahAlpa || 0}</span></td>
         </tr>`;

@@ -17,10 +17,10 @@ import {
     previewImportAbsenDariLink,
     jalankanImportAbsenDariLink,
     nonaktifkanLinkUploadAbsensi
-} from './api.js?v=20260731c';
-import { showNotification, escapeHtml } from './utils.js?v=20260731c';
-import { showConfirm, showRichModal } from './modal.js?v=20260731c';
-import { kompresGambarSebelumUpload } from './profil.js?v=20260731c';
+} from './api.js?v=20260731d';
+import { showNotification, escapeHtml } from './utils.js?v=20260731d';
+import { showConfirm, showRichModal } from './modal.js?v=20260731d';
+import { kompresGambarSebelumUpload } from './profil.js?v=20260731d';
 
 let usernameSedangDiedit = null; // null = mode tambah, string = mode edit
 let adalahSuperAdminSaatIni = false; // di-set di initAdmin(), dipakai ulang di beberapa fungsi lain di file ini
@@ -250,10 +250,10 @@ function renderTabelAkun(daftar, adalahSuperAdmin, container) {
     }
 
     let html = '<div class="table-wrapper"><table class="simple-table"><thead><tr>' +
-        '<th>Nama</th><th>Username</th><th>Mapel</th><th>Kelas</th><th>Wali</th><th>Role</th><th>Status</th><th>Aksi</th>' +
+        '<th class="th-nomor">No</th><th>Nama</th><th>Username</th><th>Mapel</th><th>Kelas</th><th>Wali</th><th>Role</th><th>Status</th><th>Aksi</th>' +
         '</tr></thead><tbody>';
 
-    daftar.forEach(akun => {
+    daftar.forEach((akun, i) => {
         const nonaktif = akun.roleList.indexOf('nonaktif') !== -1;
         const roleTampil = akun.roleList.filter(r => r !== 'nonaktif').join(', ') || 'guru';
         const statusBadge = nonaktif
@@ -267,6 +267,7 @@ function renderTabelAkun(daftar, adalahSuperAdmin, container) {
             : '';
 
         html += `<tr>
+            <td class="td-nomor">${i + 1}</td>
             <td>${escapeHtml(akun.nama)}</td>
             <td>${escapeHtml(akun.username)}</td>
             <td>${escapeHtml(akun.mapelList.join(', ') || '-')}</td>
@@ -455,10 +456,10 @@ function renderDaftarLinkUpload(daftar, container) {
     }
 
     let html = '<div class="table-wrapper"><table class="simple-table"><thead><tr>' +
-        '<th>Jenis</th><th>Kelas</th><th>Mapel/Bulan</th><th>Status</th><th>Dibuat</th><th>Aksi</th>' +
+        '<th class="th-nomor">No</th><th>Jenis</th><th>Kelas</th><th>Mapel/Bulan</th><th>Status</th><th>Dibuat</th><th>Aksi</th>' +
         '</tr></thead><tbody>';
 
-    daftar.forEach(link => {
+    daftar.forEach((link, i) => {
         const statusBadge = link.status === 'sudah_diimpor'
             ? '<span class="badge badge-success">Sudah Diimpor</span>'
             : link.status === 'nonaktif'
@@ -466,6 +467,7 @@ function renderDaftarLinkUpload(daftar, container) {
                 : '<span class="badge badge-warning">Aktif</span>';
 
         html += `<tr>
+            <td class="td-nomor">${i + 1}</td>
             <td>${link.jenis === 'wali' ? 'Wali Kelas' : 'Per Mapel'}</td>
             <td>${escapeHtml(link.kelas)}</td>
             <td>${escapeHtml(link.mapel)}</td>

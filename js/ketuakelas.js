@@ -15,8 +15,8 @@
  * (tanggal tetap = hari ini, tidak bisa diubah).
  */
 
-import { getInfoKetuaKelas, submitAbsenKetuaKelas } from './api.js?v=20260731c';
-import { escapeHtml, showGlobalLoading, hideGlobalLoading, showNotification } from './utils.js?v=20260731c';
+import { getInfoKetuaKelas, submitAbsenKetuaKelas } from './api.js?v=20260731d';
+import { escapeHtml, showGlobalLoading, hideGlobalLoading, showNotification } from './utils.js?v=20260731d';
 
 const STATUS_LABEL = { H: 'Hadir', I: 'Izin', S: 'Sakit', A: 'Alpa' };
 
@@ -134,11 +134,11 @@ function renderStudentRows(students, existingMap) {
     if (!tbody) return;
 
     if (!students || students.length === 0) {
-        tbody.innerHTML = `<tr class="empty-row"><td colspan="3"><p class="empty-state">Tidak ada data siswa di kelas ini</p></td></tr>`;
+        tbody.innerHTML = `<tr class="empty-row"><td colspan="4"><p class="empty-state">Tidak ada data siswa di kelas ini</p></td></tr>`;
         return;
     }
 
-    tbody.innerHTML = students.map(s => {
+    tbody.innerHTML = students.map((s, i) => {
         const nis = String(s.nis);
         const current = (existingMap && existingMap[nis]) || 'H';
         const groupName = `ketuaKelas-status-${nis}`;
@@ -152,6 +152,7 @@ function renderStudentRows(students, existingMap) {
 
         return `
             <tr data-nis="${escapeHtml(nis)}">
+                <td class="td-nomor">${i + 1}</td>
                 <td>${escapeHtml(nis)}</td>
                 <td>${escapeHtml(s.nama)}</td>
                 <td>

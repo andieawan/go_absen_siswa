@@ -29,7 +29,7 @@
  *   aturan Secure).
  */
 
-import { CONFIG } from './config.js?v=20260731c';
+import { CONFIG } from './config.js?v=20260731d';
 
 function bangunAtributDomain() {
     return CONFIG.SSO_COOKIE_DOMAIN ? `; Domain=${CONFIG.SSO_COOKIE_DOMAIN}` : '';
