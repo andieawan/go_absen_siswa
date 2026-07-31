@@ -825,17 +825,25 @@
         <!-- PATCH: Kelola Data Siswa -- lihat kodegs/Siswa.gs. Hapus
              permanen SENGAJA TIDAK disediakan (permintaan eksplisit),
              tetap dilakukan manual dari Google Sheets -- lihat penjelasan
-             lengkap alasannya di Siswa.gs. -->
+             lengkap alasannya di Siswa.gs.
+             PATCH v2: sebelumnya pakai dropdown "Pilih Kelas" -- sekarang
+             tabel semua kelas LANGSUNG tampil begitu Panel Admin dibuka,
+             klik 1 baris kelas untuk mulai kelola siswanya (tambah/edit/
+             nonaktifkan/upload) -- lebih cepat diakses, tidak perlu buka
+             dropdown dulu. -->
         <div class="card">
             <h4>👨‍🎓 Kelola Data Siswa</h4>
             <p class="card-subtitle">Tambah, ubah, atau nonaktifkan siswa. Hapus permanen tetap dilakukan manual dari Google Sheets (data absen/nilai lama tetap mereferensikan NIS siswa, jadi lebih aman dinonaktifkan daripada dihapus).</p>
 
-            <div class="form-group">
-                <label for="siswaSelectKelas">Pilih Kelas</label>
-                <select id="siswaSelectKelas"><option value="" disabled selected>-- Pilih Kelas --</option></select>
+            <div id="daftarKelasSiswaWrapper">
+                <p id="daftarKelasSiswaLoading">Mengambil daftar kelas...</p>
+                <div id="daftarKelasSiswaList"></div>
             </div>
 
             <div id="siswaKelolaWrapper" class="hidden">
+                <button type="button" id="btnKembaliDaftarKelas" class="btn-secondary btn-full" style="margin-bottom: var(--spacing-4);">← Kembali ke Daftar Kelas</button>
+                <h5 id="siswaKelolaJudulKelas" style="margin-top: 0;"></h5>
+
                 <p id="daftarSiswaLoading" class="hidden">Mengambil data siswa...</p>
                 <div id="daftarSiswaList"></div>
 
@@ -866,7 +874,7 @@
                     <p id="formTambahSiswaMsg" class="login-msg"></p>
                 </form>
 
-                <h5 style="margin-top: var(--spacing-5);">📤 Upload Banyak Siswa Sekaligus</h5>
+                <h5 style="margin-top: var(--spacing-5);">📤 Upload Banyak Siswa Sekaligus (kelas ini saja)</h5>
                 <p class="card-subtitle">File Excel/CSV dengan 3 kolom berurutan: NIS, Nama, Jenis Kelamin (L/P) -- baris pertama dianggap header, otomatis dilewati.</p>
                 <input type="file" id="inputUploadSiswa" accept=".xlsx,.xls,.csv" class="hidden">
                 <button type="button" id="btnPilihUploadSiswa" class="btn-secondary btn-full">📤 Pilih File untuk Upload</button>
