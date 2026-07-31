@@ -556,10 +556,20 @@
 
 #studentsTable,
 #waliStudentsTable,
+#ketuaKelasStudentsTable,
 .simple-table {
   width: 100%;
   border-collapse: collapse;
   font-size: var(--font-size-sm);
+}
+
+/* PATCH: kolom nomor urut ("No") -- dipakai di SEMUA tabel siswa/daftar
+   di aplikasi ini. Lebar sempit + rata tengah, supaya tidak memakan
+   ruang kolom lain yang lebih penting dibaca. */
+.th-nomor,
+.td-nomor {
+  width: 40px;
+  text-align: center !important;
 }
 
 #studentsTable thead,
@@ -638,26 +648,35 @@
     border-bottom: none;
   }
 
+  /* PATCH (kolom No ditambahkan): sembunyikan nomor urut di tampilan
+     kartu mobile -- di sini urutan siswa sudah jelas terlihat dari
+     susunan kartu yang bertumpuk, jadi angka "No" tidak menambah
+     informasi baru dan cuma memakan ruang. */
+  #studentsTable td:nth-child(1),
+  #waliStudentsTable td:nth-child(1) {
+    display: none;
+  }
+
   /* Nama siswa ditampilkan paling atas -- lebih penting dibaca sekilas
      daripada NIS saat guru menyisir daftar sambil presensi. */
-  #studentsTable td:nth-child(2),
-  #waliStudentsTable td:nth-child(2) {
+  #studentsTable td:nth-child(3),
+  #waliStudentsTable td:nth-child(3) {
     order: 1;
     font-size: var(--font-size-base);
     font-weight: var(--font-weight-semibold);
     color: var(--gray-800);
   }
 
-  #studentsTable td:nth-child(1),
-  #waliStudentsTable td:nth-child(1) {
+  #studentsTable td:nth-child(2),
+  #waliStudentsTable td:nth-child(2) {
     order: 2;
     font-size: var(--font-size-xs);
     color: var(--gray-400);
     margin-bottom: var(--spacing-2);
   }
 
-  #studentsTable td:nth-child(3),
-  #waliStudentsTable td:nth-child(3) {
+  #studentsTable td:nth-child(4),
+  #waliStudentsTable td:nth-child(4) {
     order: 3;
   }
 
@@ -721,23 +740,30 @@
     border-bottom: none;
   }
 
+  /* PATCH (kolom No ditambahkan): sembunyikan nomor urut di kartu mobile
+     -- sama alasannya dengan tabel Absensi (urutan kartu sudah cukup
+     jelas tanpa perlu angka eksplisit). */
+  #nilaiStudentsTable td:nth-child(1) {
+    display: none;
+  }
+
   /* Nama siswa ditampilkan paling atas -- sama alasannya dengan tabel
      Absensi (lebih penting dibaca sekilas daripada NIS). */
-  #nilaiStudentsTable td:nth-child(2) {
+  #nilaiStudentsTable td:nth-child(3) {
     order: 1;
     font-size: var(--font-size-base);
     font-weight: var(--font-weight-semibold);
     color: var(--gray-800);
   }
 
-  #nilaiStudentsTable td:nth-child(1) {
+  #nilaiStudentsTable td:nth-child(2) {
     order: 2;
     font-size: var(--font-size-xs);
     color: var(--gray-400);
     margin-bottom: var(--spacing-2);
   }
 
-  #nilaiStudentsTable td:nth-child(3) {
+  #nilaiStudentsTable td:nth-child(4) {
     order: 3;
     margin-top: var(--spacing-2);
   }
