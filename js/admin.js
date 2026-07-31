@@ -16,11 +16,18 @@ import {
     getDaftarLinkUploadAbsensi,
     previewImportAbsenDariLink,
     jalankanImportAbsenDariLink,
-    nonaktifkanLinkUploadAbsensi
-} from './api.js?v=20260731g';
-import { showNotification, escapeHtml } from './utils.js?v=20260731g';
-import { showConfirm, showRichModal } from './modal.js?v=20260731g';
-import { kompresGambarSebelumUpload } from './profil.js?v=20260731g';
+    nonaktifkanLinkUploadAbsensi,
+    getDaftarKelasMaster,
+    getDaftarSiswaUntukAdmin,
+    tambahSiswaBaru,
+    updateSiswa,
+    nonaktifkanSiswa,
+    aktifkanKembaliSiswa,
+    uploadSiswaBatch
+} from './api.js?v=20260731h';
+import { showNotification, escapeHtml } from './utils.js?v=20260731h';
+import { showConfirm, showRichModal } from './modal.js?v=20260731h';
+import { kompresGambarSebelumUpload } from './profil.js?v=20260731h';
 
 let usernameSedangDiedit = null; // null = mode tambah, string = mode edit
 let adalahSuperAdminSaatIni = false; // di-set di initAdmin(), dipakai ulang di beberapa fungsi lain di file ini
@@ -57,6 +64,9 @@ export function initAdmin(user) {
 
     // PATCH: Upload Absensi Hardcopy -> Softcopy -- sama-sama admin/superadmin.
     setupUploadAbsenLink();
+
+    // PATCH: Kelola Data Siswa -- sama-sama admin/superadmin.
+    setupKelolaSiswa();
 
     const adminTabBtn = document.querySelector('[data-tab="panelAdmin"]');
     if (adminTabBtn) {
@@ -577,6 +587,290 @@ async function tampilkanPratinjauImport(token) {
             if (resImport.success) muatDaftarLinkUpload();
         } catch (error) {
             showNotification('Gagal import: ' + error.message, 'error');
+        }
+    });
+}
+
+// =========================================================
+// PATCH: Kelola Data Siswa (Panel Admin)
+// ---------------------------------------------------------
+// Hapus permanen SENGAJA TIDAK disediakan (permintaan eksplisit) --
+// cuma Tambah, Edit (nama/JK -- NIS tidak bisa diubah), Nonaktifkan/
+// Aktifkan Kembali, dan Upload banyak sekaligus. Lihat penjelasan
+// lengkap alasannya di kodegs/Siswa.gs.
+// =========================================================
+
+function setupKelolaSiswa() {
+    const selectKelas = document.getElementById('siswaSelectKelas');
+    const wrapper = document.getElementById('siswaKelolaWrapper');
+    const loadingEl = document.getElementById('daftarSiswaLoading');
+    const formTambah = document.getElementById('formTambahSiswa');
+    const inputUpload = document.getElementById('inputUploadSiswa');
+    const btnPilihUpload = document.getElementById('btnPilihUploadSiswa');
+    const uploadMsg = document.getElementById('uploadSiswaMsg');
+
+    if (!selectKelas) return;
+
+    (async () => {
+        try {
+            const res = await getDaftarKelasMaster();
+            if (res.success) {
+                selectKelas.innerHTML = '<option value="" disabled selected>-- Pilih Kelas --</option>' +
+                    res.data.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
+            }
+        } catch (err) {
+            showNotification('Gagal memuat daftar kelas: ' + err.message, 'error');
+        }
+    })();
+
+    async function muatDaftarSiswa() {
+        const kelas = selectKelas.value;
+        if (!kelas) { wrapper?.classList.add('hidden'); return; }
+        wrapper?.classList.remove('hidden');
+        if (loadingEl) loadingEl.classList.remove('hidden');
+        try {
+            await refreshDaftarSiswa(kelas);
+        } finally {
+            if (loadingEl) loadingEl.classList.add('hidden');
+        }
+    }
+
+    selectKelas.addEventListener('change', muatDaftarSiswa);
+
+    formTambah?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const kelas = selectKelas.value;
+        const nis = document.getElementById('siswaBaruNis')?.value.trim();
+        const nama = document.getElementById('siswaBaruNama')?.value.trim();
+        const jk = document.getElementById('siswaBaruJk')?.value;
+        const msg = document.getElementById('formTambahSiswaMsg');
+        const btn = formTambah.querySelector('button[type="submit"]');
+        const btnText = btn?.querySelector('.btn-text');
+        const btnLoader = btn?.querySelector('.btn-loader');
+
+        if (!kelas || !nis || !nama) {
+            showNotification('Kelas, NIS, dan Nama wajib diisi.', 'error');
+            return;
+        }
+
+        if (btn) btn.disabled = true;
+        btnText?.classList.add('hidden');
+        btnLoader?.classList.remove('hidden');
+        if (msg) { msg.textContent = ''; msg.className = 'login-msg'; }
+
+        try {
+            const res = await tambahSiswaBaru(kelas, nis, nama, jk);
+            showNotification(res.message, res.success ? 'success' : 'error');
+            if (res.success) {
+                formTambah.reset();
+                await refreshDaftarSiswa(kelas);
+            } else if (msg) {
+                msg.textContent = res.message;
+                msg.className = 'login-msg error';
+            }
+        } catch (err) {
+            showNotification('Gagal menambah siswa: ' + err.message, 'error');
+        } finally {
+            if (btn) btn.disabled = false;
+            btnText?.classList.remove('hidden');
+            btnLoader?.classList.add('hidden');
+        }
+    });
+
+    btnPilihUpload?.addEventListener('click', () => inputUpload?.click());
+
+    inputUpload?.addEventListener('change', async () => {
+        const file = inputUpload.files && inputUpload.files[0];
+        const kelas = selectKelas.value;
+        if (!file) return;
+        if (!kelas) {
+            showNotification('Pilih kelas dulu sebelum upload.', 'warning');
+            inputUpload.value = '';
+            return;
+        }
+
+        if (uploadMsg) { uploadMsg.textContent = 'Membaca & mengupload file...'; uploadMsg.className = 'login-msg'; }
+        if (btnPilihUpload) btnPilihUpload.disabled = true;
+
+        try {
+            const daftarSiswa = await bacaFileSiswaSebagaiArray(file);
+            if (daftarSiswa.length === 0) {
+                showNotification('Tidak ada data siswa yang terbaca dari file ini.', 'warning');
+                return;
+            }
+            const res = await uploadSiswaBatch(kelas, daftarSiswa);
+            showNotification(res.message, res.success ? 'success' : 'error');
+            if (res.success) {
+                if (uploadMsg && res.data?.dilewati?.length > 0) {
+                    uploadMsg.innerHTML = 'Baris dilewati:<br>' + res.data.dilewati.map(d => escapeHtml(d)).join('<br>');
+                } else if (uploadMsg) {
+                    uploadMsg.textContent = '';
+                }
+                await refreshDaftarSiswa(kelas);
+            }
+        } catch (err) {
+            showNotification('Gagal upload: ' + err.message, 'error');
+            if (uploadMsg) { uploadMsg.textContent = 'Gagal: ' + err.message; uploadMsg.className = 'login-msg error'; }
+        } finally {
+            if (btnPilihUpload) btnPilihUpload.disabled = false;
+            inputUpload.value = ''; // supaya bisa pilih file yang sama lagi kalau mau coba ulang
+        }
+    });
+}
+
+// Baca file Excel/CSV yang diupload jadi array [{nis, nama, jk}, ...] --
+// dijalankan di BROWSER memakai library XLSX (SheetJS) yang sudah
+// dimuat global untuk kebutuhan unduh Rekap (lihat index.html), dipakai
+// ULANG di sini untuk kebutuhan BACA file, bukan cuma tulis.
+function bacaFileSiswaSebagaiArray(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = () => reject(new Error('Gagal membaca file.'));
+        reader.onload = (e) => {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const sheet = workbook.Sheets[workbook.SheetNames[0]];
+                const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 }); // array-of-array, bukan objek
+                // Baris pertama dianggap header, dilewati -- kolom
+                // berurutan: NIS, Nama, Jenis Kelamin.
+                const daftarSiswa = rows.slice(1)
+                    .filter(row => row && row.length > 0 && row[0])
+                    .map(row => ({
+                        nis: String(row[0] || '').trim(),
+                        nama: String(row[1] || '').trim(),
+                        jk: String(row[2] || '').trim()
+                    }));
+                resolve(daftarSiswa);
+            } catch (err) {
+                reject(new Error('Format file tidak bisa dibaca: ' + err.message));
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    });
+}
+
+async function refreshDaftarSiswa(kelas) {
+    try {
+        const res = await getDaftarSiswaUntukAdmin(kelas);
+        renderDaftarSiswa(res, kelas);
+    } catch (err) {
+        showNotification('Gagal memuat data siswa: ' + err.message, 'error');
+    }
+}
+
+function renderDaftarSiswa(res, kelas) {
+    const container = document.getElementById('daftarSiswaList');
+    if (!container) return;
+
+    if (!res.success) {
+        container.innerHTML = `<p class="empty-state">${escapeHtml(res.message || 'Gagal memuat data siswa.')}</p>`;
+        return;
+    }
+    if (res.data.length === 0) {
+        container.innerHTML = '<p class="empty-state">Belum ada siswa di kelas ini.</p>';
+        return;
+    }
+
+    let html = '<div class="table-wrapper"><table class="simple-table"><thead><tr>' +
+        '<th class="th-nomor">No</th><th>NIS</th><th>Nama</th><th>JK</th><th>Status</th><th>Aksi</th>' +
+        '</tr></thead><tbody>';
+
+    res.data.forEach((s, i) => {
+        const nonaktif = s.status && s.status.toLowerCase() !== 'aktif';
+        const statusBadge = nonaktif
+            ? `<span class="badge badge-danger">${escapeHtml(s.status)}</span>`
+            : '<span class="badge badge-success">Aktif</span>';
+
+        html += `<tr>
+            <td class="td-nomor">${i + 1}</td>
+            <td>${escapeHtml(s.nis)}</td>
+            <td>${escapeHtml(s.nama)}</td>
+            <td>${escapeHtml(s.jk || '-')}</td>
+            <td>${statusBadge}</td>
+            <td class="admin-aksi-cell">
+                <button type="button" class="btn-admin-aksi" data-aksi="editsiswa" data-nis="${escapeHtml(s.nis)}" data-nama="${escapeHtml(s.nama)}" data-jk="${escapeHtml(s.jk || '')}">✏️ Edit</button>
+                ${nonaktif
+                    ? `<button type="button" class="btn-admin-aksi" data-aksi="aktifkansiswa" data-nis="${escapeHtml(s.nis)}">✅ Aktifkan</button>`
+                    : `<button type="button" class="btn-admin-aksi btn-admin-aksi-bahaya" data-aksi="nonaktifkansiswa" data-nis="${escapeHtml(s.nis)}">🚫 Nonaktifkan</button>`}
+            </td>
+        </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+
+    container.querySelectorAll('.btn-admin-aksi').forEach(btn => {
+        btn.addEventListener('click', () => handleAksiSiswa(btn, kelas));
+    });
+}
+
+async function handleAksiSiswa(btn, kelas) {
+    const aksi = btn.dataset.aksi;
+    const nis = btn.dataset.nis;
+
+    if (aksi === 'nonaktifkansiswa') {
+        const konfirmasi = await showConfirm('Nonaktifkan siswa ini? Data absen/nilai lama tetap tersimpan, tapi siswa tidak akan muncul lagi di daftar presensi/penilaian aktif.', 'Konfirmasi Nonaktifkan Siswa');
+        if (!konfirmasi) return;
+        const res = await nonaktifkanSiswa(kelas, nis);
+        showNotification(res.message, res.success ? 'success' : 'error');
+        if (res.success) refreshDaftarSiswa(kelas);
+        return;
+    }
+
+    if (aksi === 'aktifkansiswa') {
+        const res = await aktifkanKembaliSiswa(kelas, nis);
+        showNotification(res.message, res.success ? 'success' : 'error');
+        if (res.success) refreshDaftarSiswa(kelas);
+        return;
+    }
+
+    if (aksi === 'editsiswa') {
+        tampilkanModalEditSiswa(kelas, nis, btn.dataset.nama, btn.dataset.jk);
+        return;
+    }
+}
+
+/**
+ * Modal edit nama/JK siswa -- NIS SENGAJA tidak ditampilkan sebagai
+ * field yang bisa diubah (lihat penjelasan lengkap di updateSiswa(),
+ * kodegs/Siswa.gs). Pola modal-dengan-tombol-aksi-di-dalamnya ini sama
+ * dengan tampilkanPratinjauImport() di atas.
+ */
+async function tampilkanModalEditSiswa(kelas, nis, namaLama, jkLama) {
+    const isiModal = `
+        <div class="form-group">
+            <label for="editSiswaNama">Nama</label>
+            <input type="text" id="editSiswaNama" value="${escapeHtml(namaLama)}">
+        </div>
+        <div class="form-group">
+            <label for="editSiswaJk">Jenis Kelamin</label>
+            <select id="editSiswaJk">
+                <option value="" ${!jkLama ? 'selected' : ''}>-</option>
+                <option value="L" ${jkLama === 'L' ? 'selected' : ''}>L</option>
+                <option value="P" ${jkLama === 'P' ? 'selected' : ''}>P</option>
+            </select>
+        </div>
+        <p style="color: var(--gray-500); font-size: var(--font-size-xs);">NIS "${escapeHtml(nis)}" tidak bisa diubah di sini -- data absen/nilai historis merujuk ke NIS ini.</p>
+        <button type="button" id="btnSimpanEditSiswa" class="btn-primary btn-full" style="margin-top: var(--spacing-4);">💾 Simpan Perubahan</button>
+    `;
+
+    await showRichModal('Edit Data Siswa', isiModal);
+
+    document.getElementById('btnSimpanEditSiswa')?.addEventListener('click', async () => {
+        const namaBaru = document.getElementById('editSiswaNama')?.value.trim();
+        const jkBaru = document.getElementById('editSiswaJk')?.value;
+        if (!namaBaru) {
+            showNotification('Nama tidak boleh kosong.', 'error');
+            return;
+        }
+        window.closeCustomAlert && window.closeCustomAlert();
+        try {
+            const res = await updateSiswa(kelas, nis, { nama: namaBaru, jk: jkBaru });
+            showNotification(res.message, res.success ? 'success' : 'error');
+            if (res.success) refreshDaftarSiswa(kelas);
+        } catch (err) {
+            showNotification('Gagal menyimpan perubahan: ' + err.message, 'error');
         }
     });
 }

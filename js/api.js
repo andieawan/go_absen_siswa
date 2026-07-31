@@ -46,9 +46,9 @@
  * =========================================================
  */
 
-import { CONFIG } from './config.js?v=20260731g';
-import { showNotification } from './utils.js?v=20260731g';
-import { setSsoCookie, getSsoCookie, deleteSsoCookie } from './ssocookie.js?v=20260731g';
+import { CONFIG } from './config.js?v=20260731h';
+import { showNotification } from './utils.js?v=20260731h';
+import { setSsoCookie, getSsoCookie, deleteSsoCookie } from './ssocookie.js?v=20260731h';
 
 // Helper untuk fetch dengan timeout dan error handling khusus Google Apps Script
 async function fetchWithTimeout(url, options = {}, timeout = CONFIG.DEFAULT_TIMEOUT) {
@@ -490,6 +490,83 @@ export async function nonaktifkanLinkUploadAbsensi(linkToken) {
         return await postJson({ action: 'nonaktifkanLinkUploadAbsensi', linkToken, username, token });
     } catch (error) {
         console.error('Nonaktifkan link upload absensi error:', error);
+        throw error;
+    }
+}
+
+// ===== KELOLA DATA SISWA (Panel Admin) =====
+
+export async function getDaftarKelasMaster() {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'getDaftarKelasMaster', username, token });
+    } catch (error) {
+        console.error('Get daftar kelas master error:', error);
+        throw error;
+    }
+}
+
+export async function getDaftarSiswaUntukAdmin(kelas) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'getDaftarSiswaUntukAdmin', kelas, username, token });
+    } catch (error) {
+        console.error('Get daftar siswa untuk admin error:', error);
+        throw error;
+    }
+}
+
+export async function tambahSiswaBaru(kelas, nis, nama, jk) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'tambahSiswaBaru', kelas, nis, nama, jk, username, token });
+    } catch (error) {
+        console.error('Tambah siswa baru error:', error);
+        throw error;
+    }
+}
+
+// `dataBaru`: { nama, jk } -- NIS SENGAJA tidak bisa diubah (lihat
+// penjelasan lengkap di updateSiswa(), kodegs/Siswa.gs).
+export async function updateSiswa(kelas, nis, dataBaru) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'updateSiswa', kelas, nis, dataBaru, username, token });
+    } catch (error) {
+        console.error('Update siswa error:', error);
+        throw error;
+    }
+}
+
+export async function nonaktifkanSiswa(kelas, nis) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'nonaktifkanSiswa', kelas, nis, username, token });
+    } catch (error) {
+        console.error('Nonaktifkan siswa error:', error);
+        throw error;
+    }
+}
+
+export async function aktifkanKembaliSiswa(kelas, nis) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'aktifkanKembaliSiswa', kelas, nis, username, token });
+    } catch (error) {
+        console.error('Aktifkan kembali siswa error:', error);
+        throw error;
+    }
+}
+
+// `daftarSiswa`: [{ nis, nama, jk }, ...] -- parsing file Excel/CSV-nya
+// dilakukan di browser (lihat js/admin.js), fungsi ini cuma kirim array
+// yang sudah bersih ke backend.
+export async function uploadSiswaBatch(kelas, daftarSiswa) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'uploadSiswaBatch', kelas, daftarSiswa, username, token });
+    } catch (error) {
+        console.error('Upload siswa batch error:', error);
         throw error;
     }
 }
@@ -1002,6 +1079,13 @@ export default {
     previewImportAbsenDariLink,
     jalankanImportAbsenDariLink,
     nonaktifkanLinkUploadAbsensi,
+    getDaftarKelasMaster,
+    getDaftarSiswaUntukAdmin,
+    tambahSiswaBaru,
+    updateSiswa,
+    nonaktifkanSiswa,
+    aktifkanKembaliSiswa,
+    uploadSiswaBatch,
     simpanKegiatanNilai,
     getKegiatanNilai,
     getNilaiUntukKegiatan,
