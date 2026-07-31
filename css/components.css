@@ -478,6 +478,25 @@
   color: var(--gray-600);
 }
 
+/* PATCH: baris tabel daftar kelas (Dashboard Sekolah) yang bisa diklik
+   untuk memfilter Ringkasan & Saran khusus 1 kelas -- pola sama dengan
+   .stat-card-clickable di atas, cuma untuk elemen <tr>. */
+.baris-kelas-klik {
+  cursor: pointer;
+  user-select: none;
+}
+
+.baris-kelas-klik:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: -2px;
+}
+
+.baris-kelas-klik.baris-kelas-aktif {
+  background: rgba(var(--primary-color-rgb), 0.08);
+  box-shadow: 0 0 0 2px var(--primary-color) inset;
+}
+
+
 .dashboard-filter-active-label {
   margin: 0 0 var(--spacing-3) 0;
   font-size: var(--font-size-sm);
