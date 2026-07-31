@@ -672,6 +672,83 @@
   }
 }
 
+/* PATCH FITUR NILAI (Tahap 2): input nilai per siswa (angka/huruf) --
+   style dasar untuk tampilan desktop (versi mobile-nya ada di dalam
+   @media max-width:640px, blok #nilaiStudentsTable di bawah). */
+.nilai-input-siswa {
+  width: 90px;
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  font-family: inherit;
+}
+
+.nilai-input-siswa:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
+/* PATCH FITUR NILAI (Tahap 2): versi mobile khusus #nilaiStudentsTable --
+   SENGAJA dibuat sebagai blok TERPISAH (bukan menambah #nilaiStudentsTable
+   ke dalam blok #studentsTable/#waliStudentsTable di atas), supaya CSS
+   tabel Absensi yang sudah teruji sama sekali tidak ikut tersentuh.
+   Style dasarnya (lebar, border, dst) sudah didapat gratis lewat class
+   "simple-table" yang dipasang di HTML -- di sini cuma menambahkan
+   perilaku responsif ala-kartu di layar sempit, sama seperti tabel
+   Absensi. */
+@media (max-width: 640px) {
+  #nilaiStudentsTable thead {
+    display: none;
+  }
+
+  #nilaiStudentsTable tbody,
+  #nilaiStudentsTable tr,
+  #nilaiStudentsTable td {
+    display: block;
+    width: 100%;
+  }
+
+  #nilaiStudentsTable tr {
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-3) var(--spacing-4);
+    border-bottom: 1px solid var(--gray-100);
+  }
+
+  #nilaiStudentsTable td {
+    padding: 0;
+    border-bottom: none;
+  }
+
+  /* Nama siswa ditampilkan paling atas -- sama alasannya dengan tabel
+     Absensi (lebih penting dibaca sekilas daripada NIS). */
+  #nilaiStudentsTable td:nth-child(2) {
+    order: 1;
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--gray-800);
+  }
+
+  #nilaiStudentsTable td:nth-child(1) {
+    order: 2;
+    font-size: var(--font-size-xs);
+    color: var(--gray-400);
+    margin-bottom: var(--spacing-2);
+  }
+
+  #nilaiStudentsTable td:nth-child(3) {
+    order: 3;
+    margin-top: var(--spacing-2);
+  }
+
+  #nilaiStudentsTable .nilai-input-siswa {
+    width: 100%;
+    min-height: 44px; /* target sentuh minimal, sama standarnya dengan .status-toggle */
+    font-size: var(--font-size-base);
+  }
+}
+
 /* ==================== Empty States ==================== */
 .empty-state-illustration {
   text-align: center;
