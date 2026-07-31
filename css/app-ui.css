@@ -204,6 +204,13 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-4);
+  /* PATCH: sebelumnya tidak ada width, jadi kontainer ini cuma selebar
+     kontennya sendiri (avatar+teks+ikon) -- ikon menu (⋮) yang didorong
+     pakai margin-left:auto jadi cuma mentok di ujung TEKS, bukan di
+     tepi kartu sungguhan, terlihat aneh menggantung di tengah. Dengan
+     width penuh, dorongannya sekarang benar-benar sampai tepi kartu, di
+     lebar layar berapa pun. */
+  width: 100%;
 }
 
 .header-avatar {
