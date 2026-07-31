@@ -1,0 +1,305 @@
+// =========================================================
+// FITUR NILAI -- TAHAP 1: FONDASI DATA (belum ada tampilan/UI)
+// ---------------------------------------------------------
+// Model data: "bebas per kegiatan" -- guru bikin sendiri kegiatan
+// penilaian (mis. "Tugas 1", "UH Bab 2"), tiap kegiatan punya TIPE
+// SKALA sendiri (angka 0-100 ATAU huruf A/B/C/D/E, dipilih guru saat
+// bikin kegiatan itu -- BUKAN dua-duanya untuk 1 kegiatan yang sama,
+// supaya tidak ada 2 data yang bisa tidak sinkron).
+//
+// STRUKTUR SPREADSHEET (per kelas+mapel, 1 tab): 1 BARIS = 1 KEGIATAN
+// (bukan 1 baris = 1 siswa) -- pola yang sama dengan Absen (1 baris =
+// 1 tanggal), supaya konsisten & gampang dikelola:
+//   A=Timestamp, B=Guru, C=Mapel, D=Kelas, E=KegiatanId (unik),
+//   F=NamaKegiatan, G=TanggalKegiatan, H=TipeSkala ('angka'/'huruf'),
+//   I=DataNilai (JSON: {"NIS": "nilai", ...})
+//
+// TERPISAH TOTAL dari Absen -- folder Drive sendiri
+// (DRIVE_FOLDER_NILAI_ROOT_ID, lihat Config.gs) dan pelacakan grup
+// sendiri (NILAI_GROUP_MAP), TAPI memakai ULANG logika pengelompokan
+// grup yang sama (getAbsenGroupKey() -- jurusan+angkatan+tahunAjaran+
+// semester, konsepnya generik, tidak spesifik ke absen).
+// =========================================================
+
+function getNilaiGroupMap() {
+  return getConfigValue('NILAI_GROUP_MAP', {});
+}
+
+/**
+ * Auto-provisioning spreadsheet Nilai per grup -- pola & alasan SAMA
+ * PERSIS dengan getOrProvisionAbsenSpreadsheetId() di Config.gs
+ * (termasuk parameter `sudahDikunci` untuk cegah potensi deadlock kalau
+ * dipanggil dari konteks yang sudah pegang LockService sendiri -- lihat
+ * penjelasan lengkap di fungsi itu). SENGAJA dibuat sebagai fungsi
+ * TERPISAH (bukan reuse langsung fungsi absen yang sama), supaya kode
+ * Absen yang sudah teruji tidak ikut tersentuh sama sekali oleh
+ * perubahan di fitur Nilai ini.
+ */
+function getOrProvisionNilaiSpreadsheetId(kelas, tanggalStr, sudahDikunci) {
+  const groupKey = getAbsenGroupKey(kelas, tanggalStr); // reuse -- logika pengelompokan generik, bukan spesifik absen
+
+  let groupMap = getNilaiGroupMap();
+  if (groupMap[groupKey]) return groupMap[groupKey];
+
+  if (!DRIVE_FOLDER_NILAI_ROOT_ID || DRIVE_FOLDER_NILAI_ROOT_ID.indexOf('GANTI_DENGAN_ID') === 0) {
+    throw new Error('DRIVE_FOLDER_NILAI_ROOT_ID belum diisi. Buat 1 folder Drive kosong khusus Nilai, lalu isi ID-nya (lihat Config.gs).');
+  }
+
+  if (sudahDikunci) {
+    return provisionSpreadsheetNilaiBaru_(kelas, groupKey, groupMap);
+  }
+
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(15000);
+  } catch (e) {
+    throw new Error('Server sedang menyiapkan spreadsheet nilai baru untuk grup ' + groupKey + ', silakan coba lagi beberapa saat.');
+  }
+
+  try {
+    groupMap = getNilaiGroupMap(); // cek ulang setelah dapat lock (double-checked locking)
+    if (groupMap[groupKey]) return groupMap[groupKey];
+    return provisionSpreadsheetNilaiBaru_(kelas, groupKey, groupMap);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function provisionSpreadsheetNilaiBaru_(kelas, groupKey, groupMap) {
+  const jurusan = getJurusanFromKelas(kelas);
+  const rootFolder = DriveApp.getFolderById(DRIVE_FOLDER_NILAI_ROOT_ID);
+  const jurusanFolder = getOrCreateSubfolder(rootFolder, jurusan);
+
+  const namaFile = 'Nilai_' + groupKey;
+  let spreadsheetId;
+  const existingFiles = jurusanFolder.getFilesByName(namaFile);
+  if (existingFiles.hasNext()) {
+    spreadsheetId = existingFiles.next().getId();
+  } else {
+    const ssBaru = SpreadsheetApp.create(namaFile);
+    spreadsheetId = ssBaru.getId();
+    DriveApp.getFileById(spreadsheetId).moveTo(jurusanFolder);
+  }
+
+  const props = PropertiesService.getScriptProperties();
+  groupMap[groupKey] = spreadsheetId;
+  props.setProperty('NILAI_GROUP_MAP', JSON.stringify(groupMap));
+  invalidateConfigCache('NILAI_GROUP_MAP');
+
+  return spreadsheetId;
+}
+
+/**
+ * Buka spreadsheet Nilai untuk 1 kelas -- pola & parameter SAMA PERSIS
+ * dengan getAbsenSs() di Config.gs.
+ */
+function getNilaiSs(kelas, tanggalStr, sudahDikunci) {
+  if (!kelas) {
+    throw new Error('getNilaiSs() wajib diberi parameter kelas.');
+  }
+  const tgl = tanggalStr || todayISO();
+  const spreadsheetId = getOrProvisionNilaiSpreadsheetId(kelas, tgl, !!sudahDikunci);
+  return DB_CACHE.getNilai(spreadsheetId);
+}
+
+// Dipakai nanti untuk Rekap Nilai / reset semester (Tahap 3+) -- pola
+// sama dengan getAllAbsenSpreadsheets().
+function getAllNilaiSpreadsheets() {
+  const groupMap = getNilaiGroupMap();
+  const result = [];
+  for (const groupKey in groupMap) {
+    const spreadsheetId = groupMap[groupKey];
+    if (!spreadsheetId || spreadsheetId.indexOf('GANTI_DENGAN_ID') === 0) continue;
+    result.push({ groupKey: groupKey, ss: DB_CACHE.getNilai(spreadsheetId) });
+  }
+  return result;
+}
+
+// =========================================================
+// CRUD KEGIATAN PENILAIAN
+// =========================================================
+
+/**
+ * Wrapper luar dengan LockService -- pola SAMA PERSIS dengan
+ * handleSubmit()/simpanSubmitAbsensi() di Absensi.gs (cegah race
+ * condition kalau 2 guru menyimpan nilai ke kelas+mapel yang sama
+ * nyaris bersamaan). Router.gs (Tahap 2) akan memanggil fungsi INI,
+ * bukan simpanKegiatanNilai_() langsung.
+ */
+function handleSimpanKegiatanNilai(payload) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    return { success: false, message: "Server sedang memproses nilai lain, silakan coba lagi beberapa saat." };
+  }
+  try {
+    return simpanKegiatanNilai_(payload);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Logika penyimpanan sebenarnya -- HANYA dipanggil dari
+ * handleSimpanKegiatanNilai() di atas (sudah pegang lock), makanya
+ * getNilaiSs() di sini dipanggil dengan sudahDikunci=true (cegah
+ * potensi deadlock -- lihat penjelasan lengkap di
+ * getOrProvisionAbsenSpreadsheetId(), Config.gs).
+ *
+ * `payload`: { guru, mapel, kelas, kegiatanId (opsional -- kosong =
+ * buat kegiatan baru, diisi = update kegiatan yang sudah ada),
+ * namaKegiatan, tanggalKegiatan ("yyyy-MM-dd"), tipeSkala
+ * ('angka'/'huruf'), nilaiPerSiswa: { "NIS": "nilai", ... } }
+ */
+function simpanKegiatanNilai_(payload) {
+  if (!payload.namaKegiatan || !payload.mapel || !payload.kelas || !payload.tanggalKegiatan || !payload.tipeSkala) {
+    return { success: false, message: 'Data kegiatan tidak lengkap (nama, mapel, kelas, tanggal, dan tipe skala wajib diisi).' };
+  }
+  if (payload.tipeSkala !== 'angka' && payload.tipeSkala !== 'huruf') {
+    return { success: false, message: 'Tipe skala harus "angka" atau "huruf".' };
+  }
+
+  let ss;
+  try {
+    ss = getNilaiSs(payload.kelas, payload.tanggalKegiatan, true);
+  } catch (e) {
+    return { success: false, message: 'Gagal membuka/menyiapkan data nilai: ' + e.message };
+  }
+
+  const sheetName = (payload.kelas + "_" + payload.mapel).replace(/[^a-zA-Z0-9]/g, "_");
+  const sheet = getOrCreateSheet(ss, sheetName);
+
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(['Timestamp', 'Guru', 'Mapel', 'Kelas', 'KegiatanId', 'NamaKegiatan', 'TanggalKegiatan', 'TipeSkala', 'DataNilai']);
+  }
+
+  const kegiatanId = payload.kegiatanId || Utilities.getUuid();
+  const data = sheet.getDataRange().getValues();
+  let targetRow = -1;
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][4] === kegiatanId) { targetRow = i + 1; break; }
+  }
+
+  const dataNilaiJson = JSON.stringify(payload.nilaiPerSiswa || {});
+  const rowValues = [new Date(), payload.guru || '', payload.mapel, payload.kelas, kegiatanId, payload.namaKegiatan, payload.tanggalKegiatan, payload.tipeSkala, dataNilaiJson];
+
+  if (targetRow !== -1) {
+    sheet.getRange(targetRow, 1, 1, rowValues.length).setValues([rowValues]);
+  } else {
+    sheet.appendRow(rowValues);
+  }
+
+  return { success: true, message: 'Kegiatan penilaian berhasil disimpan.', data: { kegiatanId: kegiatanId } };
+}
+
+/**
+ * Daftar semua kegiatan untuk 1 kelas+mapel (metadata saja, TANPA
+ * DataNilai penuh -- biar ringan) -- dipakai nanti untuk dropdown
+ * pilihan kegiatan di form Input Nilai, dan daftar Riwayat (Tahap 2).
+ */
+function getKegiatanNilai(mapel, kelas) {
+  let ss;
+  try {
+    ss = getNilaiSs(kelas, todayISO());
+  } catch (e) {
+    return { success: false, message: 'Gagal membuka data nilai: ' + e.message };
+  }
+
+  const sheetName = (kelas + "_" + mapel).replace(/[^a-zA-Z0-9]/g, "_");
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return { success: true, data: [] }; // belum ada kegiatan sama sekali, BUKAN error
+
+  const data = sheet.getDataRange().getValues();
+  const daftar = [];
+  for (let i = 1; i < data.length; i++) {
+    if (!data[i][4]) continue;
+    daftar.push({
+      kegiatanId: data[i][4],
+      namaKegiatan: data[i][5],
+      tanggalKegiatan: data[i][6],
+      tipeSkala: data[i][7]
+    });
+  }
+
+  daftar.sort((a, b) => new Date(b.tanggalKegiatan) - new Date(a.tanggalKegiatan)); // terbaru dulu
+  return { success: true, data: daftar };
+}
+
+/**
+ * Ambil 1 kegiatan LENGKAP dengan nilai per siswa -- dipakai untuk mode
+ * edit (form Input Nilai dimuat ulang dengan data yang sudah ada, sama
+ * seperti pola edit di Riwayat Absensi).
+ */
+function getNilaiUntukKegiatan(mapel, kelas, kegiatanId) {
+  let ss;
+  try {
+    ss = getNilaiSs(kelas, todayISO());
+  } catch (e) {
+    return { success: false, message: 'Gagal membuka data nilai: ' + e.message };
+  }
+
+  const sheetName = (kelas + "_" + mapel).replace(/[^a-zA-Z0-9]/g, "_");
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return { success: false, message: 'Data nilai untuk kelas/mapel ini belum ada.' };
+
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][4] !== kegiatanId) continue;
+    let nilaiPerSiswa = {};
+    try { nilaiPerSiswa = JSON.parse(data[i][8] || '{}'); } catch (e) { /* rusak/kosong -- biarkan objek kosong, bukan error fatal */ }
+    return {
+      success: true,
+      data: {
+        kegiatanId: data[i][4],
+        namaKegiatan: data[i][5],
+        tanggalKegiatan: Utilities.formatDate(new Date(data[i][6]), ZONA_WAKTU_DIHARAPKAN, 'yyyy-MM-dd'),
+        tipeSkala: data[i][7],
+        nilaiPerSiswa: nilaiPerSiswa
+      }
+    };
+  }
+  return { success: false, message: 'Kegiatan penilaian tidak ditemukan.' };
+}
+
+/**
+ * Hapus 1 kegiatan penilaian -- disediakan sejak Tahap 1 (konsisten
+ * dengan fitur Hapus Absen yang sudah ada), meski UI-nya baru menyusul
+ * di Tahap 2. Pakai lock yang sama seperti hapusAbsensi() di
+ * Absensi.gs.
+ */
+function handleHapusKegiatanNilai(mapel, kelas, kegiatanId) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+  } catch (e) {
+    return { success: false, message: "Server sedang memproses nilai lain, silakan coba lagi beberapa saat." };
+  }
+  try {
+    return hapusKegiatanNilai_(mapel, kelas, kegiatanId);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function hapusKegiatanNilai_(mapel, kelas, kegiatanId) {
+  let ss;
+  try {
+    ss = getNilaiSs(kelas, todayISO(), true); // sudahDikunci=true, lihat handleSimpanKegiatanNilai() untuk penjelasan lengkap
+  } catch (e) {
+    return { success: false, message: 'Gagal membuka data nilai: ' + e.message };
+  }
+
+  const sheetName = (kelas + "_" + mapel).replace(/[^a-zA-Z0-9]/g, "_");
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return { success: false, message: 'Data nilai untuk kelas/mapel ini tidak ditemukan.' };
+
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][4] === kegiatanId) {
+      sheet.deleteRow(i + 1);
+      return { success: true, message: 'Kegiatan penilaian berhasil dihapus.' };
+    }
+  }
+  return { success: false, message: 'Kegiatan penilaian tidak ditemukan (mungkin sudah terhapus sebelumnya).' };
+}

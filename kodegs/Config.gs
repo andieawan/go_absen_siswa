@@ -160,6 +160,14 @@ const DRIVE_FOLDER_FOTO_PROFIL_ID = getConfigValue('DRIVE_FOLDER_FOTO_PROFIL_ID'
 // atau langsung lewat Script Properties.
 const DRIVE_FOLDER_LOGO_SEKOLAH_ID = getConfigValue('DRIVE_FOLDER_LOGO_SEKOLAH_ID', 'GANTI_DENGAN_ID_FOLDER_LOGO_SEKOLAH');
 
+// PATCH FITUR NILAI (Tahap 1): folder Drive root untuk spreadsheet Nilai
+// -- SENGAJA TERPISAH dari DRIVE_FOLDER_ABSEN_ROOT_ID (disepakati di
+// awal perencanaan fitur ini), supaya siklus hidup keduanya bisa diatur
+// independen (mis. kapan direset per semester). Buat 1 folder Drive
+// kosong khusus untuk ini, isi ID-nya lewat setupConfig() atau langsung
+// lewat Script Properties -- lihat kodegs/Nilai.gs untuk pemakaiannya.
+const DRIVE_FOLDER_NILAI_ROOT_ID = getConfigValue('DRIVE_FOLDER_NILAI_ROOT_ID', 'GANTI_DENGAN_ID_FOLDER_ROOT_NILAI');
+
 // Tidak ada seed manual -- SEMUA grup (termasuk kelas yang sebelumnya
 // memakai spreadsheet dummy lama) akan ter-provision otomatis sendiri
 // saat dipakai pertama kali. Spreadsheet dummy lama sengaja TIDAK
@@ -413,6 +421,12 @@ function setupConfig() {
     // menyimpan logo sekolah (tampil di halaman login, fitur Panel Admin).
     props.setProperty('DRIVE_FOLDER_LOGO_SEKOLAH_ID', 'GANTI_DENGAN_ID_FOLDER_LOGO_SEKOLAH');
   }
+  if (!props.getProperty('DRIVE_FOLDER_NILAI_ROOT_ID')) {
+    // GANTI nilai di bawah dengan ID folder Drive kosong khusus untuk
+    // menampung spreadsheet Nilai (fitur Input Nilai, terpisah dari
+    // folder Absen).
+    props.setProperty('DRIVE_FOLDER_NILAI_ROOT_ID', 'GANTI_DENGAN_ID_FOLDER_ROOT_NILAI');
+  }
   
   // Invalidate cache agar config terbaru langsung terbaca
   invalidateConfigCache('SPREADSHEET_MASTER_SISWA_ID');
@@ -422,6 +436,7 @@ function setupConfig() {
   invalidateConfigCache('DRIVE_FOLDER_BACKUP_ID');
   invalidateConfigCache('DRIVE_FOLDER_FOTO_PROFIL_ID');
   invalidateConfigCache('DRIVE_FOLDER_LOGO_SEKOLAH_ID');
+  invalidateConfigCache('DRIVE_FOLDER_NILAI_ROOT_ID');
   
   Logger.log('Konfigurasi berhasil disetup!');
   Logger.log('SPREADSHEET_MASTER_SISWA_ID: ' + props.getProperty('SPREADSHEET_MASTER_SISWA_ID'));
@@ -431,6 +446,7 @@ function setupConfig() {
   Logger.log('DRIVE_FOLDER_BACKUP_ID: ' + props.getProperty('DRIVE_FOLDER_BACKUP_ID'));
   Logger.log('DRIVE_FOLDER_FOTO_PROFIL_ID: ' + props.getProperty('DRIVE_FOLDER_FOTO_PROFIL_ID') + ' (GANTI kalau masih placeholder!)');
   Logger.log('DRIVE_FOLDER_LOGO_SEKOLAH_ID: ' + props.getProperty('DRIVE_FOLDER_LOGO_SEKOLAH_ID') + ' (GANTI kalau masih placeholder!)');
+  Logger.log('DRIVE_FOLDER_NILAI_ROOT_ID: ' + props.getProperty('DRIVE_FOLDER_NILAI_ROOT_ID') + ' (GANTI kalau masih placeholder!)');
   Logger.log('CATATAN: spreadsheet absen sekarang dipecah per grup jurusan+angkatan+semester, dan dibuat OTOMATIS saat pertama kali dipakai -- tidak perlu diisi manual satu-satu lagi.');
 }
 
@@ -445,6 +461,7 @@ const DB_CACHE = {
   _masterSiswa: null,
   _masterGuru: null,
   _absenById: {},
+  _nilaiById: {}, // PATCH FITUR NILAI: cache terpisah dari _absenById (lihat kodegs/Nilai.gs)
 
   getMasterSiswa: function() {
     if (!this._masterSiswa) {
@@ -467,10 +484,20 @@ const DB_CACHE = {
     return this._absenById[spreadsheetId];
   },
 
+  // PATCH FITUR NILAI: pola identik dengan getAbsen() di atas, cuma beda
+  // spreadsheet -- lihat getNilaiSs() di kodegs/Nilai.gs.
+  getNilai: function(spreadsheetId) {
+    if (!this._nilaiById[spreadsheetId]) {
+      this._nilaiById[spreadsheetId] = SpreadsheetApp.openById(spreadsheetId);
+    }
+    return this._nilaiById[spreadsheetId];
+  },
+
   reset: function() {
     this._masterSiswa = null;
     this._masterGuru = null;
     this._absenById = {};
+    this._nilaiById = {};
   }
 };
 
