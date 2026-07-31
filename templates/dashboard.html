@@ -333,6 +333,7 @@
         <div class="sub-tab-nav" id="inputSubTabNav">
             <button class="sub-tab-btn active" data-subtab="subtabInputMapel" id="subtabBtnInputMapel">📚 Guru Mapel</button>
             <button class="sub-tab-btn hidden" data-subtab="subtabInputWali" id="subtabBtnInputWali">👪 Wali Kelas</button>
+            <button class="sub-tab-btn" data-subtab="subtabInputNilai" id="subtabBtnInputNilai">📊 Nilai</button>
         </div>
 
         <!-- SUB-TAB: INPUT GURU MAPEL -->
@@ -466,6 +467,87 @@
                 </button>
             </form>
         </div>
+
+        <!-- SUB-TAB: INPUT NILAI (khusus guru mapel -- lihat kodegs/Nilai.gs.
+             Model "bebas per kegiatan": guru bikin sendiri nama kegiatan,
+             pilih tipe skala (angka ATAU huruf, tidak dua-duanya untuk 1
+             kegiatan yang sama), lalu isi nilai per siswa. -->
+        <div id="subtabInputNilai" class="sub-tab-panel hidden">
+            <form id="nilaiForm" class="card">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="nilaiSelectMapel">Mata Pelajaran</label>
+                        <select id="nilaiSelectMapel" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="nilaiSelectKelas">Kelas</label>
+                        <select id="nilaiSelectKelas" required>
+                            <option value="" disabled selected>-- Pilih Kelas --</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="nilaiSelectKegiatan">Kegiatan</label>
+                    <select id="nilaiSelectKegiatan" disabled>
+                        <option value="">-- Pilih kelas & mapel dulu --</option>
+                    </select>
+                </div>
+
+                <!-- Detail kegiatan (nama, tanggal, tipe skala) -- tampil
+                     setelah "+ Buat Kegiatan Baru" dipilih, ATAU otomatis
+                     terisi (jadi read-only untuk nama & tipe skala) saat
+                     mengedit kegiatan yang sudah ada. -->
+                <div id="nilaiDetailKegiatanWrapper" class="hidden">
+                    <div class="form-group">
+                        <label for="nilaiNamaKegiatan">Nama Kegiatan</label>
+                        <input type="text" id="nilaiNamaKegiatan" placeholder="mis. Tugas 1, UH Bab 2, Praktik Desain">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="nilaiTanggalKegiatan">Tanggal</label>
+                            <input type="date" id="nilaiTanggalKegiatan">
+                        </div>
+                        <div class="form-group">
+                            <label for="nilaiTipeSkala">Tipe Skala</label>
+                            <select id="nilaiTipeSkala">
+                                <option value="angka">Angka (0-100)</option>
+                                <option value="huruf">Huruf (A/B/C/D/E)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="students-section">
+                        <div class="section-header">
+                            <h4>👥 Nilai Siswa</h4>
+                        </div>
+                        <p id="nilaiLoading" class="hidden">Mengambil data dari server...</p>
+                        <div class="table-wrapper">
+                            <table id="nilaiStudentsTable" class="simple-table">
+                                <thead><tr><th>NIS</th><th>Nama Siswa</th><th>Nilai</th></tr></thead>
+                                <tbody id="nilaiStudentsBody">
+                                    <tr class="empty-row">
+                                        <td colspan="3">
+                                            <div class="empty-state-illustration">
+                                                <svg viewBox="0 0 200 150"><circle cx="100" cy="75" r="50" fill="#DCE0EE"/><text x="100" y="85" text-anchor="middle" font-size="40">📊</text></svg>
+                                                <p>Silakan pilih kelas & mapel terlebih dahulu</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="nilaiBtnSubmit" class="btn-primary btn-full btn-submit">
+                        <span class="btn-text">💾 Simpan Nilai</span>
+                        <span class="btn-loader hidden">⏳ Menyimpan...</span>
+                    </button>
+                    <button type="button" id="nilaiBtnHapusKegiatan" class="btn-secondary btn-full hidden" style="margin-top: var(--spacing-2); border-color: var(--danger-color); color: var(--danger-color);">🗑️ Hapus Kegiatan Ini</button>
+                </div>
+                <p id="nilaiFormMsg" class="login-msg"></p>
+            </form>
+        </div>
     </div>
 
     <!-- PANEL: RIWAYAT -->
@@ -477,6 +559,7 @@
         <div class="sub-tab-nav" id="riwayatSubTabNav">
             <button class="sub-tab-btn active" data-subtab="subtabMapel">📚 Per Mapel</button>
             <button class="sub-tab-btn hidden" data-subtab="subtabWali" id="subtabBtnWali">👪 Per Kelas (Wali)</button>
+            <button class="sub-tab-btn" data-subtab="subtabRiwayatNilai" id="subtabBtnRiwayatNilai">📊 Nilai</button>
         </div>
         <div id="subtabMapel" class="sub-tab-panel">
             <div class="card">
@@ -516,6 +599,29 @@
                 <div class="empty-state-illustration large">
                     <svg viewBox="0 0 200 150"><circle cx="100" cy="75" r="50" fill="#DCE0EE"/><text x="100" y="85" text-anchor="middle" font-size="40">👨‍👩‍👧</text></svg>
                     <p>Memuat riwayat absensi wali kelas...</p>
+                </div>
+            </div>
+        </div>
+        <div id="subtabRiwayatNilai" class="sub-tab-panel hidden">
+            <div class="card">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="riwayatNilaiMapel">Mata Pelajaran</label>
+                        <select id="riwayatNilaiMapel"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="riwayatNilaiKelas">Kelas</label>
+                        <select id="riwayatNilaiKelas">
+                            <option value="" disabled selected>-- Pilih Kelas --</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <p id="riwayatNilaiLoading" class="hidden">Mengambil riwayat...</p>
+            <div id="riwayatNilaiList">
+                <div class="empty-state-illustration large">
+                    <svg viewBox="0 0 200 150"><circle cx="100" cy="75" r="50" fill="#DCE0EE"/><text x="100" y="85" text-anchor="middle" font-size="40">📊</text></svg>
+                    <p>Pilih mata pelajaran dan kelas untuk melihat riwayat nilai</p>
                 </div>
             </div>
         </div>
