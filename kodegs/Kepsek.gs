@@ -4,7 +4,12 @@
 // Read-only, cakupannya SELURUH sekolah -- bukan "kelas & mapel yang
 // saya ajar" seperti dashboard guru biasa. Menyisir SEMUA grup absen
 // (getAllAbsenSpreadsheets(), pola yang sama dipakai generateFullRecap()
-// di Rekap.gs) dan SEMUA tab di dalamnya, lalu mengagregasi hasilnya.
+// di Rekap.gs), TAPI HANYA tab absen harian Wali Kelas (mapel ===
+// MAPEL_ABSEN_WALI, "Absen Harian") -- SENGAJA TIDAK digabung dengan
+// absen per mata pelajaran, supaya gambarannya konsisten (kehadiran
+// harian per kelas, 1 angka per siswa per hari), bukan tercampur data
+// per-mapel yang lebih mikro & bisa bikin siswa yang sama terhitung
+// berkali-kali di hari yang sama (1x per mapel + 1x absen harian).
 //
 // SENGAJA TIDAK ada tabel "Persentase Kehadiran per Kelas+Mapel" (beda
 // dari dashboard Per Mapel guru) -- untuk seluruh sekolah itu bisa
@@ -15,9 +20,20 @@
 // =========================================================
 
 function getDashboardSekolah() {
-  let rekapKelasMapel = []; // dipakai internal untuk hitung total gabungan & perhatian, TIDAK dikirim ke frontend
-  let siswaStatusCount = {}; // { "kelas|nis": {alpa, izin, sakit} }
-  let trendMap = {};
+  // PATCH: sebelumnya rekapKelasMapel cuma dipakai INTERNAL untuk hitung
+  // total gabungan, TIDAK PERNAH dikirim ke frontend (disengaja waktu
+  // itu, lihat catatan lama). Sekarang diganti struktur agregasi PER
+  // KELAS (aggPerKelas dkk di bawah) supaya rincian per kelas BISA
+  // dikirim ke frontend -- dipakai untuk tabel daftar kelas + filter
+  // klik-per-kelas di Ringkasan & Saran (mirip pola yang sudah ada di
+  // Dashboard Per Mapel guru, cuma di sini kuncinya cuma "kelas" saja,
+  // tidak perlu "kelas|mapel" karena Dashboard Sekolah memang cuma
+  // pakai 1 jenis data -- Absen Harian Wali Kelas).
+  let siswaStatusCount = {};              // gabungan SELURUH sekolah -- { "kelas|nis": {...} }
+  let siswaStatusCountPerKelas = {};      // { kelas: { "kelas|nis": {...} } }
+  let trendMap = {};                      // gabungan SELURUH sekolah -- { tanggal: {...} }
+  let trendMapPerKelas = {};              // { kelas: { tanggal: {...} } }
+  let aggPerKelas = {};                   // { kelas: {hadir, izin, sakit, alpa, pertemuan} }
   const nisKeNamaCache = {};
   let adaData = false;
 
@@ -34,9 +50,15 @@ function getDashboardSekolah() {
       const kelas = data[1][3];
       if (!kelas || !mapel) return;
 
-      if (!nisKeNamaCache[kelas]) nisKeNamaCache[kelas] = getNisKeNamaMap(kelas);
+      // Dashboard Sekolah SENGAJA cuma pakai data Wali Kelas (absen
+      // harian), TIDAK digabung dengan absen per mata pelajaran -- lihat
+      // penjelasan lengkap di komentar atas file ini.
+      if (mapel !== MAPEL_ABSEN_WALI) return;
 
-      let agg = { hadir: 0, izin: 0, sakit: 0, alpa: 0, pertemuan: 0 };
+      if (!nisKeNamaCache[kelas]) nisKeNamaCache[kelas] = getNisKeNamaMap(kelas);
+      if (!aggPerKelas[kelas]) aggPerKelas[kelas] = { hadir: 0, izin: 0, sakit: 0, alpa: 0, pertemuan: 0 };
+      if (!trendMapPerKelas[kelas]) trendMapPerKelas[kelas] = {};
+      if (!siswaStatusCountPerKelas[kelas]) siswaStatusCountPerKelas[kelas] = {};
 
       function catatStatus(strDaftar, jenisStatus) {
         if (!strDaftar) return;
@@ -44,8 +66,12 @@ function getDashboardSekolah() {
           const nisTrim = nis.trim();
           if (!nisTrim) return;
           const keyGlobal = kelas + "|" + nisTrim;
+
           if (!siswaStatusCount[keyGlobal]) siswaStatusCount[keyGlobal] = { alpa: 0, izin: 0, sakit: 0 };
           siswaStatusCount[keyGlobal][jenisStatus]++;
+
+          if (!siswaStatusCountPerKelas[kelas][keyGlobal]) siswaStatusCountPerKelas[kelas][keyGlobal] = { alpa: 0, izin: 0, sakit: 0 };
+          siswaStatusCountPerKelas[kelas][keyGlobal][jenisStatus]++;
         });
       }
 
@@ -65,11 +91,11 @@ function getDashboardSekolah() {
         const sakitCount = strSakit ? strSakit.split(',').length : 0;
         const alpaCount = strAlpa ? strAlpa.split(',').length : 0;
 
-        agg.hadir += hadirCount;
-        agg.izin += izinCount;
-        agg.sakit += sakitCount;
-        agg.alpa += alpaCount;
-        agg.pertemuan++;
+        aggPerKelas[kelas].hadir += hadirCount;
+        aggPerKelas[kelas].izin += izinCount;
+        aggPerKelas[kelas].sakit += sakitCount;
+        aggPerKelas[kelas].alpa += alpaCount;
+        aggPerKelas[kelas].pertemuan++;
 
         catatStatus(strAlpa, 'alpa');
         catatStatus(strIzin, 'izin');
@@ -80,11 +106,13 @@ function getDashboardSekolah() {
         trendMap[tanggalStr].izin += izinCount;
         trendMap[tanggalStr].sakit += sakitCount;
         trendMap[tanggalStr].alpa += alpaCount;
-      }
 
-      const total = agg.hadir + agg.izin + agg.sakit + agg.alpa;
-      const persenHadir = total > 0 ? Math.round((agg.hadir / total) * 1000) / 10 : 0;
-      rekapKelasMapel.push({ kelas, mapel, hadir: agg.hadir, izin: agg.izin, sakit: agg.sakit, alpa: agg.alpa, persenHadir });
+        if (!trendMapPerKelas[kelas][tanggalStr]) trendMapPerKelas[kelas][tanggalStr] = { hadir: 0, izin: 0, sakit: 0, alpa: 0 };
+        trendMapPerKelas[kelas][tanggalStr].hadir += hadirCount;
+        trendMapPerKelas[kelas][tanggalStr].izin += izinCount;
+        trendMapPerKelas[kelas][tanggalStr].sakit += sakitCount;
+        trendMapPerKelas[kelas][tanggalStr].alpa += alpaCount;
+      }
     });
   });
 
@@ -92,9 +120,6 @@ function getDashboardSekolah() {
     return { success: false, message: "Belum ada data absensi untuk ditampilkan." };
   }
 
-  // Reuse fungsi bersama yang sama dengan dashboard guru (Dashboard.gs) --
-  // bangunDaftarPerhatian() & hitungDistribusiPersen() sudah generik,
-  // tidak perlu duplikasi logika di sini.
   const perhatian = bangunDaftarPerhatian(siswaStatusCount, key => {
     const [kelasKey, nis] = key.split("|");
     if (!nisKeNamaCache[kelasKey]) nisKeNamaCache[kelasKey] = getNisKeNamaMap(kelasKey);
@@ -111,7 +136,45 @@ function getDashboardSekolah() {
       return { tanggal: tgl, persenHadir: persenHadir };
     });
 
-  const totalGabungan = rekapKelasMapel.reduce((acc, item) => {
+  // PATCH: bangun rekapKelas (untuk tabel daftar kelas di frontend) &
+  // perKelas (dipakai saat 1 baris kelas diklik, untuk filter Ringkasan
+  // & Saran khusus kelas itu) -- keduanya BARU, sebelumnya sama sekali
+  // tidak dikirim ke frontend.
+  const rekapKelas = [];
+  const perKelas = {};
+  Object.keys(aggPerKelas).sort().forEach(function(kelas) {
+    const agg = aggPerKelas[kelas];
+    const total = agg.hadir + agg.izin + agg.sakit + agg.alpa;
+    const persenHadir = total > 0 ? Math.round((agg.hadir / total) * 1000) / 10 : 0;
+    rekapKelas.push({ kelas: kelas, persenHadir: persenHadir, pertemuan: agg.pertemuan });
+
+    const perhatianKelas = bangunDaftarPerhatian(siswaStatusCountPerKelas[kelas], key => {
+      const [, nis] = key.split("|");
+      const nama = nisKeNamaCache[kelas][nis] || ("NIS " + nis);
+      return { nama: nama, nis: nis, kelas: kelas };
+    });
+
+    const trendKelas = Object.keys(trendMapPerKelas[kelas])
+      .sort((a, b) => new Date(a) - new Date(b))
+      .map(tgl => {
+        const d = trendMapPerKelas[kelas][tgl];
+        const t = d.hadir + d.izin + d.sakit + d.alpa;
+        const p = t > 0 ? Math.round((d.hadir / t) * 1000) / 10 : 0;
+        return { tanggal: tgl, persenHadir: p };
+      });
+
+    perKelas[kelas] = {
+      trend: trendKelas,
+      perhatian: perhatianKelas,
+      rataRata: hitungDistribusiPersen(agg),
+      persenHadirKeseluruhan: persenHadir
+    };
+  });
+
+  // Reuse fungsi bersama yang sama dengan dashboard guru (Dashboard.gs) --
+  // bangunDaftarPerhatian() & hitungDistribusiPersen() sudah generik,
+  // tidak perlu duplikasi logika di sini.
+  const totalGabungan = Object.values(aggPerKelas).reduce((acc, item) => {
     acc.hadir += item.hadir; acc.izin += item.izin; acc.sakit += item.sakit; acc.alpa += item.alpa;
     return acc;
   }, { hadir: 0, izin: 0, sakit: 0, alpa: 0 });
@@ -122,11 +185,13 @@ function getDashboardSekolah() {
   return {
     success: true,
     data: {
-      jumlahKombinasi: rekapKelasMapel.length,
+      jumlahKombinasi: rekapKelas.length,
       persenHadirKeseluruhan,
       perhatian,
       trend,
-      rataRata
+      rataRata,
+      rekapKelas,
+      perKelas
     }
   };
 }
