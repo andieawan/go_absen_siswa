@@ -28,7 +28,7 @@
  * =========================================================
  */
 
-import { getDashboardData, getDetailSiswaPerhatian, getDetailSiswaPerhatianWali, getDashboardDataWali, getDashboardSekolah, getSiswaByKelas, getCurrentUser, getRingkasanNilaiUntukDashboard } from './api.js?v=20260731j';
+import { getDashboardData, getDetailSiswaPerhatian, getDetailSiswaPerhatianWali, getDashboardDataWali, getDashboardSekolah, getSiswaByKelas, getCurrentUser, getRingkasanNilaiUntukDashboard } from './api.js?v=20260731k';
 // PATCH PERFORMA: escapeHtml dipakai dari utils.js (regex string-replace),
 // bukan implementasi lokal yang sebelumnya ada di file ini. Implementasi
 // lama membuat elemen <div> DOM baru pada SETIAP pemanggilan (lihat riwayat
@@ -36,14 +36,15 @@ import { getDashboardData, getDetailSiswaPerhatian, getDetailSiswaPerhatianWali,
 // terpanggil berulang kali di dalam .map()/.forEach() saat merender daftar
 // topAlpa & rekap kelas/mapel. Juga menghapus duplikasi kode yang sama
 // persis fungsinya dengan utils.js.
-import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731j';
-import { showRichModal } from './modal.js?v=20260731j';
-import { navigasiKeEditAbsensi } from './absensi.js?v=20260731j';
+import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731k';
+import { showRichModal } from './modal.js?v=20260731k';
+import { navigasiKeEditAbsensi } from './absensi.js?v=20260731k';
 
 // Cache untuk data dashboard
 let dashboardCache = {
     mapel: null,
-    wali: null
+    wali: null,
+    sekolah: null
 };
 
 /**
@@ -1525,7 +1526,7 @@ function analisisTrenSekolah(data) {
     const siswaMenonjol = totalJarangMasuk > 0 ? daftarJarangMasuk[0] : null;
 
     return {
-        persenSekarang, labelKondisi, jumlahKombinasi: data.jumlahKombinasi,
+        persenSekarang, labelKondisi, jumlahKombinasi: data.jumlahKombinasi || 1,
         arahTren, rataAwal, rataAkhir,
         hariTerendah, nilaiTerendahHari, rataKeseluruhanTren,
         totalAlpaSiswa, totalJarangMasuk, siswaMenonjol, daftarJarangMasuk
@@ -1643,6 +1644,85 @@ function sebutkanSiswaTeratas(daftar, ambangBatas, maksTampil = 5) {
     return teks;
 }
 
+/**
+ * PATCH: tabel daftar kelas untuk Dashboard Sekolah -- klik 1 baris
+ * untuk memfilter Ringkasan & Saran (dan tren/distribusi/perhatian) di
+ * bawahnya khusus kelas itu saja, mirip pola klik-kartu yang sudah ada
+ * di Dashboard Per Mapel guru (toggleFilterKombinasi()), cuma di sini
+ * kuncinya cuma "kelas" saja (Dashboard Sekolah memang cuma 1 jenis
+ * data -- Absen Harian Wali Kelas, tidak ada dimensi "mapel").
+ */
+function renderRekapKelasSekolahList(rekapKelas, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    let html = '<div class="table-wrapper"><table class="simple-table"><thead><tr>' +
+        '<th class="th-nomor">No</th><th>Kelas</th><th>Rata-rata Hadir</th><th>Pertemuan</th>' +
+        '</tr></thead><tbody>';
+
+    rekapKelas.forEach((item, i) => {
+        html += `<tr class="baris-kelas-klik" data-kelas="${escapeHtml(item.kelas)}" tabindex="0" role="button">
+            <td class="td-nomor">${i + 1}</td>
+            <td>${escapeHtml(item.kelas)}</td>
+            <td>${item.persenHadir.toFixed(1)}%</td>
+            <td>${item.pertemuan}</td>
+        </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+
+    container.querySelectorAll('.baris-kelas-klik').forEach(row => {
+        const aktifkan = () => toggleFilterKelasSekolah(row, container);
+        row.addEventListener('click', aktifkan);
+        row.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aktifkan(); } });
+    });
+}
+
+function toggleFilterKelasSekolah(row, listContainer) {
+    const data = dashboardCache.sekolah;
+    if (!data) return;
+
+    const sedangAktif = row.classList.contains('baris-kelas-aktif');
+    listContainer.querySelectorAll('.baris-kelas-klik').forEach(r => r.classList.remove('baris-kelas-aktif'));
+
+    if (sedangAktif) {
+        // Klik ulang baris yang sama -> reset ke tampilan gabungan seluruh sekolah.
+        if (data.trend && data.trend.length > 0) renderTrendChart(data.trend, 'trendChartSekolah');
+        if (data.rataRata) renderDistribusiStatus(data.rataRata, 'sekolahDistribusiList');
+        if (data.perhatian) {
+            renderTopAlpaList(data.perhatian.alpa, 'sekolahTopAlpaList', 'Jumlah Alpa');
+            renderTopAlpaList(data.perhatian.izin, 'sekolahTopIzinList', 'Jumlah Izin');
+            renderTopAlpaList(data.perhatian.sakit, 'sekolahTopSakitList', 'Jumlah Sakit');
+            renderTopAlpaList(data.perhatian.jarangMasuk, 'sekolahTopJarangMasukList', 'Jumlah Tidak Hadir');
+        }
+        renderRingkasanNarasiSekolah(data);
+        return;
+    }
+
+    row.classList.add('baris-kelas-aktif');
+    const kelas = row.dataset.kelas;
+    const perKelasData = (data.perKelas && data.perKelas[kelas]) || null;
+
+    if (!perKelasData) {
+        showNotification('Data rinci untuk kelas "' + kelas + '" belum tersedia.', 'error');
+        return;
+    }
+
+    if (perKelasData.trend && perKelasData.trend.length > 0) renderTrendChart(perKelasData.trend, 'trendChartSekolah');
+    if (perKelasData.rataRata) renderDistribusiStatus(perKelasData.rataRata, 'sekolahDistribusiList');
+    if (perKelasData.perhatian) {
+        renderTopAlpaList(perKelasData.perhatian.alpa, 'sekolahTopAlpaList', 'Jumlah Alpa');
+        renderTopAlpaList(perKelasData.perhatian.izin, 'sekolahTopIzinList', 'Jumlah Izin');
+        renderTopAlpaList(perKelasData.perhatian.sakit, 'sekolahTopSakitList', 'Jumlah Sakit');
+        renderTopAlpaList(perKelasData.perhatian.jarangMasuk, 'sekolahTopJarangMasukList', 'Jumlah Tidak Hadir');
+    }
+    // PATCH: Ringkasan & Saran ikut difilter khusus kelas ini saja --
+    // sebelumnya SELALU menampilkan gabungan seluruh sekolah, tidak ada
+    // cara memfilternya ke 1 kelas sama sekali.
+    renderRingkasanNarasiSekolah(perKelasData);
+}
+
 function renderRingkasanNarasiSekolah(data) {
     const container = document.getElementById('sekolahRingkasanNarasi');
     if (!container) return;
@@ -1693,6 +1773,7 @@ async function loadDashboardSekolah() {
         }
 
         const data = res.data;
+        dashboardCache.sekolah = data;
         if (contentEl) contentEl.classList.remove('hidden');
         if (emptyEl) emptyEl.classList.add('hidden');
 
@@ -1700,6 +1781,14 @@ async function loadDashboardSekolah() {
         if (elKombinasi) elKombinasi.textContent = data.jumlahKombinasi;
         const elRataHadir = document.getElementById('sekolahStatRataHadir');
         if (elRataHadir) elRataHadir.textContent = data.persenHadirKeseluruhan + '%';
+
+        // PATCH: tabel daftar kelas -- klik 1 baris untuk memfilter
+        // Ringkasan & Saran (dan tren/distribusi) di bawah, khusus kelas
+        // itu saja. Sebelumnya data per-kelas ini dihitung tapi TIDAK
+        // dikirim ke frontend sama sekali.
+        if (data.rekapKelas && data.rekapKelas.length > 0) {
+            renderRekapKelasSekolahList(data.rekapKelas, 'sekolahRekapKelasList');
+        }
 
         if (data.trend && data.trend.length > 0) {
             renderTrendChart(data.trend, 'trendChartSekolah');
