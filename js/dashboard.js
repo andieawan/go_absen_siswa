@@ -28,7 +28,7 @@
  * =========================================================
  */
 
-import { getDashboardData, getDetailSiswaPerhatian, getDetailSiswaPerhatianWali, getDashboardDataWali, getDashboardSekolah, getSiswaByKelas, getCurrentUser, getRingkasanNilaiUntukDashboard } from './api.js?v=20260731i';
+import { getDashboardData, getDetailSiswaPerhatian, getDetailSiswaPerhatianWali, getDashboardDataWali, getDashboardSekolah, getSiswaByKelas, getCurrentUser, getRingkasanNilaiUntukDashboard } from './api.js?v=20260731j';
 // PATCH PERFORMA: escapeHtml dipakai dari utils.js (regex string-replace),
 // bukan implementasi lokal yang sebelumnya ada di file ini. Implementasi
 // lama membuat elemen <div> DOM baru pada SETIAP pemanggilan (lihat riwayat
@@ -36,9 +36,9 @@ import { getDashboardData, getDetailSiswaPerhatian, getDetailSiswaPerhatianWali,
 // terpanggil berulang kali di dalam .map()/.forEach() saat merender daftar
 // topAlpa & rekap kelas/mapel. Juga menghapus duplikasi kode yang sama
 // persis fungsinya dengan utils.js.
-import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731i';
-import { showRichModal } from './modal.js?v=20260731i';
-import { navigasiKeEditAbsensi } from './absensi.js?v=20260731i';
+import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731j';
+import { showRichModal } from './modal.js?v=20260731j';
+import { navigasiKeEditAbsensi } from './absensi.js?v=20260731j';
 
 // Cache untuk data dashboard
 let dashboardCache = {
@@ -100,7 +100,7 @@ function renderRekapKelasMapelList(data, containerId) {
  * itu. Klik kartu yang sedang aktif lagi -> kembali ke data gabungan
  * (semua kelas+mapel guru itu).
  */
-function toggleFilterKombinasi(card, listContainer) {
+async function toggleFilterKombinasi(card, listContainer) {
     const data = dashboardCache.mapel;
     if (!data) return;
 
@@ -117,6 +117,7 @@ function toggleFilterKombinasi(card, listContainer) {
         const jumlahKombinasi = (data.rekapKelasMapel || []).length;
         const userData = getCurrentUser() || {};
         const mapelListStrGabungan = (userData.mapelList || []).join(',');
+        const kelasListStrGabungan = (userData.kelasList || []).join(',');
         renderPerhatianEmpat(data.perhatian, mapelListStrGabungan);
         renderTrendChart(data.trend, 'trendChart');
         if (data.rataRata) {
@@ -124,6 +125,17 @@ function toggleFilterKombinasi(card, listContainer) {
             pasangKlikDistribusiPerMapel('distribusiMapelList');
         }
         tampilkanLabelFilterTren(`Menampilkan: Semua Mapel (gabungan ${jumlahKombinasi} kombinasi kelas+mapel)`);
+
+        // PATCH: Ringkasan & Saran sebelumnya SELALU menampilkan data
+        // gabungan semua mapel, tidak ikut berubah sama sekali walau
+        // kartu per-kelas diklik/direset -- sekarang ikut kembali ke
+        // ringkasan GABUNGAN di sini (ambil ulang ringkasan nilai
+        // gabungan juga, supaya konsisten dengan absensinya).
+        try {
+            const ringkasanNilaiRes = await getRingkasanNilaiUntukDashboard(mapelListStrGabungan, kelasListStrGabungan).catch(() => null);
+            const ringkasanNilai = (ringkasanNilaiRes && ringkasanNilaiRes.success) ? ringkasanNilaiRes.data : null;
+            renderRingkasanNarasiMapel(data, ringkasanNilai);
+        } catch (e) { /* biarkan Ringkasan lama tetap tampil kalau gagal -- jangan sampai bagian lain ikut rusak */ }
         return;
     }
 
@@ -137,10 +149,10 @@ function toggleFilterKombinasi(card, listContainer) {
         return;
     }
 
-    // kombinasiKey formatnya "kelas|mapel" -- ambil bagian mapel saja
-    // supaya detail siswa nanti cuma menyisir 1 sheet ini (lebih cepat),
-    // bukan semua mapel guru.
-    const mapelKombinasiIni = (kombinasiKey.split('|')[1] || '').trim();
+    // kombinasiKey formatnya "kelas|mapel" -- dipisah untuk dipakai baik
+    // detail siswa (cuma perlu bagian mapel) maupun ringkasan nilai
+    // per-kombinasi di bawah (perlu keduanya).
+    const [kelasKombinasiIni, mapelKombinasiIni] = kombinasiKey.split('|').map(s => (s || '').trim());
     renderPerhatianEmpat(perKombinasi.perhatian, mapelKombinasiIni);
     renderTrendChart(perKombinasi.trend, 'trendChart');
     if (perKombinasi.rataRata) {
@@ -148,6 +160,16 @@ function toggleFilterKombinasi(card, listContainer) {
         pasangKlikDistribusiPerMapel('distribusiMapelList');
     }
     tampilkanLabelFilterTren(`Menampilkan: ${labelTerpilih} (klik kartu ini lagi untuk kembali ke tampilan semua mapel)`);
+
+    // PATCH: Ringkasan & Saran sekarang ikut difilter KHUSUS kombinasi
+    // ini saja -- termasuk ringkasan Nilai-nya, diambil ulang khusus
+    // untuk 1 kelas+mapel ini (bukan sisa cache gabungan), supaya titik
+    // temu absen+nilai juga presisi ke kombinasi yang sedang dilihat.
+    try {
+        const ringkasanNilaiRes = await getRingkasanNilaiUntukDashboard(mapelKombinasiIni, kelasKombinasiIni).catch(() => null);
+        const ringkasanNilai = (ringkasanNilaiRes && ringkasanNilaiRes.success) ? ringkasanNilaiRes.data : null;
+        renderRingkasanNarasiMapel(perKombinasi, ringkasanNilai);
+    } catch (e) { /* biarkan Ringkasan lama tetap tampil kalau gagal */ }
 }
 
 /**
@@ -1154,8 +1176,19 @@ function analisisTrenMapel(data) {
     // kombinasi kelas sekaligus, "jumlah siswa" kurang punya makna
     // tunggal yang jelas di sini. Dipakai "jumlah kombinasi kelas" &
     // "total pertemuan" sebagai gantinya, keduanya tersedia & bermakna.
-    const totalPertemuan = (data.rekapKelasMapel || []).reduce((sum, item) => sum + (item.pertemuan || 0), 0);
-    const jumlahKombinasi = (data.rekapKelasMapel || []).length;
+    //
+    // PATCH (klik-filter per kartu): `data.rekapKelasMapel` HANYA ada di
+    // data GABUNGAN (semua kombinasi) -- saat difilter ke 1 kombinasi
+    // spesifik (lewat toggleFilterKombinasi()), object yang dikirim ke
+    // sini adalah `perKombinasi` yang TIDAK punya field itu sama sekali.
+    // Fallback: pakai jumlah tanggal di trend sebagai perkiraan jumlah
+    // pertemuan, dan anggap 1 kombinasi -- supaya kalimat ringkasan
+    // tetap masuk akal di kedua kondisi, bukan menampilkan "0 pertemuan"
+    // yang keliru.
+    const totalPertemuan = data.rekapKelasMapel
+        ? data.rekapKelasMapel.reduce((sum, item) => sum + (item.pertemuan || 0), 0)
+        : trend.length;
+    const jumlahKombinasi = data.rekapKelasMapel ? data.rekapKelasMapel.length : 1;
 
     const p = data.perhatian || {};
     const daftarAlpa = p.alpa || [];

@@ -24,10 +24,10 @@ import {
     nonaktifkanSiswa,
     aktifkanKembaliSiswa,
     uploadSiswaBatch
-} from './api.js?v=20260731i';
-import { showNotification, escapeHtml } from './utils.js?v=20260731i';
-import { showConfirm, showRichModal } from './modal.js?v=20260731i';
-import { kompresGambarSebelumUpload } from './profil.js?v=20260731i';
+} from './api.js?v=20260731j';
+import { showNotification, escapeHtml } from './utils.js?v=20260731j';
+import { showConfirm, showRichModal } from './modal.js?v=20260731j';
+import { kompresGambarSebelumUpload } from './profil.js?v=20260731j';
 
 let usernameSedangDiedit = null; // null = mode tambah, string = mode edit
 let adalahSuperAdminSaatIni = false; // di-set di initAdmin(), dipakai ulang di beberapa fungsi lain di file ini
@@ -600,32 +600,59 @@ async function tampilkanPratinjauImport(token) {
 // lengkap alasannya di kodegs/Siswa.gs.
 // =========================================================
 
+// Kelas yang sedang dikelola -- diisi saat baris kelas diklik dari
+// tabel, dipakai form Tambah/Upload di bawahnya (menggantikan
+// selectKelas.value dari desain sebelumnya yang pakai dropdown).
+let kelasSedangDikelola = null;
+
 function setupKelolaSiswa() {
-    const selectKelas = document.getElementById('siswaSelectKelas');
+    const daftarKelasWrapper = document.getElementById('daftarKelasSiswaWrapper');
+    const daftarKelasLoading = document.getElementById('daftarKelasSiswaLoading');
+    const daftarKelasList = document.getElementById('daftarKelasSiswaList');
     const wrapper = document.getElementById('siswaKelolaWrapper');
+    const judulKelas = document.getElementById('siswaKelolaJudulKelas');
+    const btnKembali = document.getElementById('btnKembaliDaftarKelas');
     const loadingEl = document.getElementById('daftarSiswaLoading');
     const formTambah = document.getElementById('formTambahSiswa');
     const inputUpload = document.getElementById('inputUploadSiswa');
     const btnPilihUpload = document.getElementById('btnPilihUploadSiswa');
     const uploadMsg = document.getElementById('uploadSiswaMsg');
 
-    if (!selectKelas) return;
+    if (!daftarKelasList) return;
 
+    // PATCH v2: tabel semua kelas LANGSUNG tampil begitu Panel Admin
+    // dibuka -- tidak perlu buka dropdown dulu seperti sebelumnya.
     (async () => {
         try {
             const res = await getDaftarKelasMaster();
-            if (res.success) {
-                selectKelas.innerHTML = '<option value="" disabled selected>-- Pilih Kelas --</option>' +
-                    res.data.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
+            daftarKelasLoading?.classList.add('hidden');
+            if (!res.success || res.data.length === 0) {
+                daftarKelasList.innerHTML = '<p class="empty-state">Belum ada data kelas di Master Siswa.</p>';
+                return;
             }
+            daftarKelasList.innerHTML = '<div class="table-wrapper"><table class="simple-table"><thead><tr>' +
+                '<th class="th-nomor">No</th><th>Kelas</th><th>Aksi</th>' +
+                '</tr></thead><tbody>' +
+                res.data.map((k, i) => `<tr>
+                    <td class="td-nomor">${i + 1}</td>
+                    <td>${escapeHtml(k)}</td>
+                    <td class="admin-aksi-cell"><button type="button" class="btn-admin-aksi" data-kelas="${escapeHtml(k)}">👨‍🎓 Kelola Siswa</button></td>
+                </tr>`).join('') +
+                '</tbody></table></div>';
+
+            daftarKelasList.querySelectorAll('button[data-kelas]').forEach(btn => {
+                btn.addEventListener('click', () => bukaKelolaSiswaUntukKelas(btn.dataset.kelas));
+            });
         } catch (err) {
+            daftarKelasLoading?.classList.add('hidden');
             showNotification('Gagal memuat daftar kelas: ' + err.message, 'error');
         }
     })();
 
-    async function muatDaftarSiswa() {
-        const kelas = selectKelas.value;
-        if (!kelas) { wrapper?.classList.add('hidden'); return; }
+    async function bukaKelolaSiswaUntukKelas(kelas) {
+        kelasSedangDikelola = kelas;
+        if (judulKelas) judulKelas.textContent = '👨‍🎓 Kelola Siswa -- ' + kelas;
+        daftarKelasWrapper?.classList.add('hidden');
         wrapper?.classList.remove('hidden');
         if (loadingEl) loadingEl.classList.remove('hidden');
         try {
@@ -635,11 +662,15 @@ function setupKelolaSiswa() {
         }
     }
 
-    selectKelas.addEventListener('change', muatDaftarSiswa);
+    btnKembali?.addEventListener('click', () => {
+        kelasSedangDikelola = null;
+        wrapper?.classList.add('hidden');
+        daftarKelasWrapper?.classList.remove('hidden');
+    });
 
     formTambah?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const kelas = selectKelas.value;
+        const kelas = kelasSedangDikelola;
         const nis = document.getElementById('siswaBaruNis')?.value.trim();
         const nama = document.getElementById('siswaBaruNama')?.value.trim();
         const jk = document.getElementById('siswaBaruJk')?.value;
@@ -679,12 +710,19 @@ function setupKelolaSiswa() {
 
     btnPilihUpload?.addEventListener('click', () => inputUpload?.click());
 
+    // PATCH: upload SENGAJA tetap dibatasi ke 1 kelas per file (sesuai
+    // arahan -- "upload masal PER KELAS", bukan lintas kelas sekaligus)
+    // -- kelasnya diambil dari `kelasSedangDikelola` (kelas yang sedang
+    // dibuka lewat tabel), BUKAN dari dropdown terpisah seperti
+    // sebelumnya. File yang diupload TETAP cuma 3 kolom (NIS, Nama, JK),
+    // TIDAK perlu kolom Kelas di dalam filenya sendiri -- karena
+    // konteks kelasnya sudah jelas dari halaman yang sedang dibuka.
     inputUpload?.addEventListener('change', async () => {
         const file = inputUpload.files && inputUpload.files[0];
-        const kelas = selectKelas.value;
+        const kelas = kelasSedangDikelola;
         if (!file) return;
         if (!kelas) {
-            showNotification('Pilih kelas dulu sebelum upload.', 'warning');
+            showNotification('Buka halaman kelola 1 kelas dulu sebelum upload.', 'warning');
             inputUpload.value = '';
             return;
         }
