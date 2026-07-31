@@ -202,6 +202,20 @@
                     <h4>📈 Persentase Kehadiran (Per Mapel)</h4>
                     <div id="rekapKelasMapelList"></div>
                 </div>
+                <!-- PATCH FITUR NILAI (Tahap 4): Ringkasan & Saran -- pola
+                     sama dengan Wali Kelas di atas, digabung dengan sinyal
+                     Nilai kalau ada (lihat renderRingkasanNarasiMapel(),
+                     js/dashboard.js). -->
+                <div class="card">
+                    <h4>📝 Ringkasan Mata Pelajaran</h4>
+                    <p class="card-subtitle">Penjelasan singkat kondisi & tren kehadiran (dan nilai, kalau sudah ada datanya) untuk mata pelajaran ini dalam kata-kata</p>
+                    <div id="mapelRingkasanNarasi" class="ringkasan-narasi"></div>
+                </div>
+                <div class="card">
+                    <h4>✅ Langkah yang Disarankan</h4>
+                    <p class="card-subtitle">Saran umum berdasarkan kondisi di atas -- bukan keputusan final</p>
+                    <div id="mapelSaranTindakLanjut" class="ringkasan-narasi"></div>
+                </div>
                 <div class="card">
                     <h4>📉 Tren Kehadiran</h4>
                     <div class="chart-wrapper"><canvas id="trendChart"></canvas></div>
@@ -267,7 +281,7 @@
                     <h4>🏫 Ringkasan Sekolah</h4>
                     <p class="card-subtitle">Gabungan seluruh kelas & mata pelajaran yang tercatat</p>
                     <div class="stats-grid">
-                        <div class="stat-card stat-hadir"><div class="stat-icon">📚</div><div class="stat-info"><div class="stat-value" id="sekolahStatKombinasi">0</div><div class="stat-label">Kombinasi Kelas+Mapel</div></div></div>
+                        <div class="stat-card stat-hadir"><div class="stat-icon">📚</div><div class="stat-info"><div class="stat-value" id="sekolahStatKombinasi">0</div><div class="stat-label">Kelas Tercatat</div></div></div>
                         <div class="stat-card stat-izin"><div class="stat-icon">📈</div><div class="stat-info"><div class="stat-value" id="sekolahStatRataHadir">0%</div><div class="stat-label">Rata-rata Hadir</div></div></div>
                     </div>
                 </div>
