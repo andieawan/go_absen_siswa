@@ -217,7 +217,13 @@ function getKegiatanNilai(mapel, kelas) {
     daftar.push({
       kegiatanId: data[i][4],
       namaKegiatan: data[i][5],
-      tanggalKegiatan: data[i][6],
+      // PATCH BUG: sebelumnya data[i][6] dikirim APA ADANYA (objek Date
+      // mentah dari Apps Script) -- begitu di-JSON.stringify jadi string
+      // ISO lengkap dengan jam & zona waktu UTC (mis.
+      // "2026-07-26T17:00:00.000Z"), bukan cuma tanggalnya. Diformat
+      // dulu jadi "yyyy-MM-dd" saja, sama seperti yang sudah benar di
+      // getNilaiUntukKegiatan() di bawah.
+      tanggalKegiatan: Utilities.formatDate(new Date(data[i][6]), ZONA_WAKTU_DIHARAPKAN, 'yyyy-MM-dd'),
       tipeSkala: data[i][7]
     });
   }
@@ -354,11 +360,18 @@ function getRekapNilaiKelasSaya(mapelListStr, kelasListStr) {
         try { nilaiPerSiswa = JSON.parse(data[i][8] || '{}'); } catch (e) { /* rusak -- anggap kosong */ }
         kegiatanList.push({
           nama: data[i][5],
-          tanggal: data[i][6],
+          // PATCH BUG: sama seperti getKegiatanNilai() -- diformat dulu
+          // jadi "yyyy-MM-dd", bukan objek Date mentah (kalau tidak,
+          // header kolom Excel jadi tampil format Date.toString() yang
+          // panjang & tidak rapi, mis. "Sun Jul 26 2026 00:00:00 GMT+0700...").
+          tanggal: Utilities.formatDate(new Date(data[i][6]), ZONA_WAKTU_DIHARAPKAN, 'yyyy-MM-dd'),
           nilaiPerSiswa: nilaiPerSiswa
         });
       }
       if (kegiatanList.length === 0) return;
+      // Format "yyyy-MM-dd" tetap bisa diurutkan sebagai string biasa
+      // (urutan leksikografis = urutan kronologis untuk format ini),
+      // jadi new Date(...) di sini masih valid & tidak perlu diubah.
       kegiatanList.sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal));
 
       const headerRow = ["NIS", "NAMA SISWA"];
