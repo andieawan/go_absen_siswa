@@ -46,9 +46,9 @@
  * =========================================================
  */
 
-import { CONFIG } from './config.js?v=20260731e';
-import { showNotification } from './utils.js?v=20260731e';
-import { setSsoCookie, getSsoCookie, deleteSsoCookie } from './ssocookie.js?v=20260731e';
+import { CONFIG } from './config.js?v=20260731f';
+import { showNotification } from './utils.js?v=20260731f';
+import { setSsoCookie, getSsoCookie, deleteSsoCookie } from './ssocookie.js?v=20260731f';
 
 // Helper untuk fetch dengan timeout dan error handling khusus Google Apps Script
 async function fetchWithTimeout(url, options = {}, timeout = CONFIG.DEFAULT_TIMEOUT) {
@@ -685,6 +685,33 @@ export async function downloadRekapExcel(jenis, mapel, kelas, identitas) {
     }
 }
 
+// PATCH FITUR NILAI (Tahap 3): pola SAMA PERSIS dengan downloadRekapExcel()
+// di atas -- generateExcelFromData() dipakai ULANG APA ADANYA, karena
+// getRekapNilaiKelasSaya() (Nilai.gs) sengaja dibuat mengembalikan bentuk
+// data yang identik ({ tabName, headerRow, rows }).
+export async function downloadRekapNilaiExcel(mapel, kelas, identitas) {
+    try {
+        const { token, username } = requireAuth();
+
+        const response = await postJson({
+            action: 'getRekapNilaiKelasSaya',
+            username: username,
+            token: token,
+            mapel: mapel,
+            kelas: kelas
+        });
+
+        if (!response.success || !response.data) {
+            throw new Error(response.message || 'Gagal mengunduh rekap nilai');
+        }
+
+        return generateExcelFromData(response.data, 'nilai', identitas);
+    } catch (error) {
+        console.error('Download rekap nilai error:', error);
+        throw error;
+    }
+}
+
 // =========================================================
 // FITUR: Delegasi Input Absen ke Ketua Kelas (sementara)
 // ---------------------------------------------------------
@@ -987,6 +1014,7 @@ export default {
     getRiwayatAbsenWali,
     hapusAbsenWali,
     downloadRekapExcel,
+    downloadRekapNilaiExcel,
     getProfilSaya,
     updateProfil,
     uploadFotoProfil

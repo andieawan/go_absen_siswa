@@ -36,6 +36,7 @@ import {
     hapusAbsen,
     hapusAbsenWali,
     downloadRekapExcel,
+    downloadRekapNilaiExcel,
     getCurrentUser,
     generateKetuaKelasLink,
     getStatusKetuaKelasLink,
@@ -44,9 +45,9 @@ import {
     getKegiatanNilai,
     getNilaiUntukKegiatan,
     hapusKegiatanNilai
-} from './api.js?v=20260731e';
-import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731e';
-import { showConfirm } from './modal.js?v=20260731e';
+} from './api.js?v=20260731f';
+import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731f';
+import { showConfirm } from './modal.js?v=20260731f';
 
 // Cache daftar siswa per kelas supaya tidak fetch berulang kali
 // dalam satu sesi dashboard yang sama.
@@ -675,6 +676,33 @@ function setupRekapPanel(user) {
                 showNotification(res.message || 'Rekap berhasil diunduh', res.success ? 'success' : 'error');
             } catch (err) {
                 showNotification('Gagal mengunduh rekap: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                hideGlobalLoading();
+            }
+        });
+    });
+
+    // PATCH FITUR NILAI (Tahap 3): kartu Rekap Nilai -- HANYA muncul
+    // untuk guru mapel (sesuai kesepakatan: nilai cuma diisi guru mapel).
+    const rekapNilaiCard = document.getElementById('rekapNilaiCard');
+    if (rekapNilaiCard && user.mapelList.length > 0) {
+        rekapNilaiCard.classList.remove('hidden');
+    }
+
+    document.querySelectorAll('[data-action="downloadRekapNilai"]').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (user.mapelList.length === 0 || user.kelasList.length === 0) {
+                showNotification('Anda tidak mengajar mata pelajaran apa pun.', 'warning');
+                return;
+            }
+            btn.disabled = true;
+            showGlobalLoading('Menyiapkan file rekap nilai...');
+            try {
+                const res = await downloadRekapNilaiExcel(user.mapelList.join(','), user.kelasList.join(','), user.nama);
+                showNotification(res.message || 'Rekap nilai berhasil diunduh', res.success ? 'success' : 'error');
+            } catch (err) {
+                showNotification('Gagal mengunduh rekap nilai: ' + err.message, 'error');
             } finally {
                 btn.disabled = false;
                 hideGlobalLoading();
