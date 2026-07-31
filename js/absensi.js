@@ -39,10 +39,14 @@ import {
     getCurrentUser,
     generateKetuaKelasLink,
     getStatusKetuaKelasLink,
-    nonaktifkanKetuaKelasLink
-} from './api.js?v=20260731b';
-import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731b';
-import { showConfirm } from './modal.js?v=20260731b';
+    nonaktifkanKetuaKelasLink,
+    simpanKegiatanNilai,
+    getKegiatanNilai,
+    getNilaiUntukKegiatan,
+    hapusKegiatanNilai
+} from './api.js?v=20260731c';
+import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731c';
+import { showConfirm } from './modal.js?v=20260731c';
 
 // Cache daftar siswa per kelas supaya tidak fetch berulang kali
 // dalam satu sesi dashboard yang sama.
@@ -66,6 +70,9 @@ export function initAbsensi() {
     setupRiwayatPanel(user);
     setupRekapPanel(user);
     setupAbsenWaliPanel(user);
+    // PATCH FITUR NILAI (Tahap 2): sub-tab "Nilai" di Input & Riwayat.
+    setupInputNilaiForm(user);
+    setupRiwayatNilai(user);
 }
 
 // =========================================================
@@ -898,6 +905,339 @@ function setupAbsenWaliPanel(user) {
     }
 
     reloadWaliStudents();
+}
+
+// =========================================================
+// PATCH FITUR NILAI (Tahap 2): sub-tab "Nilai" di Input & Riwayat
+// ---------------------------------------------------------
+// Model "bebas per kegiatan" (lihat kodegs/Nilai.gs): guru pilih mapel+
+// kelas -> pilih kegiatan yang sudah ada (mode edit) ATAU "+ Buat
+// Kegiatan Baru" -> isi nama/tanggal/tipe skala -> isi nilai per siswa
+// -> simpan. HANYA guru mapel yang bisa isi nilai (sesuai kesepakatan),
+// jadi kalau akun ini tidak punya mapelList sama sekali, sub-tab ini
+// sengaja dibiarkan kosong/tidak aktif.
+// =========================================================
+
+// Diisi setupInputNilaiForm(), dipakai navigasiKeEditNilai() supaya bisa
+// memanggil ulang logika pemuatan data secara berurutan (async) tanpa
+// perlu menebak-nebak waktu tunggu lewat setTimeout.
+let _nilaiFormHandlers = null;
+
+/**
+ * Render baris tabel nilai siswa -- bentuk inputnya BERBEDA tergantung
+ * tipeSkala: angka (input number 0-100) atau huruf (dropdown A-E).
+ * `nilaiLama` (opsional) dipakai untuk pra-isi saat mode edit kegiatan
+ * yang sudah ada.
+ */
+function renderNilaiStudentRows(students, tipeSkala, nilaiLama) {
+    const tbody = document.getElementById('nilaiStudentsBody');
+    if (!tbody) return;
+
+    if (!students || students.length === 0) {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="3"><p class="empty-state">Tidak ada siswa di kelas ini</p></td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = students.map(s => {
+        const nilaiTersimpan = (nilaiLama && nilaiLama[s.nis]) || '';
+        const inputHtml = tipeSkala === 'huruf'
+            ? `<select class="nilai-input-siswa" data-nis="${escapeHtml(s.nis)}">
+                 <option value="">-</option>
+                 ${['A', 'B', 'C', 'D', 'E'].map(h => `<option value="${h}" ${nilaiTersimpan === h ? 'selected' : ''}>${h}</option>`).join('')}
+               </select>`
+            : `<input type="number" class="nilai-input-siswa" data-nis="${escapeHtml(s.nis)}" min="0" max="100" step="1" value="${escapeHtml(nilaiTersimpan)}" placeholder="0-100">`;
+        return `<tr><td>${escapeHtml(s.nis)}</td><td>${escapeHtml(s.nama)}</td><td>${inputHtml}</td></tr>`;
+    }).join('');
+}
+
+// Kumpulkan nilai yang sudah diisi dari tabel -- sel yang dibiarkan
+// kosong TIDAK disertakan (bukan berarti nilai 0), supaya guru bisa
+// menyimpan sebagian dulu (mis. belum semua siswa selesai dinilai)
+// tanpa memaksa semua kolom terisi.
+function bacaNilaiDariTabel() {
+    const nilaiPerSiswa = {};
+    document.querySelectorAll('#nilaiStudentsBody .nilai-input-siswa').forEach(el => {
+        const val = el.value.trim();
+        if (val !== '') nilaiPerSiswa[el.dataset.nis] = val;
+    });
+    return nilaiPerSiswa;
+}
+
+function setupInputNilaiForm(user) {
+    const selectMapel = document.getElementById('nilaiSelectMapel');
+    const selectKelas = document.getElementById('nilaiSelectKelas');
+    const selectKegiatan = document.getElementById('nilaiSelectKegiatan');
+    const detailWrapper = document.getElementById('nilaiDetailKegiatanWrapper');
+    const inputNama = document.getElementById('nilaiNamaKegiatan');
+    const inputTanggal = document.getElementById('nilaiTanggalKegiatan');
+    const selectTipeSkala = document.getElementById('nilaiTipeSkala');
+    const loadingEl = document.getElementById('nilaiLoading');
+    const btnSubmit = document.getElementById('nilaiBtnSubmit');
+    const btnHapus = document.getElementById('nilaiBtnHapusKegiatan');
+    const form = document.getElementById('nilaiForm');
+
+    if (!form) return;
+
+    // Sesuai kesepakatan: HANYA guru mapel yang bisa isi nilai. Akun
+    // murni wali kelas (tidak punya mapelList) tidak relevan di sini --
+    // biarkan sub-tab ini kosong/tidak aktif untuk akun semacam itu.
+    if (!user.mapelList || user.mapelList.length === 0) return;
+
+    selectMapel.innerHTML = user.mapelList.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
+
+    // PATCH (pasangan mapel-kelas): pola SAMA PERSIS dengan
+    // getKelasUntukMapelClient() di form Input Absensi -- dropdown kelas
+    // mengikuti mapel yang dipilih.
+    function perbaruiOpsiKelasNilai() {
+        const mapelTerpilih = selectMapel.value;
+        const kelasBoleh = mapelTerpilih ? getKelasUntukMapelClient(user, mapelTerpilih) : user.kelasList;
+        const kelasSekarang = selectKelas.value;
+        selectKelas.innerHTML = '<option value="" disabled selected>-- Pilih Kelas --</option>' +
+            kelasBoleh.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
+        if (kelasBoleh.indexOf(kelasSekarang) !== -1) selectKelas.value = kelasSekarang;
+    }
+    perbaruiOpsiKelasNilai();
+
+    async function muatDaftarKegiatan() {
+        const mapel = selectMapel.value;
+        const kelas = selectKelas.value;
+        if (!mapel || !kelas) {
+            selectKegiatan.innerHTML = '<option value="">-- Pilih kelas & mapel dulu --</option>';
+            selectKegiatan.disabled = true;
+            detailWrapper?.classList.add('hidden');
+            return;
+        }
+
+        selectKegiatan.disabled = false;
+        try {
+            const res = await getKegiatanNilai(mapel, kelas);
+            const daftar = res.success ? res.data : [];
+            selectKegiatan.innerHTML = '<option value="">+ Buat Kegiatan Baru</option>' +
+                daftar.map(k => `<option value="${escapeHtml(k.kegiatanId)}">${escapeHtml(k.namaKegiatan)} (${escapeHtml(k.tanggalKegiatan)})</option>`).join('');
+            selectKegiatan.value = ''; // default: mode buat baru, tiap kali kelas/mapel berganti
+            await muatKegiatanTerpilih();
+        } catch (err) {
+            showNotification('Gagal memuat daftar kegiatan: ' + err.message, 'error');
+        }
+    }
+
+    async function muatKegiatanTerpilih() {
+        const mapel = selectMapel.value;
+        const kelas = selectKelas.value;
+        const kegiatanId = selectKegiatan.value;
+        if (!mapel || !kelas) return;
+
+        detailWrapper?.classList.remove('hidden');
+        if (loadingEl) loadingEl.classList.remove('hidden');
+        showGlobalLoading('Mengambil data...');
+
+        try {
+            const students = await ambilDaftarSiswa(kelas);
+
+            if (!kegiatanId) {
+                // Mode: buat kegiatan baru
+                if (inputNama) inputNama.value = '';
+                if (inputTanggal) inputTanggal.valueAsDate = new Date();
+                if (selectTipeSkala) selectTipeSkala.value = 'angka';
+                renderNilaiStudentRows(students, 'angka', {});
+                btnHapus?.classList.add('hidden');
+                const btnTextEl = btnSubmit?.querySelector('.btn-text');
+                if (btnTextEl) btnTextEl.textContent = '💾 Simpan Nilai';
+            } else {
+                // Mode: edit kegiatan yang sudah ada
+                const res = await getNilaiUntukKegiatan(mapel, kelas, kegiatanId);
+                if (!res.success) {
+                    showNotification(res.message || 'Gagal memuat kegiatan.', 'error');
+                    return;
+                }
+                const d = res.data;
+                if (inputNama) inputNama.value = d.namaKegiatan;
+                if (inputTanggal) inputTanggal.value = d.tanggalKegiatan;
+                if (selectTipeSkala) selectTipeSkala.value = d.tipeSkala;
+                renderNilaiStudentRows(students, d.tipeSkala, d.nilaiPerSiswa);
+                btnHapus?.classList.remove('hidden');
+                const btnTextEl = btnSubmit?.querySelector('.btn-text');
+                if (btnTextEl) btnTextEl.textContent = '🔄 Update Nilai';
+            }
+        } catch (err) {
+            showNotification('Gagal memuat data: ' + err.message, 'error');
+        } finally {
+            if (loadingEl) loadingEl.classList.add('hidden');
+            hideGlobalLoading();
+        }
+    }
+
+    // Ganti tipe skala manual -> render ulang tabel nilai kosong sesuai
+    // tipe baru. Nilai yang sudah diisi ikut hilang -- wajar, karena
+    // formatnya berubah total (angka vs huruf tidak bisa dikonversi
+    // otomatis satu sama lain).
+    selectTipeSkala?.addEventListener('change', async () => {
+        const kelas = selectKelas.value;
+        if (!kelas) return;
+        const students = await ambilDaftarSiswa(kelas);
+        renderNilaiStudentRows(students, selectTipeSkala.value, {});
+    });
+
+    selectMapel.addEventListener('change', () => { perbaruiOpsiKelasNilai(); muatDaftarKegiatan(); });
+    selectKelas.addEventListener('change', muatDaftarKegiatan);
+    selectKegiatan.addEventListener('change', muatKegiatanTerpilih);
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const mapel = selectMapel.value;
+        const kelas = selectKelas.value;
+        const namaKegiatan = inputNama?.value.trim();
+        const tanggalKegiatan = inputTanggal?.value;
+        const tipeSkala = selectTipeSkala?.value;
+        if (!mapel || !kelas || !namaKegiatan || !tanggalKegiatan || !tipeSkala) {
+            showNotification('Lengkapi nama kegiatan, tanggal, dan tipe skala terlebih dahulu.', 'warning');
+            return;
+        }
+
+        const nilaiPerSiswa = bacaNilaiDariTabel();
+        if (Object.keys(nilaiPerSiswa).length === 0) {
+            showNotification('Belum ada nilai siswa yang diisi.', 'warning');
+            return;
+        }
+
+        const kegiatanId = selectKegiatan.value || undefined;
+
+        setSubmitLoading(btnSubmit, true);
+        showGlobalLoading('Menyimpan nilai...');
+        try {
+            const res = await simpanKegiatanNilai({ mapel, kelas, kegiatanId, namaKegiatan, tanggalKegiatan, tipeSkala, nilaiPerSiswa });
+            showNotification(res.message || (res.success ? 'Nilai tersimpan' : 'Gagal menyimpan nilai'), res.success ? 'success' : 'error');
+            if (res.success) await muatDaftarKegiatan();
+        } catch (err) {
+            showNotification('Gagal menyimpan nilai: ' + err.message, 'error');
+        } finally {
+            setSubmitLoading(btnSubmit, false);
+            hideGlobalLoading();
+        }
+    });
+
+    btnHapus?.addEventListener('click', async () => {
+        const mapel = selectMapel.value;
+        const kelas = selectKelas.value;
+        const kegiatanId = selectKegiatan.value;
+        if (!mapel || !kelas || !kegiatanId) return;
+
+        const konfirmasi = await showConfirm('Yakin ingin menghapus kegiatan penilaian ini? Semua nilai siswa untuk kegiatan ini akan ikut terhapus.', 'Konfirmasi Hapus Kegiatan');
+        if (!konfirmasi) return;
+
+        try {
+            const res = await hapusKegiatanNilai(mapel, kelas, kegiatanId);
+            showNotification(res.message, res.success ? 'success' : 'error');
+            if (res.success) await muatDaftarKegiatan();
+        } catch (err) {
+            showNotification('Gagal menghapus kegiatan: ' + err.message, 'error');
+        }
+    });
+
+    // Diekspos supaya navigasiKeEditNilai() (dipanggil dari Riwayat) bisa
+    // memanggil ulang urutan pemuatan data secara async yang benar, tanpa
+    // perlu menebak waktu tunggu lewat setTimeout.
+    _nilaiFormHandlers = { perbaruiOpsiKelasNilai, muatDaftarKegiatan, muatKegiatanTerpilih };
+}
+
+// =========================================================
+// PATCH FITUR NILAI (Tahap 2): RIWAYAT NILAI
+// =========================================================
+function setupRiwayatNilai(user) {
+    const selectMapel = document.getElementById('riwayatNilaiMapel');
+    const selectKelas = document.getElementById('riwayatNilaiKelas');
+    const loadingEl = document.getElementById('riwayatNilaiLoading');
+
+    if (!selectMapel || !selectKelas) return;
+    if (!user.mapelList || user.mapelList.length === 0) return; // sesuai kesepakatan: guru mapel saja
+
+    selectMapel.innerHTML = user.mapelList.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
+
+    function perbaruiOpsiKelasRiwayatNilai() {
+        const mapelTerpilih = selectMapel.value;
+        const kelasBoleh = mapelTerpilih ? getKelasUntukMapelClient(user, mapelTerpilih) : user.kelasList;
+        const kelasSekarang = selectKelas.value;
+        selectKelas.innerHTML = '<option value="" disabled selected>-- Pilih Kelas --</option>' +
+            kelasBoleh.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('');
+        if (kelasBoleh.indexOf(kelasSekarang) !== -1) selectKelas.value = kelasSekarang;
+    }
+    perbaruiOpsiKelasRiwayatNilai();
+
+    async function loadRiwayatNilai() {
+        const mapel = selectMapel.value;
+        const kelas = selectKelas.value;
+        if (!mapel || !kelas) return;
+
+        if (loadingEl) loadingEl.classList.remove('hidden');
+        showGlobalLoading('Mengambil riwayat nilai...');
+        try {
+            const res = await getKegiatanNilai(mapel, kelas);
+            renderRiwayatNilaiList(res, mapel, kelas);
+        } catch (err) {
+            showNotification('Gagal memuat riwayat nilai: ' + err.message, 'error');
+        } finally {
+            if (loadingEl) loadingEl.classList.add('hidden');
+            hideGlobalLoading();
+        }
+    }
+
+    selectMapel.addEventListener('change', () => { perbaruiOpsiKelasRiwayatNilai(); loadRiwayatNilai(); });
+    selectKelas.addEventListener('change', loadRiwayatNilai);
+    if (selectMapel.value && selectKelas.value) loadRiwayatNilai();
+}
+
+function renderRiwayatNilaiList(res, mapel, kelas) {
+    const container = document.getElementById('riwayatNilaiList');
+    if (!container) return;
+
+    if (!res.success || !res.data || res.data.length === 0) {
+        container.innerHTML = `<div class="empty-state-illustration large">
+            <svg viewBox="0 0 200 150"><circle cx="100" cy="75" r="50" fill="#DCE0EE"/><text x="100" y="85" text-anchor="middle" font-size="40">📊</text></svg>
+            <p>Belum ada kegiatan penilaian untuk kelas & mapel ini</p>
+        </div>`;
+        return;
+    }
+
+    container.innerHTML = res.data.map(k => `
+        <div class="card">
+            <div class="section-header">
+                <strong>${escapeHtml(k.namaKegiatan)}</strong>
+                <span class="badge badge-info">${k.tipeSkala === 'huruf' ? 'Huruf' : 'Angka'}</span>
+            </div>
+            <p class="card-subtitle">${escapeHtml(k.tanggalKegiatan)}</p>
+            <button type="button" class="btn-secondary btn-full btn-edit-nilai" data-kegiatan-id="${escapeHtml(k.kegiatanId)}">✏️ Lihat / Edit</button>
+        </div>
+    `).join('');
+
+    container.querySelectorAll('.btn-edit-nilai').forEach(btn => {
+        btn.addEventListener('click', () => navigasiKeEditNilai(mapel, kelas, btn.dataset.kegiatanId));
+    });
+}
+
+/**
+ * Pindah ke sub-tab Input > Nilai, muat mapel/kelas/kegiatan yang
+ * dipilih dari Riwayat -- dipanggil lewat rangkaian async yang benar
+ * (bukan setTimeout menebak-nebak waktu tunggu), memakai referensi
+ * fungsi yang diekspos setupInputNilaiForm() lewat _nilaiFormHandlers.
+ */
+async function navigasiKeEditNilai(mapel, kelas, kegiatanId) {
+    switchTab('panelAbsensi');
+    document.getElementById('subtabBtnInputNilai')?.click();
+
+    const selectMapel = document.getElementById('nilaiSelectMapel');
+    const selectKelas = document.getElementById('nilaiSelectKelas');
+    const selectKegiatan = document.getElementById('nilaiSelectKegiatan');
+    if (!selectMapel || !selectKelas || !selectKegiatan || !_nilaiFormHandlers) return;
+
+    selectMapel.value = mapel;
+    _nilaiFormHandlers.perbaruiOpsiKelasNilai();
+    selectKelas.value = kelas;
+    await _nilaiFormHandlers.muatDaftarKegiatan(); // ini set ulang ke mode "buat baru" secara default
+    selectKegiatan.value = kegiatanId; // timpa balik ke kegiatan yang benar-benar dituju
+    await _nilaiFormHandlers.muatKegiatanTerpilih();
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showNotification('Menampilkan kegiatan nilai untuk diedit.', 'info');
 }
 
 export default { initAbsensi };

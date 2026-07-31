@@ -46,9 +46,9 @@
  * =========================================================
  */
 
-import { CONFIG } from './config.js?v=20260731b';
-import { showNotification } from './utils.js?v=20260731b';
-import { setSsoCookie, getSsoCookie, deleteSsoCookie } from './ssocookie.js?v=20260731b';
+import { CONFIG } from './config.js?v=20260731c';
+import { showNotification } from './utils.js?v=20260731c';
+import { setSsoCookie, getSsoCookie, deleteSsoCookie } from './ssocookie.js?v=20260731c';
 
 // Helper untuk fetch dengan timeout dan error handling khusus Google Apps Script
 async function fetchWithTimeout(url, options = {}, timeout = CONFIG.DEFAULT_TIMEOUT) {
@@ -494,6 +494,51 @@ export async function nonaktifkanLinkUploadAbsensi(linkToken) {
     }
 }
 
+// ===== FITUR NILAI (Tahap 2) =====
+
+// `payload`: { mapel, kelas, kegiatanId (opsional -- kosong = kegiatan
+// baru), namaKegiatan, tanggalKegiatan, tipeSkala ('angka'/'huruf'),
+// nilaiPerSiswa: { nis: nilai, ... } }
+export async function simpanKegiatanNilai(payload) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'simpanKegiatanNilai', payload, username, token });
+    } catch (error) {
+        console.error('Simpan kegiatan nilai error:', error);
+        throw error;
+    }
+}
+
+export async function getKegiatanNilai(mapel, kelas) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'getKegiatanNilai', mapel, kelas, username, token });
+    } catch (error) {
+        console.error('Get kegiatan nilai error:', error);
+        throw error;
+    }
+}
+
+export async function getNilaiUntukKegiatan(mapel, kelas, kegiatanId) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'getNilaiUntukKegiatan', mapel, kelas, kegiatanId, username, token });
+    } catch (error) {
+        console.error('Get nilai untuk kegiatan error:', error);
+        throw error;
+    }
+}
+
+export async function hapusKegiatanNilai(mapel, kelas, kegiatanId) {
+    try {
+        const { token, username } = requireAuth();
+        return await postJson({ action: 'hapusKegiatanNilai', mapel, kelas, kegiatanId, username, token });
+    } catch (error) {
+        console.error('Hapus kegiatan nilai error:', error);
+        throw error;
+    }
+}
+
 // Ambil detail 1 siswa (klik nama di kotak "Perlu Perhatian", konteks
 // dashboard Per Mapel) -- `mapel` boleh 1 mapel (lagi difilter ke 1
 // kombinasi) atau daftar dipisah koma (tampilan gabungan semua mapel).
@@ -930,6 +975,10 @@ export default {
     previewImportAbsenDariLink,
     jalankanImportAbsenDariLink,
     nonaktifkanLinkUploadAbsensi,
+    simpanKegiatanNilai,
+    getKegiatanNilai,
+    getNilaiUntukKegiatan,
+    hapusKegiatanNilai,
     getDetailSiswaPerhatian,
     getDetailSiswaPerhatianWali,
     getDashboardDataWali,

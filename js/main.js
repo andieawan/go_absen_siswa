@@ -39,28 +39,28 @@
  * =========================================================
  */
 
-import { isLoggedIn, getCurrentUser, logout, redirectToLoginPage } from './api.js?v=20260731b';
-import { CONFIG } from './config.js?v=20260731b';
-import { deleteSsoCookie } from './ssocookie.js?v=20260731b';
-import { initLoginForm } from './login.js?v=20260731b';
-import { initDashboard } from './dashboard.js?v=20260731b';
+import { isLoggedIn, getCurrentUser, logout, redirectToLoginPage } from './api.js?v=20260731c';
+import { CONFIG } from './config.js?v=20260731c';
+import { deleteSsoCookie } from './ssocookie.js?v=20260731c';
+import { initLoginForm } from './login.js?v=20260731c';
+import { initDashboard } from './dashboard.js?v=20260731c';
 // PATCH (FIX BUG KRITIS): js/absensi.js sebelumnya tidak pernah di-import sama
 // sekali (sempat terhapus dari repo, lihat catatan di js/absensi.js), sehingga
 // panel Input Absensi, Riwayat, Rekap, dan Wali tidak pernah terhubung ke apa
 // pun -- termasuk navigasi tab-nya sendiri. Modul ini sekarang dipulihkan dan
 // diinisialisasi di sini, sejajar dengan initDashboard().
-import { initAbsensi } from './absensi.js?v=20260731b';
-import { initProfil } from './profil.js?v=20260731b';
-import { initAdmin } from './admin.js?v=20260731b';
-import { showNotification } from './utils.js?v=20260731b';
-import { showAlert, showConfirm } from './modal.js?v=20260731b';
-import { initModalHandlers } from './modal.js?v=20260731b';
+import { initAbsensi } from './absensi.js?v=20260731c';
+import { initProfil } from './profil.js?v=20260731c';
+import { initAdmin } from './admin.js?v=20260731c';
+import { showNotification } from './utils.js?v=20260731c';
+import { showAlert, showConfirm } from './modal.js?v=20260731c';
+import { initModalHandlers } from './modal.js?v=20260731c';
 // PATCH: nama file diselaraskan ke huruf kecil semua (ketuakelas.js, bukan
 // ketuaKelas.js) -- GitHub Pages adalah server berbasis Linux yang
 // case-sensitive, sedangkan proses upload sebelumnya menyimpan file ini
 // dengan huruf kecil semua. Import di sini disamakan supaya cocok persis
 // dengan nama file yang sesungguhnya ada di repo, mencegah error 404.
-import { initKetuaKelasPage } from './ketuakelas.js?v=20260731b';
+import { initKetuaKelasPage } from './ketuakelas.js?v=20260731c';
 
 // Container utama
 const appContainer = document.getElementById('app');
@@ -84,7 +84,7 @@ let currentUser = null;
  * server (pakai ETag/Last-Modified kalau ada) alih-alih diam-diam pakai
  * versi lama tanpa konfirmasi sama sekali.
  */
-const VERSI_TEMPLATE = '20260731b';
+const VERSI_TEMPLATE = '20260731c';
 
 async function loadTemplate(templateName) {
     try {
