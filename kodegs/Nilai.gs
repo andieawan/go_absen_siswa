@@ -303,3 +303,82 @@ function hapusKegiatanNilai_(mapel, kelas, kegiatanId) {
   }
   return { success: false, message: 'Kegiatan penilaian tidak ditemukan (mungkin sudah terhapus sebelumnya).' };
 }
+
+// =========================================================
+// TAHAP 3: REKAP NILAI (unduh .xlsx)
+// ---------------------------------------------------------
+// Bentuk data KELUARAN sengaja dibuat SAMA PERSIS dengan
+// getRekapKelasSaya() (Rekap.gs) -- { tabName, headerRow, rows } --
+// supaya generateExcelFromData() di js/api.js bisa dipakai ULANG
+// APA ADANYA (tidak perlu fungsi generator Excel baru sama sekali).
+// =========================================================
+
+/**
+ * Rekap nilai semua mapel+kelas yang diampu guru -- 1 tab Excel per
+ * kombinasi kelas+mapel, kolom = kegiatan (urut tanggal), baris = siswa.
+ * Siswa yang belum sempat dinilai di kegiatan tertentu tetap muncul
+ * barisnya (kolom itu kosong "-"), bukan cuma siswa yang kebetulan
+ * sudah dapat nilai -- diambil dari daftar siswa Master (getNisKeNamaMap),
+ * bukan cuma dari yang ada di DataNilai.
+ */
+function getRekapNilaiKelasSaya(mapelListStr, kelasListStr) {
+  const mapelList = mapelListStr.split(',').map(s => s.trim()).filter(s => s !== "");
+  const kelasList = kelasListStr.split(',').map(s => s.trim()).filter(s => s !== "");
+
+  const sheetsRekap = [];
+
+  kelasList.forEach(kelas => {
+    let ss;
+    try {
+      ss = getNilaiSs(kelas, todayISO());
+    } catch (e) {
+      return; // grup kelas ini belum punya spreadsheet nilai sama sekali -- lewati
+    }
+
+    const namaMap = getNisKeNamaMap(kelas);
+
+    mapelList.forEach(mapel => {
+      const sheetName = (kelas + "_" + mapel).replace(/[^a-zA-Z0-9]/g, "_");
+      const sheet = ss.getSheetByName(sheetName);
+      if (!sheet) return;
+
+      const data = sheet.getDataRange().getValues();
+      if (data.length <= 1) return; // cuma header, belum ada kegiatan sama sekali
+
+      // Kumpulkan daftar kegiatan (bakal jadi KOLOM di rekap), urut
+      // berdasarkan tanggal kegiatan (bukan urutan input).
+      const kegiatanList = [];
+      for (let i = 1; i < data.length; i++) {
+        if (!data[i][4]) continue; // baris rusak/kosong -- lewati
+        let nilaiPerSiswa = {};
+        try { nilaiPerSiswa = JSON.parse(data[i][8] || '{}'); } catch (e) { /* rusak -- anggap kosong */ }
+        kegiatanList.push({
+          nama: data[i][5],
+          tanggal: data[i][6],
+          nilaiPerSiswa: nilaiPerSiswa
+        });
+      }
+      if (kegiatanList.length === 0) return;
+      kegiatanList.sort((a, b) => new Date(a.tanggal) - new Date(b.tanggal));
+
+      const headerRow = ["NIS", "NAMA SISWA"];
+      kegiatanList.forEach(k => headerRow.push(k.nama + " (" + k.tanggal + ")"));
+
+      const rows = [];
+      Object.keys(namaMap).sort().forEach(nis => {
+        const row = [nis, namaMap[nis]];
+        kegiatanList.forEach(k => row.push(k.nilaiPerSiswa[nis] || "-"));
+        rows.push(row);
+      });
+
+      const tabName = (kelas + "_" + mapel).replace(/[^a-zA-Z0-9]/g, "_").substring(0, 31);
+      sheetsRekap.push({ tabName: tabName, headerRow: headerRow, rows: rows });
+    });
+  });
+
+  if (sheetsRekap.length === 0) {
+    return { success: false, message: "Belum ada data nilai untuk direkap." };
+  }
+
+  return { success: true, data: sheetsRekap };
+}
