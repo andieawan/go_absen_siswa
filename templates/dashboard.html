@@ -645,6 +645,18 @@
                 <button data-action="downloadRekapKelasSaya" class="btn-primary btn-full" style="margin-top: 16px;">📥 Unduh Rekap Mata Pelajaran (.xlsx)</button>
             </div>
         </div>
+        <!-- PATCH FITUR NILAI (Tahap 3): kartu Rekap Nilai -- HANYA muncul
+             untuk guru mapel (sesuai kesepakatan: nilai cuma diisi guru
+             mapel, bukan wali kelas), disembunyikan otomatis kalau
+             mapelList kosong (lihat setupRekapPanel() di js/absensi.js). -->
+        <div id="rekapNilaiCard" class="rekap-card hidden">
+            <div class="rekap-card-icon">📊</div>
+            <div class="rekap-card-content">
+                <h4>Rekap Nilai</h4>
+                <p class="rekap-card-desc">Unduh rekap nilai untuk semua mata pelajaran & kelas yang Anda ajar -- 1 tab per kelas+mapel, kolom sesuai kegiatan yang sudah diinput.</p>
+                <button data-action="downloadRekapNilai" class="btn-primary btn-full" style="margin-top: 16px;">📥 Unduh Rekap Nilai (.xlsx)</button>
+            </div>
+        </div>
         <div id="rekapWaliCard" class="rekap-card hidden">
             <div class="rekap-card-icon">👪</div>
             <div class="rekap-card-content">
