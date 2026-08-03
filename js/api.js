@@ -46,9 +46,9 @@
  * =========================================================
  */
 
-import { CONFIG } from './config.js?v=20260731l';
-import { showNotification } from './utils.js?v=20260731l';
-import { setSsoCookie, getSsoCookie, deleteSsoCookie } from './ssocookie.js?v=20260731l';
+import { CONFIG } from './config.js?v=20260731m';
+import { showNotification } from './utils.js?v=20260731m';
+import { setSsoCookie, getSsoCookie, deleteSsoCookie } from './ssocookie.js?v=20260731m';
 
 // Helper untuk fetch dengan timeout dan error handling khusus Google Apps Script
 async function fetchWithTimeout(url, options = {}, timeout = CONFIG.DEFAULT_TIMEOUT) {
@@ -105,16 +105,23 @@ function handleSessionExpired(message) {
 // SEKARANG JUGA menjadi satu-satunya titik pengecekan sessionExpired untuk SEMUA
 // endpoint ber-token, supaya tidak perlu diulang manual di tiap fungsi di bawah.
 async function postJson(body) {
-    const response = await fetchWithTimeout(CONFIG.BACKEND_URL, {
-        method: 'POST',
-        headers: {
-            // PENTING: JANGAN ganti ke 'application/json'.
-            // 'text/plain' = simple content-type = tidak ada preflight OPTIONS.
-            // Backend tetap bisa JSON.parse() isinya seperti biasa.
-            'Content-Type': 'text/plain;charset=utf-8'
-        },
-        body: JSON.stringify(body)
-    });
+    let response = await postJsonSekaliCoba_(body);
+
+    // PATCH: beberapa ISP (terkonfirmasi terjadi di IndiHome, TIDAK terjadi
+    // di Telkomsel) memakai proxy transparan yang bisa mengubah request
+    // POST jadi GET saat mengikuti redirect internal Google Apps Script
+    // (perilaku standar fetch(): redirect kode 301/302/303 untuk POST
+    // otomatis diubah jadi GET oleh browser -- backend lalu menjawab lewat
+    // doGet(), bukan doPost(), karena itu pesannya "hanya menerima POST").
+    // Ini MURNI gangguan jaringan di luar kendali kode kita, tapi sering
+    // cuma terjadi SEKALI (percobaan ulang lewat koneksi baru biasanya
+    // berhasil) -- jadi dicoba ulang OTOMATIS 1x di sini sebelum
+    // benar-benar dianggap gagal, supaya pengguna tidak perlu refresh
+    // manual untuk gangguan sesaat semacam ini.
+    if (response && response.success === false && typeof response.message === 'string' && response.message.indexOf('hanya menerima POST') !== -1) {
+        console.warn('Terdeteksi POST berubah jadi GET (kemungkinan proxy ISP) -- mencoba ulang sekali...');
+        response = await postJsonSekaliCoba_(body);
+    }
 
     // PATCH: deteksi sessionExpired dari SEMUA response POST.
     // action:'login' tidak pernah mengirim flag ini, jadi aman untuk dicek
@@ -124,6 +131,22 @@ async function postJson(body) {
     }
 
     return response;
+}
+
+// Logika POST sebenarnya (1 kali percobaan) -- dipisah dari postJson()
+// supaya bisa dipanggil ulang untuk percobaan ke-2 di atas, tanpa
+// duplikasi kode.
+async function postJsonSekaliCoba_(body) {
+    return await fetchWithTimeout(CONFIG.BACKEND_URL, {
+        method: 'POST',
+        headers: {
+            // PENTING: JANGAN ganti ke 'application/json'.
+            // 'text/plain' = simple content-type = tidak ada preflight OPTIONS.
+            // Backend tetap bisa JSON.parse() isinya seperti biasa.
+            'Content-Type': 'text/plain;charset=utf-8'
+        },
+        body: JSON.stringify(body)
+    });
 }
 
 // Login user
