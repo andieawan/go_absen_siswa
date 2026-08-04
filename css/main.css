@@ -15,11 +15,11 @@
    (dan idealnya juga versi di index.html), supaya browser pengguna
    benar-benar ambil ulang, bukan diam-diam pakai cache lama.
 */
-@import url('variables.css?v=20260731p');
-@import url('reset.css?v=20260731p');
-@import url('layout.css?v=20260731p');
-@import url('components.css?v=20260731p');
-@import url('utilities.css?v=20260731p');
+@import url('variables.css?v=20260731q');
+@import url('reset.css?v=20260731q');
+@import url('layout.css?v=20260731q');
+@import url('components.css?v=20260731q');
+@import url('utilities.css?v=20260731q');
 
 /* PATCH: app-ui.css berisi perbaikan mismatch nama class
    (.btn-primary vs .btn--primary, dll) dan class yang tadinya
@@ -27,7 +27,7 @@
    Diimpor PALING TERAKHIR supaya melengkapi tanpa menimpa
    style yang sudah benar di file-file sebelumnya. Lihat
    komentar di dalam app-ui.css untuk detail lengkap. */
-@import url('app-ui.css?v=20260731p');
+@import url('app-ui.css?v=20260731q');
 
 /* 
   Catatan untuk Developer:
