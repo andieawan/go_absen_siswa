@@ -45,9 +45,9 @@ import {
     getKegiatanNilai,
     getNilaiUntukKegiatan,
     hapusKegiatanNilai
-} from './api.js?v=20260731p';
-import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731p';
-import { showConfirm } from './modal.js?v=20260731p';
+} from './api.js?v=20260731q';
+import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731q';
+import { showConfirm } from './modal.js?v=20260731q';
 
 // Cache daftar siswa per kelas supaya tidak fetch berulang kali
 // dalam satu sesi dashboard yang sama.
