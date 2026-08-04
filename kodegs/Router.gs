@@ -551,6 +551,18 @@ function doPost(e) {
         return getRingkasanNilaiUntukDashboard(data.mapel, data.kelas);
       });
 
+    // ===== FITUR: Integrasi Aplikasi Manajemen BK (lihat kodegs/BKIntegrasi.gs)
+    // -- action read-only, khusus role 'bk' atau 'superadmin', TIDAK
+    // dibatasi ke kelasList akun pemanggil (BK memang perlu akses lintas
+    // kelas). =====
+    } else if (data.action === 'getAbsenUntukBK' && data.kelas) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'bk') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak mengakses data ini." };
+        }
+        return { success: true, data: getAbsenUntukBK(data.kelas) };
+      });
+
     // ===== FIX: fallback eksplisit untuk action tak dikenal / parameter kurang =====
     } else {
       response.message = "Aksi tidak dikenali atau parameter tidak lengkap: " + (data.action || '(kosong)');
