@@ -164,6 +164,17 @@
   transition: transform 0.3s ease;
   position: relative;
   z-index: 10000;
+  /* PATCH BUG: sebelumnya TIDAK ADA batas tinggi & tidak bisa di-scroll
+     sendiri -- kalau isinya panjang (mis. popup Detail Siswa dengan
+     banyak riwayat Sakit/Izin/Alpa), kotak modal ikut memanjang tanpa
+     batas, mendorong SELURUH HALAMAN jadi scroll, bukan modalnya sendiri
+     yang scroll rapi. Sekarang dibatasi tinggi maksimum + dijadikan flex
+     column -- judul & tombol OK tetap terlihat di posisi tetap (atas &
+     bawah), cuma bagian isi (.modal-message) yang scroll sendiri kalau
+     kepanjangan. */
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-overlay.active .modal-box {
@@ -177,6 +188,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  /* PATCH BUG: jaga-jaga supaya ikon tidak ikut menyusut sekarang
+     .modal-box jadi flex column (lihat .modal-box) -- perilaku default
+     flexbox seharusnya sudah aman (elemen tanpa flex-grow tidak
+     menyusut kalau ada saudara lain yang punya flex:1), ini cuma
+     penguat eksplisit. */
+  flex-shrink: 0;
   margin: 0 auto var(--spacing-4);
   font-size: 2rem;
   font-weight: bold;
@@ -602,12 +619,26 @@
   font-weight: var(--font-weight-semibold);
   color: var(--gray-800);
   margin-bottom: var(--spacing-3);
+  flex-shrink: 0; /* PATCH BUG: sama seperti .modal-icon -- jaga-jaga */
 }
 
 .modal-message {
   color: var(--gray-600);
   margin-bottom: var(--spacing-5);
   line-height: 1.6;
+  /* PATCH BUG: bagian INI yang scroll sendiri kalau isinya panjang
+     (lihat penjelasan lengkap di .modal-box) -- flex:1 supaya mengisi
+     ruang tersisa di antara judul (tetap di atas) dan tombol (tetap di
+     bawah), min-height:0 WAJIB ada supaya flex+overflow bekerja benar
+     (tanpanya, elemen flex secara default menolak menyusut lebih kecil
+     dari isinya, jadi overflow tidak akan pernah terpicu). Perataan teks
+     SENGAJA TIDAK diubah (tetap ikut rata-tengah dari .modal-box induk)
+     -- supaya modal alert/konfirmasi sederhana yang sudah ada (pesan
+     pendek 1 baris) tidak ikut berubah tampilannya.
+  */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .modal-btn-group {
