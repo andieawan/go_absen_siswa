@@ -45,9 +45,9 @@ import {
     getKegiatanNilai,
     getNilaiUntukKegiatan,
     hapusKegiatanNilai
-} from './api.js?v=20260731n';
-import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731n';
-import { showConfirm } from './modal.js?v=20260731n';
+} from './api.js?v=20260731o';
+import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731o';
+import { showConfirm } from './modal.js?v=20260731o';
 
 // Cache daftar siswa per kelas supaya tidak fetch berulang kali
 // dalam satu sesi dashboard yang sama.
@@ -485,11 +485,29 @@ function setupInputAbsensiForm(user) {
         return;
     }
 
+    // PATCH BUG KRITIS: penjaga terhadap respons yang datang TIDAK
+    // BERURUTAN -- sebelumnya kalau guru ganti mapel/kelas dengan cepat
+    // (mis. DKV -> KIK) SEBELUM permintaan sebelumnya selesai, dan
+    // respons yang LEBIH LAMA kebetulan sampai BELAKANGAN (variasi
+    // jaringan), tabel siswa bisa menampilkan data existing attendance
+    // dari mapel/kelas yang SUDAH DITINGGALKAN, padahal dropdown sudah
+    // menunjukkan pilihan baru. Kalau guru submit tanpa sadar, data lama
+    // itu ikut tersimpan ke sheet mapel yang SEDANG dipilih -- persis
+    // gejala "kelas sama, mapel lain ikut tersimpan" yang dilaporkan.
+    // Diperbaiki dengan token permintaan: SETIAP kali reloadStudents()
+    // dipanggil, nomor uniknya dicatat -- begitu respons datang, HANYA
+    // dipakai kalau nomor itu MASIH nomor yang PALING BARU (belum ada
+    // pemanggilan reloadStudents() lain sesudahnya). Respons dari
+    // pemanggilan yang sudah "ditinggalkan" dibuang diam-diam.
+    let nomorPermintaanTerakhir = 0;
+
     async function reloadStudents() {
         const mapel = selectMapel?.value;
         const kelas = selectKelas?.value;
         const tanggal = tanggalInput?.value;
         if (!mapel || !kelas || !tanggal) return;
+
+        const nomorPermintaanIni = ++nomorPermintaanTerakhir;
 
         if (loadingEl) loadingEl.classList.remove('hidden');
         if (btnSubmit) btnSubmit.classList.add('hidden');
@@ -506,6 +524,13 @@ function setupInputAbsensiForm(user) {
                 ambilDaftarSiswa(kelas),
                 getExistingAttendance(user.nama, mapel, kelas, tanggal)
             ]);
+
+            // PATCH BUG KRITIS: kalau sudah ada pemanggilan reloadStudents()
+            // BARU yang dimulai SETELAH permintaan ini (guru sudah ganti
+            // pilihan lagi), buang hasil permintaan LAMA ini -- jangan
+            // sampai menimpa tabel yang seharusnya menampilkan data untuk
+            // pilihan TERBARU.
+            if (nomorPermintaanIni !== nomorPermintaanTerakhir) return;
 
             const existingMap = {};
             // PATCH: tandai apakah tanggal ini SUDAH ada datanya (mode
@@ -534,8 +559,14 @@ function setupInputAbsensiForm(user) {
             document.getElementById('studentsBody').innerHTML =
                 '<tr class="empty-row"><td colspan="3"><p class="empty-state">Gagal memuat data</p></td></tr>';
         } finally {
-            if (loadingEl) loadingEl.classList.add('hidden');
-            hideGlobalLoading();
+            // PATCH: sama seperti penjagaan di atas -- indikator loading
+            // cuma disembunyikan kalau ini MASIH permintaan yang paling
+            // baru, supaya tidak "menutup" loading milik permintaan yang
+            // lebih baru (yang mungkin masih berjalan) secara prematur.
+            if (nomorPermintaanIni === nomorPermintaanTerakhir) {
+                if (loadingEl) loadingEl.classList.add('hidden');
+                hideGlobalLoading();
+            }
         }
     }
 
@@ -887,9 +918,16 @@ function setupAbsenWaliPanel(user) {
 
     setupDelegasiKetuaKelas(user.kelasWali);
 
+    // PATCH BUG KRITIS: penjaga yang sama dengan reloadStudents() di Panel
+    // Input Guru Mapel -- cegah respons yang datang tidak berurutan
+    // menimpa tabel dengan data tanggal yang sudah ditinggalkan.
+    let nomorPermintaanWaliTerakhir = 0;
+
     async function reloadWaliStudents() {
         const tanggal = waliTanggal?.value;
         if (!tanggal) return;
+
+        const nomorPermintaanIni = ++nomorPermintaanWaliTerakhir;
 
         if (waliLoading) waliLoading.classList.remove('hidden');
         if (waliBtnSubmit) waliBtnSubmit.classList.add('hidden');
@@ -902,6 +940,9 @@ function setupAbsenWaliPanel(user) {
                 ambilDaftarSiswa(user.kelasWali),
                 getAbsenWaliExisting(user.kelasWali, tanggal)
             ]);
+
+            if (nomorPermintaanIni !== nomorPermintaanWaliTerakhir) return;
+
             const existingMap = (existingRes.success && existingRes.data) ? existingRes.data : {};
             // PATCH: sama seperti reloadStudents() -- ganti label tombol
             // submit jadi "Update Absensi" kalau tanggal ini sudah ada
@@ -916,8 +957,10 @@ function setupAbsenWaliPanel(user) {
         } catch (err) {
             showNotification('Gagal memuat data siswa: ' + err.message, 'error');
         } finally {
-            if (waliLoading) waliLoading.classList.add('hidden');
-            hideGlobalLoading();
+            if (nomorPermintaanIni === nomorPermintaanWaliTerakhir) {
+                if (waliLoading) waliLoading.classList.add('hidden');
+                hideGlobalLoading();
+            }
         }
     }
 
@@ -1043,6 +1086,14 @@ function setupInputNilaiForm(user) {
     }
     perbaruiOpsiKelasNilai();
 
+    // PATCH BUG KRITIS: penjaga yang sama dengan reloadStudents() di Panel
+    // Input Absensi -- cegah respons yang datang tidak berurutan menimpa
+    // form Nilai dengan data mapel/kelas/kegiatan yang sudah ditinggalkan
+    // (mis. guru cepat ganti mapel sebelum permintaan sebelumnya selesai,
+    // lalu tidak sadar tabel masih menampilkan nilai mapel lama -- kalau
+    // disimpan, nilai lama itu ikut tersimpan ke mapel yang SEDANG dipilih).
+    let nomorPermintaanNilaiTerakhir = 0;
+
     async function muatDaftarKegiatan() {
         const mapel = selectMapel.value;
         const kelas = selectKelas.value;
@@ -1053,15 +1104,20 @@ function setupInputNilaiForm(user) {
             return;
         }
 
+        const nomorPermintaanIni = ++nomorPermintaanNilaiTerakhir;
+
         selectKegiatan.disabled = false;
         try {
             const res = await getKegiatanNilai(mapel, kelas);
+            if (nomorPermintaanIni !== nomorPermintaanNilaiTerakhir) return;
+
             const daftar = res.success ? res.data : [];
             selectKegiatan.innerHTML = '<option value="">+ Buat Kegiatan Baru</option>' +
                 daftar.map(k => `<option value="${escapeHtml(k.kegiatanId)}">${escapeHtml(k.namaKegiatan)} (${escapeHtml(k.tanggalKegiatan)})</option>`).join('');
             selectKegiatan.value = ''; // default: mode buat baru, tiap kali kelas/mapel berganti
             await muatKegiatanTerpilih();
         } catch (err) {
+            if (nomorPermintaanIni !== nomorPermintaanNilaiTerakhir) return;
             showNotification('Gagal memuat daftar kegiatan: ' + err.message, 'error');
         }
     }
@@ -1072,12 +1128,15 @@ function setupInputNilaiForm(user) {
         const kegiatanId = selectKegiatan.value;
         if (!mapel || !kelas) return;
 
+        const nomorPermintaanIni = ++nomorPermintaanNilaiTerakhir;
+
         detailWrapper?.classList.remove('hidden');
         if (loadingEl) loadingEl.classList.remove('hidden');
         showGlobalLoading('Mengambil data...');
 
         try {
             const students = await ambilDaftarSiswa(kelas);
+            if (nomorPermintaanIni !== nomorPermintaanNilaiTerakhir) return;
 
             if (!kegiatanId) {
                 // Mode: buat kegiatan baru
@@ -1091,6 +1150,7 @@ function setupInputNilaiForm(user) {
             } else {
                 // Mode: edit kegiatan yang sudah ada
                 const res = await getNilaiUntukKegiatan(mapel, kelas, kegiatanId);
+                if (nomorPermintaanIni !== nomorPermintaanNilaiTerakhir) return;
                 if (!res.success) {
                     showNotification(res.message || 'Gagal memuat kegiatan.', 'error');
                     return;
@@ -1105,10 +1165,13 @@ function setupInputNilaiForm(user) {
                 if (btnTextEl) btnTextEl.textContent = '🔄 Update Nilai';
             }
         } catch (err) {
+            if (nomorPermintaanIni !== nomorPermintaanNilaiTerakhir) return;
             showNotification('Gagal memuat data: ' + err.message, 'error');
         } finally {
-            if (loadingEl) loadingEl.classList.add('hidden');
-            hideGlobalLoading();
+            if (nomorPermintaanIni === nomorPermintaanNilaiTerakhir) {
+                if (loadingEl) loadingEl.classList.add('hidden');
+                hideGlobalLoading();
+            }
         }
     }
 
