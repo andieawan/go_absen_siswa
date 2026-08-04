@@ -28,7 +28,7 @@
  * =========================================================
  */
 
-import { getDashboardData, getDetailSiswaPerhatian, getDetailSiswaPerhatianWali, getDashboardDataWali, getDashboardSekolah, getSiswaByKelas, getCurrentUser, getRingkasanNilaiUntukDashboard } from './api.js?v=20260731m';
+import { getDashboardData, getDetailSiswaPerhatian, getDetailSiswaPerhatianWali, getDashboardDataWali, getDashboardSekolah, getSiswaByKelas, getCurrentUser, getRingkasanNilaiUntukDashboard } from './api.js?v=20260731n';
 // PATCH PERFORMA: escapeHtml dipakai dari utils.js (regex string-replace),
 // bukan implementasi lokal yang sebelumnya ada di file ini. Implementasi
 // lama membuat elemen <div> DOM baru pada SETIAP pemanggilan (lihat riwayat
@@ -36,9 +36,9 @@ import { getDashboardData, getDetailSiswaPerhatian, getDetailSiswaPerhatianWali,
 // terpanggil berulang kali di dalam .map()/.forEach() saat merender daftar
 // topAlpa & rekap kelas/mapel. Juga menghapus duplikasi kode yang sama
 // persis fungsinya dengan utils.js.
-import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731m';
-import { showRichModal } from './modal.js?v=20260731m';
-import { navigasiKeEditAbsensi } from './absensi.js?v=20260731m';
+import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731n';
+import { showRichModal } from './modal.js?v=20260731n';
+import { navigasiKeEditAbsensi } from './absensi.js?v=20260731n';
 
 // Cache untuk data dashboard
 let dashboardCache = {

@@ -46,9 +46,9 @@
  * =========================================================
  */
 
-import { CONFIG } from './config.js?v=20260731m';
-import { showNotification } from './utils.js?v=20260731m';
-import { setSsoCookie, getSsoCookie, deleteSsoCookie } from './ssocookie.js?v=20260731m';
+import { CONFIG } from './config.js?v=20260731n';
+import { showNotification } from './utils.js?v=20260731n';
+import { setSsoCookie, getSsoCookie, deleteSsoCookie } from './ssocookie.js?v=20260731n';
 
 // Helper untuk fetch dengan timeout dan error handling khusus Google Apps Script
 async function fetchWithTimeout(url, options = {}, timeout = CONFIG.DEFAULT_TIMEOUT) {
@@ -151,27 +151,48 @@ async function postJsonSekaliCoba_(body) {
 
 // Login user
 export async function login(username, password) {
+    const payload = { action: 'login', username: username, password: password };
+
     try {
-        const response = await postJson({
-            action: 'login',
-            username: username,
-            password: password
-        });
-
-        if (response.success) {
-            // PATCH SSO (revisi): disimpan lewat cookie ber-Domain induk
-            // (lihat js/ssoCookie.js) supaya bisa dibaca aplikasi lain di
-            // SUBDOMAIN BERBEDA, bukan lagi localStorage (yang tidak bisa
-            // dibagi antar subdomain). response.data sudah berisi
-            // token+username+profil lengkap.
-            setSsoCookie(response.data);
-        }
-
-        return response;
+        return await selesaikanLogin_(payload);
     } catch (error) {
+        // PATCH: Google Apps Script kadang butuh "cold start" (backend
+        // sempat idle beberapa saat, butuh waktu ekstra menghidupkan diri
+        // di percobaan pertama) -- gejalanya persis timeout yang muncul
+        // SEKALI-SEKALI (bukan konsisten setiap kali), lalu normal lagi di
+        // percobaan berikutnya. Login AMAN dicoba ulang otomatis (murni
+        // baca data, tidak menulis apa pun) -- BEDA dengan aksi
+        // simpan/tulis data yang SENGAJA TIDAK diberi retry otomatis
+        // serupa, karena berisiko tersimpan dobel kalau percobaan pertama
+        // sebenarnya sudah berhasil di server, cuma responsnya yang
+        // terlambat sampai ke browser.
+        if (error.message && error.message.indexOf('Request timeout') !== -1) {
+            console.warn('Login timeout (kemungkinan cold-start Apps Script) -- mencoba ulang sekali...');
+            try {
+                return await selesaikanLogin_(payload);
+            } catch (errorKedua) {
+                console.error('Login error (percobaan ke-2):', errorKedua);
+                throw errorKedua;
+            }
+        }
         console.error('Login error:', error);
         throw error;
     }
+}
+
+async function selesaikanLogin_(payload) {
+    const response = await postJson(payload);
+
+    if (response.success) {
+        // PATCH SSO (revisi): disimpan lewat cookie ber-Domain induk
+        // (lihat js/ssoCookie.js) supaya bisa dibaca aplikasi lain di
+        // SUBDOMAIN BERBEDA, bukan lagi localStorage (yang tidak bisa
+        // dibagi antar subdomain). response.data sudah berisi
+        // token+username+profil lengkap.
+        setSsoCookie(response.data);
+    }
+
+    return response;
 }
 
 // Logout user
