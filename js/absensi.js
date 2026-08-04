@@ -45,9 +45,9 @@ import {
     getKegiatanNilai,
     getNilaiUntukKegiatan,
     hapusKegiatanNilai
-} from './api.js?v=20260731o';
-import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731o';
-import { showConfirm } from './modal.js?v=20260731o';
+} from './api.js?v=20260731p';
+import { showNotification, escapeHtml, showGlobalLoading, hideGlobalLoading } from './utils.js?v=20260731p';
+import { showConfirm } from './modal.js?v=20260731p';
 
 // Cache daftar siswa per kelas supaya tidak fetch berulang kali
 // dalam satu sesi dashboard yang sama.
@@ -646,21 +646,33 @@ function setupRiwayatPanel(user) {
     }
     perbaruiOpsiKelasRiwayat();
 
+    // PATCH BUG (audit lanjutan): penjaga yang sama dengan reloadStudents()
+    // di Panel Input -- cegah daftar Riwayat menampilkan hasil dari
+    // mapel/kelas yang sudah ditinggalkan kalau guru ganti pilihan dengan
+    // cepat.
+    let nomorPermintaanRiwayatMapelTerakhir = 0;
+
     async function loadRiwayatMapel() {
         const mapel = riwayatMapel?.value;
         const kelas = riwayatKelas?.value;
         if (!mapel || !kelas) return;
 
+        const nomorPermintaanIni = ++nomorPermintaanRiwayatMapelTerakhir;
+
         if (riwayatLoading) riwayatLoading.classList.remove('hidden');
         showGlobalLoading('Mengambil riwayat absensi...');
         try {
             const res = await getRiwayatAbsensi(mapel, kelas);
+            if (nomorPermintaanIni !== nomorPermintaanRiwayatMapelTerakhir) return;
             renderRiwayatList(res, 'riwayatList', { mode: 'mapel', mapel, kelas });
         } catch (err) {
+            if (nomorPermintaanIni !== nomorPermintaanRiwayatMapelTerakhir) return;
             showNotification('Gagal memuat riwayat: ' + err.message, 'error');
         } finally {
-            if (riwayatLoading) riwayatLoading.classList.add('hidden');
-            hideGlobalLoading();
+            if (nomorPermintaanIni === nomorPermintaanRiwayatMapelTerakhir) {
+                if (riwayatLoading) riwayatLoading.classList.add('hidden');
+                hideGlobalLoading();
+            }
         }
     }
 
@@ -1271,21 +1283,33 @@ function setupRiwayatNilai(user) {
     }
     perbaruiOpsiKelasRiwayatNilai();
 
+    // PATCH BUG (audit lanjutan): penjaga yang sama dengan reloadStudents()
+    // di Panel Input -- cegah daftar Riwayat Nilai menampilkan hasil dari
+    // mapel/kelas yang sudah ditinggalkan kalau guru ganti pilihan dengan
+    // cepat.
+    let nomorPermintaanRiwayatNilaiTerakhir = 0;
+
     async function loadRiwayatNilai() {
         const mapel = selectMapel.value;
         const kelas = selectKelas.value;
         if (!mapel || !kelas) return;
 
+        const nomorPermintaanIni = ++nomorPermintaanRiwayatNilaiTerakhir;
+
         if (loadingEl) loadingEl.classList.remove('hidden');
         showGlobalLoading('Mengambil riwayat nilai...');
         try {
             const res = await getKegiatanNilai(mapel, kelas);
+            if (nomorPermintaanIni !== nomorPermintaanRiwayatNilaiTerakhir) return;
             renderRiwayatNilaiList(res, mapel, kelas);
         } catch (err) {
+            if (nomorPermintaanIni !== nomorPermintaanRiwayatNilaiTerakhir) return;
             showNotification('Gagal memuat riwayat nilai: ' + err.message, 'error');
         } finally {
-            if (loadingEl) loadingEl.classList.add('hidden');
-            hideGlobalLoading();
+            if (nomorPermintaanIni === nomorPermintaanRiwayatNilaiTerakhir) {
+                if (loadingEl) loadingEl.classList.add('hidden');
+                hideGlobalLoading();
+            }
         }
     }
 
