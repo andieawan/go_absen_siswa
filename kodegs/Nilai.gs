@@ -395,3 +395,126 @@ function getRekapNilaiKelasSaya(mapelListStr, kelasListStr) {
 
   return { success: true, data: sheetsRekap };
 }
+
+// =========================================================
+// TAHAP 4: RINGKASAN NILAI untuk Dashboard Per Mapel (digabung dengan
+// tren absensi di js/dashboard.js -- lihat analisisTrenMapel() &
+// buatSaranGabunganAbsenNilai() di sana)
+// ---------------------------------------------------------
+// HANYA kegiatan bertipe 'angka' yang dipakai untuk rata-rata & tren --
+// kegiatan 'huruf' (A/B/C/D/E) TIDAK ikut dihitung di sini, karena
+// skalanya beda dan tidak bisa dirata-rata bersama angka begitu saja
+// tanpa konversi yang bisa menyesatkan. Ini keterbatasan yang disengaja,
+// bukan bug -- kegiatan huruf tetap tersimpan & tetap muncul di Riwayat/
+// Rekap seperti biasa, cuma tidak ikut ke ringkasan tren numerik ini.
+//
+// PATCH PEMULIHAN: fungsi ini sempat HILANG dari deploy (kemungkinan
+// besar salah 1 revisi Nilai.gs yang diupload user tidak menyertakan
+// perubahan Tahap 4 ini) -- ditemukan lewat audit menyeluruh, dipulihkan
+// persis seperti rancangan aslinya.
+// =========================================================
+
+/**
+ * Ringkasan nilai untuk semua kombinasi mapel+kelas yang diajar guru --
+ * dipakai Dashboard Per Mapel untuk digabung dengan tren absensi.
+ * Mengembalikan { rataRataKeseluruhan, jumlahKegiatanAngka,
+ * turunNilai: [{ nis, kelas, nilaiAwal, nilaiAkhir }] }.
+ *
+ * "turunNilai" -- siswa yang rata-rata nilai PERTEMUAN AWALnya (separuh
+ * pertama kegiatan angka, urut tanggal) dibanding PERTEMUAN AKHIRnya
+ * (separuh kedua) turun >=5 poin. Ambang 5 poin (skala 0-100) dipilih
+ * lebih besar dari ambang 3 poin di tren absensi (skala persen) --
+ * variasi nilai tugas per tugas wajar lebih "berisik" daripada
+ * persentase kehadiran, jadi ambang lebih besar mengurangi
+ * kemungkinan menandai fluktuasi wajar sebagai "penurunan".
+ */
+function getRingkasanNilaiUntukDashboard(mapelListStr, kelasListStr) {
+  const mapelList = mapelListStr.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+  const kelasList = kelasListStr.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+
+  let totalNilai = 0;
+  let totalTerhitung = 0;
+  let jumlahKegiatanAngka = 0;
+  const turunNilai = [];
+
+  kelasList.forEach(function(kelas) {
+    let ss;
+    try {
+      ss = getNilaiSs(kelas, todayISO());
+    } catch (e) {
+      return;
+    }
+
+    mapelList.forEach(function(mapel) {
+      const sheetName = (kelas + "_" + mapel).replace(/[^a-zA-Z0-9]/g, "_");
+      const sheet = ss.getSheetByName(sheetName);
+      if (!sheet) return;
+
+      const data = sheet.getDataRange().getValues();
+      if (data.length <= 1) return;
+
+      // Kumpulkan HANYA kegiatan bertipe 'angka', urut tanggal.
+      const kegiatanAngka = [];
+      for (let i = 1; i < data.length; i++) {
+        if (!data[i][4] || data[i][7] !== 'angka') continue;
+        let nilaiPerSiswa = {};
+        try { nilaiPerSiswa = JSON.parse(data[i][8] || '{}'); } catch (e) { /* rusak -- anggap kosong */ }
+        kegiatanAngka.push({ tanggal: data[i][6], nilaiPerSiswa: nilaiPerSiswa });
+      }
+      if (kegiatanAngka.length === 0) return;
+      kegiatanAngka.sort(function(a, b) { return new Date(a.tanggal) - new Date(b.tanggal); });
+      jumlahKegiatanAngka += kegiatanAngka.length;
+
+      // Rata-rata keseluruhan (semua nilai, semua siswa, semua kegiatan angka)
+      kegiatanAngka.forEach(function(k) {
+        Object.keys(k.nilaiPerSiswa).forEach(function(nis) {
+          const n = parseFloat(k.nilaiPerSiswa[nis]);
+          if (!isNaN(n)) { totalNilai += n; totalTerhitung++; }
+        });
+      });
+
+      // Tren per siswa -- cuma dihitung kalau ada minimal 2 kegiatan
+      // angka, supaya "sebelum vs sesudah" punya arti (1 kegiatan saja
+      // tidak punya tren untuk dibandingkan).
+      if (kegiatanAngka.length < 2) return;
+      const tengah = Math.ceil(kegiatanAngka.length / 2);
+      const paruhAwal = kegiatanAngka.slice(0, tengah);
+      const paruhAkhir = kegiatanAngka.slice(tengah);
+
+      const semuaNis = {};
+      kegiatanAngka.forEach(function(k) { Object.keys(k.nilaiPerSiswa).forEach(function(nis) { semuaNis[nis] = true; }); });
+
+      Object.keys(semuaNis).forEach(function(nis) {
+        const nilaiAwal = rataRataNilaiSiswa_(paruhAwal, nis);
+        const nilaiAkhir = rataRataNilaiSiswa_(paruhAkhir, nis);
+        if (nilaiAwal === null || nilaiAkhir === null) return; // siswa ini tidak lengkap di salah satu paruh -- lewati, bukan salah paksa jadi 0
+        if (nilaiAwal - nilaiAkhir >= 5) {
+          turunNilai.push({ nis: nis, kelas: kelas, nilaiAwal: Math.round(nilaiAwal * 10) / 10, nilaiAkhir: Math.round(nilaiAkhir * 10) / 10 });
+        }
+      });
+    });
+  });
+
+  return {
+    success: true,
+    data: {
+      rataRataKeseluruhan: totalTerhitung > 0 ? Math.round((totalNilai / totalTerhitung) * 10) / 10 : null,
+      jumlahKegiatanAngka: jumlahKegiatanAngka,
+      turunNilai: turunNilai
+    }
+  };
+}
+
+// Rata-rata nilai 1 siswa dari sekumpulan kegiatan -- `null` kalau
+// siswa itu TIDAK MUNCUL SAMA SEKALI di kumpulan itu (bukan 0, supaya
+// tidak salah dianggap "nilai 0" padahal cuma belum dinilai/absen di
+// kegiatan-kegiatan itu).
+function rataRataNilaiSiswa_(kegiatanList, nis) {
+  let total = 0;
+  let jumlah = 0;
+  kegiatanList.forEach(function(k) {
+    const n = parseFloat(k.nilaiPerSiswa[nis]);
+    if (!isNaN(n)) { total += n; jumlah++; }
+  });
+  return jumlah > 0 ? (total / jumlah) : null;
+}

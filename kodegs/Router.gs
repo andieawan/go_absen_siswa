@@ -465,6 +465,92 @@ function doPost(e) {
         return getRekapNilaiKelasSaya(data.mapel, data.kelas);
       });
 
+    // ===== PATCH PEMULIHAN: 8 action di bawah ini SEMPAT HILANG dari
+    // deploy (kemungkinan besar salah 1 revisi Router.gs yang diupload
+    // user tidak menyertakan perubahan ini) -- ditemukan lewat audit
+    // menyeluruh, dipulihkan persis seperti rancangan aslinya.
+
+    // ===== FITUR: Kelola Data Siswa (Panel Admin) -- semua action di
+    // bawah ini khusus admin/superadmin, sama seperti kelola akun guru. =====
+    } else if (data.action === 'getDaftarKelasMaster') {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'admin') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak mengakses daftar kelas." };
+        }
+        return getDaftarKelasMaster();
+      });
+
+    } else if (data.action === 'getDaftarSiswaUntukAdmin' && data.kelas) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'admin') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak mengakses data siswa." };
+        }
+        return getDaftarSiswaUntukAdmin(data.kelas);
+      });
+
+    } else if (data.action === 'tambahSiswaBaru' && data.kelas && data.nis && data.nama) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'admin') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak menambah siswa." };
+        }
+        return tambahSiswaBaru(data.kelas, data.nis, data.nama, data.jk);
+      });
+
+    } else if (data.action === 'updateSiswa' && data.kelas && data.nis && data.dataBaru) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'admin') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak mengubah data siswa." };
+        }
+        return updateSiswa(data.kelas, data.nis, data.dataBaru);
+      });
+
+    } else if (data.action === 'nonaktifkanSiswa' && data.kelas && data.nis) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'admin') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak menonaktifkan siswa." };
+        }
+        return nonaktifkanSiswa(data.kelas, data.nis);
+      });
+
+    } else if (data.action === 'aktifkanKembaliSiswa' && data.kelas && data.nis) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'admin') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak mengaktifkan siswa." };
+        }
+        return aktifkanKembaliSiswa(data.kelas, data.nis);
+      });
+
+    } else if (data.action === 'uploadSiswaBatch' && data.kelas && data.daftarSiswa) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'admin') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak mengupload data siswa." };
+        }
+        return uploadSiswaBatch(data.kelas, data.daftarSiswa);
+      });
+
+    // ===== FITUR NILAI (Tahap 4): ringkasan nilai untuk digabung dengan
+    // tren absensi di Dashboard Per Mapel -- sama persis pola otorisasi
+    // dengan getRekapNilaiKelasSaya() di atas (request gabungan, aman
+    // karena penyimpanan data nilai sudah digerbang ketat lewat
+    // kelasBolehUntukMapel() di simpanKegiatanNilai). =====
+    } else if (data.action === 'getRingkasanNilaiUntukDashboard' && data.mapel && data.kelas) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        const mapelDiminta = splitList(data.mapel);
+        const kelasDiminta = splitList(data.kelas);
+
+        if (mapelDiminta.length === 0 || kelasDiminta.length === 0) {
+          return { success: false, message: "Mata pelajaran atau kelas tidak valid." };
+        }
+
+        const semuaMapelValid = mapelDiminta.every(m => akun.mapelList.indexOf(m) !== -1);
+        const semuaKelasValid = kelasDiminta.every(k => akun.kelasList.indexOf(k) !== -1);
+
+        if (!semuaMapelValid || !semuaKelasValid) {
+          return { success: false, message: "Anda tidak berhak mengakses ringkasan nilai ini." };
+        }
+        return getRingkasanNilaiUntukDashboard(data.mapel, data.kelas);
+      });
+
     // ===== FIX: fallback eksplisit untuk action tak dikenal / parameter kurang =====
     } else {
       response.message = "Aksi tidak dikenali atau parameter tidak lengkap: " + (data.action || '(kosong)');
