@@ -563,6 +563,19 @@ function doPost(e) {
         return { success: true, data: getAbsenUntukBK(data.kelas) };
       });
 
+    // ===== FITUR: Integrasi Aplikasi Manajemen BK -- simpan absensi
+    // manual (lihat catatan lengkap di simpanAbsenUntukBK(),
+    // kodegs/BKIntegrasi.gs). Sama seperti getAbsenUntukBK di atas:
+    // khusus role 'bk' atau 'superadmin', TIDAK dibatasi ke kelasList
+    // akun pemanggil. =====
+    } else if (data.action === 'simpanAbsenUntukBK' && data.kelas && data.tanggal && data.dataKehadiran) {
+      response = handleGetDenganValidasi(data.username, data.token, function(akun) {
+        if (!punyaRole(akun, 'bk') && !punyaRole(akun, 'superadmin')) {
+          return { success: false, message: "Anda tidak berhak mengakses data ini." };
+        }
+        return simpanAbsenUntukBK(data.kelas, data.tanggal, data.dataKehadiran);
+      });
+
     // ===== FIX: fallback eksplisit untuk action tak dikenal / parameter kurang =====
     } else {
       response.message = "Aksi tidak dikenali atau parameter tidak lengkap: " + (data.action || '(kosong)');
