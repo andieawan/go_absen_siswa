@@ -33,3 +33,30 @@ function getAbsenUntukBK(kelas) {
     };
   });
 }
+
+/**
+ * Simpan absensi manual 1 kelas untuk 1 tanggal, dipanggil dari
+ * Aplikasi Manajemen BK (fitur "Presensi & Keterlambatan" -- BK mengisi
+ * absen manual, mis. hasil kunjungan langsung ke kelas).
+ *
+ * TIDAK menduplikasi logika penyimpanan -- murni pembungkus tipis di
+ * atas simpanAbsenWali() (AbsenWali.gs) yang SUDAH ADA & SUDAH TERUJI
+ * (validasi NIS terdaftar & status H/I/S/A, penguncian LockService
+ * cegah race condition, pola cari-baris-tanggal-lalu-update-atau-
+ * append). Data BK masuk KE SHEET YANG SAMA dengan absen harian wali
+ * kelas biasa (MAPEL_ABSEN_WALI = "Absen Harian") -- supaya tetap 1
+ * SUMBER KEBENARAN, bukan disimpan terpisah di data BK sendiri (sesuai
+ * prinsip arsitektur yang sudah disepakati).
+ *
+ * Parameter `pengirim` diisi "BK (Manual)" -- beda dari default "Wali
+ * Kelas" -- supaya baris yang diisi BK punya JEJAK AUDIT jelas di
+ * kolom "Nama Guru" pada sheet mentah, bisa dibedakan dari input wali
+ * kelas biasa (atau delegasi Ketua Kelas) kalau nanti perlu ditelusuri.
+ *
+ * `dataKehadiran`: [{ nis, status }], status salah satu dari H/I/S/A --
+ * format ini SAMA PERSIS dengan yang sudah diterima simpanAbsenWali(),
+ * TIDAK perlu konversi apa pun.
+ */
+function simpanAbsenUntukBK(kelas, tanggal, dataKehadiran) {
+  return simpanAbsenWali(kelas, tanggal, dataKehadiran, "BK (Manual)");
+}
